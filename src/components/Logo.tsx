@@ -1,11 +1,10 @@
 import React from 'react'
-import { Sparkles } from 'lucide-react'
 
 export interface LogoProps {
   /**
-   * - 'full': Símbolo com gradiente rose-amber + Wordmark "Fideliza" vertical
+   * - 'full': Símbolo caixa de presente + Wordmark "Fideliza" vertical
    * - 'horizontal': Símbolo + Wordmark lado a lado
-   * - 'symbol': Apenas o símbolo com ícone Sparkles
+   * - 'symbol': Apenas o símbolo da caixa de presente com F azul
    * - 'badge': Símbolo com fundo suave
    */
   variant?: 'full' | 'horizontal' | 'symbol' | 'badge'
@@ -16,38 +15,83 @@ export interface LogoProps {
 }
 
 /**
- * Símbolo oficial neutro: gradiente rose-amber com ícone Sparkles
+ * Símbolo oficial Fideliza: Caixa de presentes na cor laranja vibrante
+ * com laço/fita contrastante e a letra "F" em azul preenchendo a área frontal.
  */
 export const LogoSymbol: React.FC<{
   size?: number | string
   className?: string
   theme?: 'dark' | 'light'
   withBackground?: boolean
-}> = ({ size = 36, className = '', theme = 'light', withBackground = false }) => {
+}> = ({ size = 36, className = '', theme: _theme = 'light', withBackground = false }) => {
   const numericSize = typeof size === 'number' ? size : parseInt(String(size), 10) || 36
-  const iconSize = Math.max(14, Math.round(numericSize * 0.55))
+
+  const svgContent = (
+    <svg
+      width={numericSize}
+      height={numericSize}
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={`shrink-0 ${!withBackground ? className : ''}`}
+      aria-label="Símbolo Fideliza"
+    >
+      {/* Bow loops (laço superior) */}
+      <path d="M32 17.5 C23 8 12 9 14 16.5 C15.5 21 24 19 32 18 Z" fill="#EA580C" />
+      <path d="M32 17.5 C41 8 52 9 50 16.5 C48.5 21 40 19 32 18 Z" fill="#EA580C" />
+      {/* Ribbon tails (pontas do laço) */}
+      <path d="M30 18.5 L26 23 L28.5 23 L31.5 19.5 Z" fill="#C2410C" />
+      <path d="M34 18.5 L38 23 L35.5 23 L32.5 19.5 Z" fill="#C2410C" />
+      {/* Bow knot (nó do laço) */}
+      <ellipse cx="32" cy="18" rx="4" ry="3.2" fill="#C2410C" />
+
+      {/* Box lid (tampa da caixa) */}
+      <rect
+        x="8"
+        y="18"
+        width="48"
+        height="9"
+        rx="3"
+        fill="#F97316"
+        stroke="#EA580C"
+        strokeWidth="1"
+      />
+      {/* Lid center ribbon segment */}
+      <rect x="29" y="18" width="6" height="9" fill="#EA580C" />
+
+      {/* Box body (corpo da caixa de presente) */}
+      <rect
+        x="11"
+        y="26"
+        width="42"
+        height="33"
+        rx="5"
+        fill="#F97316"
+        stroke="#EA580C"
+        strokeWidth="1"
+      />
+
+      {/* Letter 'F' in Blue occupying front space (letra F em azul ocupando o espaço da caixa) */}
+      <path
+        d="M19 30.5 C19 29.7 19.7 29 20.5 29 H44.5 C45.3 29 46 29.7 46 30.5 V34.5 C46 35.3 45.3 36 44.5 36 H27 V40 H40.5 C41.3 40 42 40.7 42 41.5 V45 C42 45.8 41.3 46.5 40.5 46.5 H27 V54.5 C27 55.3 26.3 56 25.5 56 H20.5 C19.7 56 19 55.3 19 54.5 Z"
+        fill="#1D4ED8"
+      />
+    </svg>
+  )
 
   if (withBackground) {
     return (
       <div
-        style={{ width: numericSize, height: numericSize }}
-        className={`rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-800/40 flex items-center justify-center shrink-0 shadow-xs text-rose-600 ${className}`}
+        style={{ width: numericSize * 1.25, height: numericSize * 1.25 }}
+        className={`rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200/60 dark:border-orange-800/40 flex items-center justify-center shrink-0 shadow-xs ${className}`}
         aria-label="Símbolo Fideliza"
       >
-        <Sparkles style={{ width: iconSize, height: iconSize }} />
+        {svgContent}
       </div>
     )
   }
 
-  return (
-    <div
-      style={{ width: numericSize, height: numericSize }}
-      className={`rounded-2xl bg-gradient-to-tr from-rose-600 via-rose-500 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-500/20 ${className}`}
-      aria-label="Símbolo Fideliza"
-    >
-      <Sparkles style={{ width: iconSize, height: iconSize }} />
-    </div>
-  )
+  return svgContent
 }
 
 /**
@@ -116,7 +160,7 @@ export const Logo: React.FC<LogoProps> = ({
           </span>
           <span
             className={`font-semibold uppercase tracking-wider mt-0.5 ${
-              showTagline ? 'text-rose-500' : subtitleColor
+              showTagline ? 'text-orange-500' : subtitleColor
             } ${dimensions.subtitle}`}
           >
             Programa de Fidelidade
