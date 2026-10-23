@@ -13,6 +13,8 @@ import MerchantDashboard from './pages/MerchantDashboard'
 import CustomerDashboard from './pages/CustomerDashboard'
 import PlansPage from './pages/PlansPage'
 import HowItWorksPage from './pages/HowItWorksPage'
+import ConfirmVerificationPage from './pages/ConfirmVerificationPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { CompleteDocumentDialog } from './components/CompleteDocumentDialog'
 
@@ -31,6 +33,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Register />} />
+            <Route path="/confirmar-email" element={<ConfirmVerificationPage />} />
+            <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/lojista" element={<MerchantDashboard />} />
             <Route path="/cliente" element={<CustomerDashboard />} />

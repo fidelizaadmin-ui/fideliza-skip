@@ -15,11 +15,12 @@ interface AuthContextType {
     role: UserRole
     phone?: string
     document?: string
-  }) => Promise<UserRecord>
+  }) => Promise<{ user: UserRecord; verificationSent: boolean }>
   logout: () => void
   refreshUser: () => Promise<void>
   updateDocument: (documentValue: string) => Promise<UserRecord>
   generateCustomerCode: () => string
+  requestVerificationEmail: (email?: string) => Promise<{ success: boolean; message: string }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -35,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncUser = () => {
     if (pb.authStore.isValid && pb.authStore.record) {
-      const rec = pb.authStore.record as unknown as UserRecord
+      const rec = pb.authStore.record as any
       setUser({
         id: rec.id,
         email: rec.email,
@@ -45,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         phone: rec.phone,
         document: rec.document,
         avatar: rec.avatar,
+        verified: !!rec.verified,
         created: rec.created,
         updated: rec.updated,
       })
@@ -57,18 +59,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncUser()
     setIsLoading(false)
 
+    // Ao iniciar, se logado, tenta um refresh silencioso para trazer dados mais frescos (ex: verified)
+    if (pb.authStore.isValid) {
+      pb.collection('users')
+        .authRefresh()
+        .then(() => syncUser())
+        .catch(() => {
+          /* ignore refresh errors on boot */
+        })
+    }
+
     const unsubscribe = pb.authStore.onChange(() => {
       syncUser()
     })
 
+    // Sincroniza quando a janela/aba ganha foco (ex: usuário clicou no link de verificação em outra aba)
+    const handleFocus = () => {
+      if (pb.authStore.isValid) {
+        pb.collection('users')
+          .authRefresh()
+          .then(() => syncUser())
+          .catch(() => {
+            /* ignore refresh errors on focus */
+          })
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+
     return () => {
       unsubscribe()
+      window.removeEventListener('focus', handleFocus)
     }
   }, [])
 
   const login = async (email: string, pass: string): Promise<UserRecord> => {
     const authData = await pb.collection('users').authWithPassword(email.trim(), pass)
-    const rec = authData.record as unknown as UserRecord
+    const rec = authData.record as any
     const userData: UserRecord = {
       id: rec.id,
       email: rec.email,
@@ -78,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       phone: rec.phone,
       document: rec.document,
       avatar: rec.avatar,
+      verified: !!rec.verified,
       created: rec.created,
       updated: rec.updated,
     }
@@ -92,13 +120,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: UserRole
     phone?: string
     document?: string
-  }): Promise<UserRecord> => {
+  }): Promise<{ user: UserRecord; verificationSent: boolean }> => {
     const { email, password, name, role, phone, document } = params
     const customerCode = role === 'customer' ? generateCustomerCode() : undefined
+    const cleanEmail = email.trim()
 
-    // Create user
+    // 1. Create user
     await pb.collection('users').create({
-      email: email.trim(),
+      email: cleanEmail,
       password,
       passwordConfirm: password,
       name: name.trim(),
@@ -108,8 +137,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document: document?.trim(),
     })
 
-    // Auto log in
-    return await login(email, password)
+    // 2. Disparar e-mail de verificação (best-effort: erro no SMTP não quebra cadastro)
+    let verificationSent = false
+    try {
+      await pb.collection('users').requestVerification(cleanEmail)
+      verificationSent = true
+    } catch (verErr) {
+      console.warn('Não foi possível disparar e-mail de verificação no cadastro:', verErr)
+      verificationSent = false
+    }
+
+    // 3. Auto log in
+    const loggedUser = await login(cleanEmail, password)
+    return { user: loggedUser, verificationSent }
   }
 
   const logout = () => {
@@ -121,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (pb.authStore.isValid) {
       try {
         const fresh = await pb.collection('users').authRefresh()
-        const rec = fresh.record as unknown as UserRecord
+        const rec = fresh.record as any
         setUser({
           id: rec.id,
           email: rec.email,
@@ -131,11 +171,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: rec.phone,
           document: rec.document,
           avatar: rec.avatar,
+          verified: !!rec.verified,
           created: rec.created,
           updated: rec.updated,
         })
       } catch (err) {
         console.error('Failed to refresh user:', err)
+      }
+    }
+  }
+
+  const requestVerificationEmail = async (
+    targetEmail?: string,
+  ): Promise<{ success: boolean; message: string }> => {
+    const emailToSend = (targetEmail || user?.email || '').trim()
+    if (!emailToSend) {
+      return { success: false, message: 'Nenhum e-mail disponível para verificação.' }
+    }
+
+    try {
+      await pb.collection('users').requestVerification(emailToSend)
+      return {
+        success: true,
+        message:
+          'E-mail de confirmação enviado com sucesso! Verifique sua caixa de entrada e spam.',
+      }
+    } catch (err: any) {
+      console.error('Erro ao solicitar verificação de e-mail:', err)
+      const errDetail = err?.data?.message || err?.message || ''
+      if (
+        errDetail.toLowerCase().includes('mail') ||
+        errDetail.toLowerCase().includes('smtp') ||
+        err?.status === 400 ||
+        err?.status === 500
+      ) {
+        return {
+          success: false,
+          message:
+            'Não foi possível enviar o e-mail no momento. O serviço de envio pode estar indisponível temporariamente.',
+        }
+      }
+      return {
+        success: false,
+        message: 'Ocorreu um erro ao tentar reenviar o e-mail de confirmação.',
       }
     }
   }
@@ -169,6 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUser,
     updateDocument,
     generateCustomerCode,
+    requestVerificationEmail,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

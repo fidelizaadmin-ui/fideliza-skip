@@ -108,19 +108,18 @@ export default function Login() {
 
   const handleRequestPasswordReset = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!forgotEmail.trim()) return
+    const cleanEmail = forgotEmail.trim()
+    if (!cleanEmail) return
 
     setIsSendingReset(true)
     setResetError(null)
 
     try {
-      await pb.collection('users').requestPasswordReset(forgotEmail.trim())
+      await pb.collection('users').requestPasswordReset(cleanEmail)
       setResetSuccess(true)
     } catch (err: any) {
       console.error('Password reset request error:', err)
-      setResetError(
-        'Não foi possível enviar o e-mail de recuperação automaticamente no momento. Por favor, entre em contato com o suporte ou administrador para redefinir seu acesso.',
-      )
+      setResetError('Não foi possível enviar o e-mail agora. Contate o suporte.')
     } finally {
       setIsSendingReset(false)
     }

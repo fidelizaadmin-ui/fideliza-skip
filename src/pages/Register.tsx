@@ -90,7 +90,7 @@ export default function Register() {
     setIsLoading(true)
 
     try {
-      const user = await register({
+      const { user } = await register({
         name,
         email,
         password,
@@ -98,9 +98,9 @@ export default function Register() {
         phone: phone.trim(),
       })
 
-      if (user.role === 'admin') {
+      if (user?.role === 'admin') {
         navigate('/admin')
-      } else if (user.role === 'merchant') {
+      } else if (user?.role === 'merchant') {
         navigate('/lojista')
       } else {
         navigate('/cliente')

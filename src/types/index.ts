@@ -9,6 +9,7 @@ export interface UserRecord {
   phone?: string
   document?: string
   avatar?: string
+  verified?: boolean
   created: string
   updated: string
 }
