@@ -16,6 +16,8 @@ import {
   Loader2,
   CheckCircle2,
   Gift,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
@@ -29,6 +31,7 @@ export default function Register() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [phone, setPhone] = useState('')
   const [adminToken, setAdminToken] = useState('')
 
@@ -259,16 +262,27 @@ export default function Register() {
                 <Label htmlFor="pass" className="text-xs font-bold text-slate-700">
                   Senha (mínimo 8 caracteres)
                 </Label>
-                <Input
-                  id="pass"
-                  type="password"
-                  required
-                  minLength={8}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="rounded-xl border-slate-200 focus-visible:ring-rose-500"
-                />
+                <div className="relative">
+                  <Input
+                    id="pass"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="rounded-xl border-slate-200 focus-visible:ring-rose-500 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1 rounded-md transition-colors"
+                    title={showPassword ? 'Ocultar senha' : 'Exibir senha'}
+                    aria-label={showPassword ? 'Ocultar senha' : 'Exibir senha'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               {selectedRole === 'admin' && (
