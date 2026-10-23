@@ -95,6 +95,13 @@ export async function updateStore(
 
 export async function deleteStore(id: string): Promise<boolean> {
   try {
+    // Validação extra de segurança no serviço: colaborador não pode excluir loja
+    const authRecord = pb.authStore.record
+    if (authRecord?.role === 'collaborator') {
+      throw new Error(
+        'Acesso negado: colaboradores do administrador não têm permissão para excluir lojas.',
+      )
+    }
     return await pb.collection('stores').delete(id)
   } catch (error) {
     console.error('Error deleting store:', error)
@@ -424,4 +431,49 @@ export async function redeemReward(params: RedeemRewardParams): Promise<{
   })
 
   return { redemption, card: updatedCard }
+}
+
+// ==========================================
+// USERS & COLLABORATORS SERVICE
+// ==========================================
+export async function getCustomersAndCollaborators(): Promise<{
+  customers: UserRecord[]
+  collaborators: UserRecord[]
+}> {
+  try {
+    const records = await pb.collection('users').getFullList<UserRecord>({
+      filter: 'role = "customer" || role = "collaborator"',
+      sort: '-created',
+    })
+
+    const customers = records.filter((u) => u.role === 'customer')
+    const collaborators = records.filter((u) => u.role === 'collaborator')
+
+    return { customers, collaborators }
+  } catch (error) {
+    console.error('Error fetching customers and collaborators:', error)
+    return { customers: [], collaborators: [] }
+  }
+}
+
+export async function promoteToCollaborator(userId: string): Promise<UserRecord> {
+  const authRecord = pb.authStore.record
+  if (authRecord?.role !== 'admin') {
+    throw new Error('Apenas administradores podem promover usuários a colaborador.')
+  }
+
+  return await pb.collection('users').update<UserRecord>(userId, {
+    role: 'collaborator',
+  })
+}
+
+export async function demoteToCustomer(userId: string): Promise<UserRecord> {
+  const authRecord = pb.authStore.record
+  if (authRecord?.role !== 'admin') {
+    throw new Error('Apenas administradores podem reverter colaboradores para cliente.')
+  }
+
+  return await pb.collection('users').update<UserRecord>(userId, {
+    role: 'customer',
+  })
 }

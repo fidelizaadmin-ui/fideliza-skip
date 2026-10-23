@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-23T14:15:00.391Z",
+  "generatedAt": "2026-10-23T14:29:12.287Z",
   "collections": [
     {
       "name": "users",
@@ -8,7 +8,7 @@
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
         "create": "",
-        "update": "id = @request.auth.id",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || (id = @request.auth.id && @request.body.role:changed = false))",
         "delete": "id = @request.auth.id"
       },
       "fields": [
@@ -43,7 +43,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["admin", "merchant", "customer"]
+          "selectValues": ["admin", "merchant", "customer", "collaborator"]
         },
         {
           "name": "customer_code",
@@ -75,9 +75,9 @@
       "apiRules": {
         "list": "",
         "view": "",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && (@request.auth.role = 'admin' || @request.auth.role = 'collaborator')",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || @request.auth.role = 'collaborator')",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
       },
       "fields": [
         {
@@ -152,8 +152,8 @@
         "list": "",
         "view": "",
         "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || @request.auth.role = 'collaborator' || owner_id = @request.auth.id)",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'admin' || owner_id = @request.auth.id)"
       },
       "fields": [
         {

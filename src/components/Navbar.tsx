@@ -34,7 +34,7 @@ export const Navbar: React.FC = () => {
   }
 
   const getDashboardRoute = () => {
-    if (role === 'admin') return '/admin'
+    if (role === 'admin' || role === 'collaborator') return '/admin'
     if (role === 'merchant') return '/lojista'
     return '/cliente'
   }
@@ -44,6 +44,13 @@ export const Navbar: React.FC = () => {
       return (
         <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 gap-1">
           <ShieldCheck className="w-3 h-3" /> Administrador
+        </Badge>
+      )
+    }
+    if (role === 'collaborator') {
+      return (
+        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1">
+          <ShieldCheck className="w-3 h-3" /> Colaborador Admin
         </Badge>
       )
     }
@@ -94,6 +101,7 @@ export const Navbar: React.FC = () => {
                 className="hidden sm:inline-flex items-center gap-1.5 font-bold border-slate-200 text-slate-800 hover:bg-slate-50"
               >
                 {role === 'admin' && <ShieldCheck className="w-4 h-4 text-purple-600" />}
+                {role === 'collaborator' && <ShieldCheck className="w-4 h-4 text-blue-600" />}
                 {role === 'merchant' && <Store className="w-4 h-4 text-amber-600" />}
                 {role === 'customer' && <CreditCard className="w-4 h-4 text-emerald-600" />}
                 Minha Área
@@ -145,6 +153,8 @@ export const Navbar: React.FC = () => {
                   >
                     {role === 'admin' ? (
                       <ShieldCheck className="w-4 h-4 text-purple-600" />
+                    ) : role === 'collaborator' ? (
+                      <ShieldCheck className="w-4 h-4 text-blue-600" />
                     ) : role === 'merchant' ? (
                       <Store className="w-4 h-4 text-amber-600" />
                     ) : (
@@ -153,9 +163,11 @@ export const Navbar: React.FC = () => {
                     Painel{' '}
                     {role === 'admin'
                       ? 'Administrador'
-                      : role === 'merchant'
-                        ? 'do Lojista'
-                        : 'do Cliente'}
+                      : role === 'collaborator'
+                        ? 'do Colaborador'
+                        : role === 'merchant'
+                          ? 'do Lojista'
+                          : 'do Cliente'}
                   </DropdownMenuItem>
 
                   {role === 'customer' && (

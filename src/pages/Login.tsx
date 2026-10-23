@@ -35,7 +35,9 @@ export default function Login() {
   const [searchParams] = useSearchParams()
   const initialRole = (searchParams.get('tipo') as UserRole) || 'customer'
   const [selectedRole, setSelectedRole] = useState<UserRole>(
-    ['customer', 'merchant', 'admin'].includes(initialRole) ? initialRole : 'customer',
+    ['customer', 'merchant', 'admin', 'collaborator'].includes(initialRole)
+      ? initialRole
+      : 'customer',
   )
 
   const [email, setEmail] = useState('')
@@ -59,7 +61,7 @@ export default function Login() {
     setSelectedRole(demoRole)
     if (demoRole === 'admin') {
       setEmail('angelo.marcos_silva@hotmail.com')
-      setPassword('Skip@Pass')
+      setPassword('12345678')
     } else if (demoRole === 'merchant') {
       setEmail('lojista@fideliza.com')
       setPassword('Skip@Pass')
@@ -75,10 +77,16 @@ export default function Login() {
     setIsLoading(true)
 
     try {
-      await login(email, password)
-      if (selectedRole === 'admin') {
+      const loggedUser = await login(email, password)
+      // Redireciona com base no papel do usuário autenticado ou selecionado
+      if (
+        loggedUser.role === 'admin' ||
+        loggedUser.role === 'collaborator' ||
+        selectedRole === 'admin' ||
+        selectedRole === 'collaborator'
+      ) {
         navigate('/admin')
-      } else if (selectedRole === 'merchant') {
+      } else if (loggedUser.role === 'merchant' || selectedRole === 'merchant') {
         navigate('/lojista')
       } else {
         navigate('/cliente')
@@ -161,7 +169,7 @@ export default function Login() {
                   className="text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-xs flex items-center gap-1"
                 >
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  Admin
+                  Admin / Colaborador
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -239,8 +247,8 @@ export default function Login() {
                 ) : (
                   <>
                     Entrar como{' '}
-                    {selectedRole === 'admin'
-                      ? 'Administrador'
+                    {selectedRole === 'admin' || selectedRole === 'collaborator'
+                      ? 'Administrador / Colaborador'
                       : selectedRole === 'merchant'
                         ? 'Lojista'
                         : 'Cliente'}
