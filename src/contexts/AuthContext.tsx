@@ -18,6 +18,7 @@ interface AuthContextType {
   }) => Promise<UserRecord>
   logout: () => void
   refreshUser: () => Promise<void>
+  updateDocument: (documentValue: string) => Promise<UserRecord>
   generateCustomerCode: () => string
 }
 
@@ -139,6 +140,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const updateDocument = async (documentValue: string): Promise<UserRecord> => {
+    if (!user) {
+      throw new Error('Nenhum usuário autenticado.')
+    }
+    const clean = documentValue.replace(/\D/g, '')
+    const updated = await pb.collection('users').update(user.id, {
+      document: clean,
+    })
+    const rec = updated as unknown as UserRecord
+    const nextUser: UserRecord = {
+      ...user,
+      document: rec.document || clean,
+      updated: rec.updated,
+    }
+    setUser(nextUser)
+    return nextUser
+  }
+
   const value: AuthContextType = {
     user,
     role: user?.role || null,
@@ -148,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     logout,
     refreshUser,
+    updateDocument,
     generateCustomerCode,
   }
 

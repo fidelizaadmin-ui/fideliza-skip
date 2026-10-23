@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge'
 import {
   Sparkles,
   Store,
-  User,
   ShieldCheck,
   CreditCard,
   LogOut,
@@ -22,6 +21,7 @@ import {
   UserPlus,
   Compass,
 } from 'lucide-react'
+import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 
 export const Navbar: React.FC = () => {
   const { user, role, isAuthenticated, logout } = useAuth()
@@ -139,7 +139,9 @@ export const Navbar: React.FC = () => {
                       )}
                       {user.document && (
                         <p className="text-[10px] font-mono text-slate-500 px-1 pt-0.5">
-                          {user.role === 'merchant' ? 'CNPJ' : 'CPF'}: {user.document}
+                          {cleanDocument(user.document).length > 11
+                            ? `CNPJ: ${formatCNPJ(cleanDocument(user.document))}`
+                            : `CPF: ${formatCPF(cleanDocument(user.document))}`}
                         </p>
                       )}
                     </div>

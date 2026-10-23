@@ -14,6 +14,7 @@ import CustomerDashboard from './pages/CustomerDashboard'
 import PlansPage from './pages/PlansPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import { AuthProvider } from './contexts/AuthContext'
+import { CompleteDocumentDialog } from './components/CompleteDocumentDialog'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
@@ -24,6 +25,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <CompleteDocumentDialog />
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />

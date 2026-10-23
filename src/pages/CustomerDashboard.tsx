@@ -36,7 +36,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { formatCPF } from '@/lib/documentValidation'
+import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 
 export default function CustomerDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -166,7 +166,9 @@ export default function CustomerDashboard() {
                       className="border-amber-400/40 text-amber-300 font-mono text-[11px] py-0.5 px-2 bg-amber-400/10 gap-1"
                     >
                       <FileText className="w-3 h-3" />
-                      CPF: {formatCPF(user.document)}
+                      {cleanDocument(user.document).length > 11
+                        ? `CNPJ: ${formatCNPJ(cleanDocument(user.document))}`
+                        : `CPF: ${formatCPF(cleanDocument(user.document))}`}
                     </Badge>
                   )}
                 </div>
@@ -614,7 +616,9 @@ export default function CustomerDashboard() {
                 </div>
                 {user?.document && (
                   <p className="text-xs font-mono text-amber-400 font-semibold">
-                    CPF: {formatCPF(user.document)}
+                    {cleanDocument(user.document).length > 11
+                      ? `CNPJ: ${formatCNPJ(cleanDocument(user.document))}`
+                      : `CPF: ${formatCPF(cleanDocument(user.document))}`}
                   </p>
                 )}
                 <p className="text-xs text-amber-300 font-semibold">{user?.name}</p>

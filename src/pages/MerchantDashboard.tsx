@@ -68,6 +68,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 
 const CATEGORIES: StoreCategory[] = [
   'Alimentação',
@@ -693,7 +694,9 @@ export default function MerchantDashboard() {
                               <p className="text-[11px] text-slate-300">{foundCustomer.email}</p>
                               {foundCustomer.document && (
                                 <p className="text-[10px] text-amber-300 font-mono mt-0.5">
-                                  Doc: {foundCustomer.document}
+                                  {cleanDocument(foundCustomer.document).length > 11
+                                    ? `CNPJ: ${formatCNPJ(cleanDocument(foundCustomer.document))}`
+                                    : `CPF: ${formatCPF(cleanDocument(foundCustomer.document))}`}
                                 </p>
                               )}
                             </div>
