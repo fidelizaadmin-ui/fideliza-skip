@@ -37,6 +37,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
+import { LogoSymbol } from '@/components/Logo'
 
 export default function CustomerDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
