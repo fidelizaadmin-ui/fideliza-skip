@@ -79,10 +79,10 @@ export default function Login() {
       <div className="w-full max-w-md space-y-6">
         {/* Brand header */}
         <div className="text-center space-y-3">
-          <div className="p-4 rounded-3xl bg-[#0D2240] shadow-xl inline-block mx-auto border border-slate-800">
-            <Logo variant="full" theme="dark" size="lg" />
+          <div className="flex justify-center">
+            <Logo variant="full" theme="light" size="lg" />
           </div>
-          <p className="text-xs sm:text-sm text-slate-600 font-medium">
+          <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1">
             Selecione seu perfil e faça login com seu e-mail e senha
           </p>
         </div>
@@ -178,7 +178,7 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-5 rounded-xl font-black bg-[#0D2240] hover:bg-[#132c52] text-amber-400 hover:text-amber-300 shadow-md transition-all"
+                className="w-full py-5 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-md transition-all"
               >
                 {isLoading ? (
                   <>
@@ -236,7 +236,7 @@ export default function Login() {
           Ainda não tem conta?{' '}
           <Link
             to={`/cadastro?tipo=${selectedRole}`}
-            className="font-bold text-[#0D2240] hover:text-amber-600 underline underline-offset-2"
+            className="font-bold text-rose-600 hover:text-rose-700 underline underline-offset-2"
           >
             Cadastre-se como{' '}
             {selectedRole === 'admin'

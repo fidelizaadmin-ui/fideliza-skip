@@ -74,7 +74,6 @@ import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 import { generateSalesReportPDF } from '@/lib/pdfReport'
-import { Logo } from '@/components/Logo'
 
 const CATEGORIES: StoreCategory[] = [
   'Alimentação',
@@ -555,7 +554,9 @@ export default function MerchantDashboard() {
           </div>
 
           <div className="flex items-center gap-2.5 mt-1">
-            <Logo variant="symbol" theme="light" size="sm" />
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+              <Store className="w-5 h-5" />
+            </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {store ? store.name : 'Configurar Minha Loja'}
             </h1>

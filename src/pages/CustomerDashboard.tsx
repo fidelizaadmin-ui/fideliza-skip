@@ -37,7 +37,6 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
-import { Logo } from '@/components/Logo'
 
 export default function CustomerDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -132,23 +131,25 @@ export default function CustomerDashboard() {
 
         {/* DIGITAL PASS CARD / QR IDENTIFIER */}
         <div className="lg:col-span-5">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-tr from-[#08172c] via-[#0D2240] to-[#12294D] text-white p-6 shadow-2xl shadow-slate-950/40 border border-slate-800">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-900 text-white p-6 shadow-2xl shadow-slate-950/40 border border-slate-800">
             {/* Glow light */}
-            <div className="absolute top-0 right-0 w-36 h-36 bg-amber-400/15 rounded-full blur-2xl" />
+            <div className="absolute top-0 right-0 w-36 h-36 bg-rose-500/15 rounded-full blur-2xl" />
 
             <div className="relative z-10 flex items-start justify-between mb-5">
               <div className="flex items-center gap-2.5">
-                <Logo variant="symbol" theme="dark" size="sm" />
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center text-white shadow-sm">
+                  <CreditCard className="w-5 h-5" />
+                </div>
                 <div>
                   <span className="font-extrabold text-base tracking-tight text-white">
-                    Fideliza Pass
+                    Cartão Digital
                   </span>
-                  <span className="block text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                    FIDELIDADE QUE PREMIA
+                  <span className="block text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                    Fideliza
                   </span>
                 </div>
               </div>
-              <Badge className="bg-amber-400/20 text-amber-300 font-mono text-xs border-amber-400/30">
+              <Badge className="bg-emerald-500/20 text-emerald-300 font-mono text-xs border-emerald-500/30">
                 Ativo
               </Badge>
             </div>

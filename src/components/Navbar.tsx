@@ -64,21 +64,21 @@ export const Navbar: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-xs">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Brand com nova logomarca vetorial */}
+        {/* Brand */}
         <Link to="/" className="flex items-center group transition-transform hover:scale-[1.02]">
-          <Logo variant="horizontal" theme="light" size="sm" showTagline={true} />
+          <Logo variant="horizontal" theme="light" size="sm" showTagline={false} />
         </Link>
 
         {/* Center navigation links */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-700">
-          <Link to="/" className="flex items-center gap-1.5 hover:text-[#0D2240] transition-colors">
-            <Compass className="w-4 h-4 text-amber-500" />
+          <Link to="/" className="flex items-center gap-1.5 hover:text-rose-600 transition-colors">
+            <Compass className="w-4 h-4 text-rose-500" />
             Explorar Lojas
           </Link>
-          <Link to="/planos" className="hover:text-[#0D2240] transition-colors">
+          <Link to="/planos" className="hover:text-rose-600 transition-colors">
             Planos para Lojistas
           </Link>
-          <Link to="/como-funciona" className="hover:text-[#0D2240] transition-colors">
+          <Link to="/como-funciona" className="hover:text-rose-600 transition-colors">
             Como Funciona
           </Link>
         </nav>
@@ -91,7 +91,7 @@ export const Navbar: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate(getDashboardRoute())}
-                className="hidden sm:inline-flex items-center gap-1.5 font-bold border-[#0D2240]/20 text-[#0D2240] hover:bg-amber-50 hover:border-amber-400"
+                className="hidden sm:inline-flex items-center gap-1.5 font-bold border-slate-200 text-slate-800 hover:bg-slate-50"
               >
                 {role === 'admin' && <ShieldCheck className="w-4 h-4 text-purple-600" />}
                 {role === 'merchant' && <Store className="w-4 h-4 text-amber-600" />}
@@ -106,7 +106,7 @@ export const Navbar: React.FC = () => {
                     size="sm"
                     className="relative flex items-center gap-2 px-2 hover:bg-slate-100 rounded-full"
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#0D2240] text-amber-400 font-bold text-xs flex items-center justify-center shadow-xs">
+                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-xs">
                       {user.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <span className="hidden lg:inline-block text-xs font-semibold max-w-[120px] truncate text-slate-800">
@@ -193,7 +193,7 @@ export const Navbar: React.FC = () => {
               <Button
                 size="sm"
                 onClick={() => navigate('/cadastro')}
-                className="gap-1.5 bg-amber-400 hover:bg-amber-500 text-[#0D2240] font-black shadow-sm transition-all hover:shadow"
+                className="gap-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-sm transition-all hover:shadow"
               >
                 <UserPlus className="w-4 h-4" />
                 Criar Conta

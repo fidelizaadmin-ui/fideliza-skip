@@ -10,7 +10,7 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="space-y-3 md:col-span-1">
-            <Logo variant="horizontal" theme="dark" size="sm" showTagline={true} />
+            <Logo variant="horizontal" theme="dark" size="sm" showTagline={false} />
             <p className="text-xs text-slate-400 leading-relaxed pt-1">
               A plataforma completa de fidelidade que conecta lojas e clientes através de selos
               digitais, pontos e cashback em tempo real.
@@ -19,22 +19,22 @@ export const Footer: React.FC = () => {
 
           {/* Quick links */}
           <div>
-            <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider mb-3">
               Para Clientes
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <Link to="/" className="hover:text-amber-300 transition-colors">
+                <Link to="/" className="hover:text-white transition-colors">
                   Descobrir Lojas
                 </Link>
               </li>
               <li>
-                <Link to="/cliente" className="hover:text-amber-300 transition-colors">
+                <Link to="/cliente" className="hover:text-white transition-colors">
                   Meu Cartão Digital
                 </Link>
               </li>
               <li>
-                <Link to="/como-funciona" className="hover:text-amber-300 transition-colors">
+                <Link to="/como-funciona" className="hover:text-white transition-colors">
                   Como Acumular & Resgatar
                 </Link>
               </li>
@@ -43,25 +43,22 @@ export const Footer: React.FC = () => {
 
           {/* For merchants */}
           <div>
-            <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider mb-3">
               Para Lojistas
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <Link
-                  to="/cadastro?tipo=lojista"
-                  className="hover:text-amber-300 transition-colors"
-                >
+                <Link to="/cadastro?tipo=lojista" className="hover:text-white transition-colors">
                   Cadastrar Minha Loja
                 </Link>
               </li>
               <li>
-                <Link to="/planos" className="hover:text-amber-300 transition-colors">
+                <Link to="/planos" className="hover:text-white transition-colors">
                   Planos de Assinatura
                 </Link>
               </li>
               <li>
-                <Link to="/lojista" className="hover:text-amber-300 transition-colors">
+                <Link to="/lojista" className="hover:text-white transition-colors">
                   Painel do Lojista
                 </Link>
               </li>
@@ -70,14 +67,14 @@ export const Footer: React.FC = () => {
 
           {/* Admin and system */}
           <div>
-            <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider mb-3">
               Áreas do Sistema
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
                 <Link
                   to="/login"
-                  className="hover:text-amber-300 transition-colors flex items-center gap-1"
+                  className="hover:text-white transition-colors flex items-center gap-1"
                 >
                   <CreditCard className="w-3 h-3 text-emerald-400" /> Acesso Cliente
                 </Link>
@@ -85,7 +82,7 @@ export const Footer: React.FC = () => {
               <li>
                 <Link
                   to="/login?tipo=lojista"
-                  className="hover:text-amber-300 transition-colors flex items-center gap-1"
+                  className="hover:text-white transition-colors flex items-center gap-1"
                 >
                   <Store className="w-3 h-3 text-amber-400" /> Acesso Lojista
                 </Link>
@@ -93,7 +90,7 @@ export const Footer: React.FC = () => {
               <li>
                 <Link
                   to="/login?tipo=admin"
-                  className="hover:text-amber-300 transition-colors flex items-center gap-1"
+                  className="hover:text-white transition-colors flex items-center gap-1"
                 >
                   <ShieldCheck className="w-3 h-3 text-purple-400" /> Acesso Administrador
                 </Link>
@@ -103,10 +100,10 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <p>© {new Date().getFullYear()} Sistema Fideliza. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} Fideliza. Todos os direitos reservados.</p>
           <div className="flex items-center gap-1">
-            <span>Fidelidade que Premia</span>
-            <span className="text-amber-400 font-bold">•</span>
+            <span>Programa de Fidelidade</span>
+            <span className="text-rose-500 font-bold">•</span>
             <span>Comércio local valorizado</span>
           </div>
         </div>

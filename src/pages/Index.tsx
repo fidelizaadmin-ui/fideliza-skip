@@ -35,7 +35,7 @@ import {
   TrendingUp,
   MessageCircle,
 } from 'lucide-react'
-import { Logo } from '@/components/Logo'
+
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 
 const CATEGORIES: ('Todas' | StoreCategory)[] = [
@@ -154,27 +154,22 @@ export default function Index() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#08172c] via-[#0D2240] to-[#0A192F] text-white pt-12 pb-20 px-4">
+      <section className="relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white pt-12 pb-20 px-4">
         {/* Glow effects */}
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="container mx-auto max-w-5xl relative z-10 text-center">
-          {/* Logo Hero Highlight */}
-          <div className="mb-6 flex justify-center">
-            <div className="p-4 sm:p-5 rounded-3xl bg-[#0D2240]/80 border border-white/15 backdrop-blur-md shadow-2xl">
-              <Logo variant="full" theme="dark" size="lg" />
-            </div>
-          </div>
-
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-amber-300 mb-6">
-            <Sparkles className="w-4 h-4 text-amber-400" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-rose-300 mb-6">
+            <Sparkles className="w-4 h-4 text-rose-400" />
             <span>Fidelize clientes e ganhe recompensas em lojas locais</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight mb-5">
             Suas compras valem <br className="hidden sm:inline" />
-            <span className="text-amber-400">Selos, Pontos e Cashback</span>
+            <span className="bg-gradient-to-r from-rose-400 to-amber-300 bg-clip-text text-transparent">
+              Selos, Pontos e Cashback
+            </span>
           </h1>
 
           <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto mb-8 font-normal leading-relaxed">
@@ -200,7 +195,7 @@ export default function Index() {
             <Button
               type="submit"
               size="lg"
-              className="bg-amber-400 hover:bg-amber-500 text-[#0D2240] font-black px-7 rounded-xl shadow-md transition-all"
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-7 rounded-xl shadow-md transition-all"
             >
               Pesquisar
             </Button>
@@ -235,7 +230,7 @@ export default function Index() {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all duration-200 ${
                   selectedCategory === cat
-                    ? 'bg-[#0D2240] text-amber-400 shadow-sm font-bold'
+                    ? 'bg-rose-600 text-white shadow-sm font-bold'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >

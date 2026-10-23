@@ -58,7 +58,6 @@ import {
   Search,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { Logo } from '@/components/Logo'
 
 export default function AdminDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -306,10 +305,12 @@ export default function AdminDashboard() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-3">
-            <Logo variant="symbol" theme="light" size="sm" />
+            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <Badge className="bg-[#0D2240] text-amber-400 border-[#0D2240] gap-1 font-bold">
+                <Badge className="bg-purple-50 text-purple-700 border-purple-200 gap-1 font-bold">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   Painel do Administrador
                 </Badge>

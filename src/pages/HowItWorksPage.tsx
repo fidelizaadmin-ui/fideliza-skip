@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   ArrowRight,
 } from 'lucide-react'
-import { Logo } from '@/components/Logo'
 
 export default function HowItWorksPage() {
   const navigate = useNavigate()
@@ -23,12 +22,12 @@ export default function HowItWorksPage() {
       {/* Hero */}
       <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
         <div className="flex justify-center mb-2">
-          <div className="p-3.5 rounded-2xl bg-[#0D2240] shadow-lg">
-            <Logo variant="symbol" theme="dark" size="md" />
+          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-xs">
+            <Sparkles className="w-6 h-6" />
           </div>
         </div>
-        <Badge className="bg-[#0D2240] text-amber-400 border-[#0D2240] font-bold px-3 py-1">
-          Guia Rápido • Fidelidade que Premia
+        <Badge className="bg-amber-50 text-amber-700 border-amber-200 font-bold px-3 py-1">
+          Guia Rápido • Fideliza
         </Badge>
         <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
           Como funciona a plataforma Fideliza
