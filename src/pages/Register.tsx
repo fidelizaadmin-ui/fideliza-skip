@@ -38,9 +38,39 @@ export default function Register() {
   const { register } = useAuth()
   const navigate = useNavigate()
 
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 11)
+    if (digits.length <= 2) {
+      return digits.length > 0 ? `(${digits}` : ''
+    }
+    if (digits.length <= 7) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+    }
+    if (digits.length <= 10) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+    }
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`
+  }
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value)
+    setPhone(formatted)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg(null)
+
+    const phoneDigits = phone.replace(/\D/g, '')
+    if (!phoneDigits) {
+      setErrorMsg('Informe seu telefone com WhatsApp.')
+      return
+    }
+
+    if (phoneDigits.length < 10) {
+      setErrorMsg('Informe um telefone válido com DDD (ex: (11) 98765-4321).')
+      return
+    }
 
     if (password.length < 8) {
       setErrorMsg('A senha precisa ter pelo menos 8 caracteres.')
@@ -62,7 +92,7 @@ export default function Register() {
         email,
         password,
         role: selectedRole,
-        phone: phone || undefined,
+        phone: phone.trim(),
       })
 
       if (user.role === 'admin') {
@@ -211,14 +241,16 @@ export default function Register() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-xs font-bold text-slate-700">
-                  WhatsApp / Telefone (Opcional)
+                  WhatsApp / Telefone *
                 </Label>
                 <Input
                   id="phone"
-                  type="text"
+                  type="tel"
+                  required
                   placeholder="(11) 98765-4321"
+                  maxLength={15}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={handlePhoneChange}
                   className="rounded-xl border-slate-200 focus-visible:ring-rose-500"
                 />
               </div>
