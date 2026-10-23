@@ -183,12 +183,31 @@ export async function getCustomerCardForStore(
 export async function findCustomerByCodeOrEmail(identifier: string): Promise<UserRecord | null> {
   try {
     const clean = identifier.trim()
+    if (!clean) return null
+
+    // Extract digits in case user typed CPF/CNPJ with or without formatting
+    const digitsOnly = clean.replace(/\D/g, '')
+
+    // Build filter list
+    const conditions: string[] = [`customer_code = "${clean}"`, `email = "${clean}"`]
+
+    // If identifier has 11 or 14 digits, also search by document (raw digits or formatted)
+    if (digitsOnly.length === 11 || digitsOnly.length === 14) {
+      conditions.push(`document = "${digitsOnly}"`)
+      if (clean !== digitsOnly) {
+        conditions.push(`document = "${clean}"`)
+      }
+    } else if (clean.length > 0) {
+      // General document match
+      conditions.push(`document = "${clean}"`)
+    }
+
     const records = await pb.collection('users').getList<UserRecord>(1, 1, {
-      filter: `customer_code = "${clean}" || email = "${clean}"`,
+      filter: conditions.join(' || '),
     })
     return records.items[0] || null
   } catch (error) {
-    console.error('Error finding customer by code/email:', error)
+    console.error('Error finding customer by code/email/document:', error)
     return null
   }
 }

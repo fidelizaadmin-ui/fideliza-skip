@@ -14,6 +14,7 @@ interface AuthContextType {
     name: string
     role: UserRole
     phone?: string
+    document?: string
   }) => Promise<UserRecord>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -41,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: (rec.role as UserRole) || 'customer',
         customer_code: rec.customer_code,
         phone: rec.phone,
+        document: rec.document,
         avatar: rec.avatar,
         created: rec.created,
         updated: rec.updated,
@@ -73,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: (rec.role as UserRole) || 'customer',
       customer_code: rec.customer_code,
       phone: rec.phone,
+      document: rec.document,
       avatar: rec.avatar,
       created: rec.created,
       updated: rec.updated,
@@ -87,8 +90,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string
     role: UserRole
     phone?: string
+    document?: string
   }): Promise<UserRecord> => {
-    const { email, password, name, role, phone } = params
+    const { email, password, name, role, phone, document } = params
     const customerCode = role === 'customer' ? generateCustomerCode() : undefined
 
     // Create user
@@ -100,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role,
       customer_code: customerCode,
       phone: phone?.trim(),
+      document: document?.trim(),
     })
 
     // Auto log in
@@ -123,6 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: (rec.role as UserRole) || 'customer',
           customer_code: rec.customer_code,
           phone: rec.phone,
+          document: rec.document,
           avatar: rec.avatar,
           created: rec.created,
           updated: rec.updated,

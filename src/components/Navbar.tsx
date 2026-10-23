@@ -137,6 +137,11 @@ export const Navbar: React.FC = () => {
                           Cód: {user.customer_code}
                         </p>
                       )}
+                      {user.document && (
+                        <p className="text-[10px] font-mono text-slate-500 px-1 pt-0.5">
+                          {user.role === 'merchant' ? 'CNPJ' : 'CPF'}: {user.document}
+                        </p>
+                      )}
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

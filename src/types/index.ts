@@ -7,6 +7,7 @@ export interface UserRecord {
   role: UserRole
   customer_code?: string
   phone?: string
+  document?: string
   avatar?: string
   created: string
   updated: string

@@ -33,8 +33,10 @@ import {
   CheckCircle2,
   Copy,
   Check,
+  FileText,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { formatCPF } from '@/lib/documentValidation'
 
 export default function CustomerDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -153,17 +155,26 @@ export default function CustomerDashboard() {
                 Seu Código de Identificação
               </p>
               <div className="flex items-center justify-between bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/10">
-                <div className="flex items-center gap-2">
-                  <QrCode className="w-6 h-6 text-amber-400" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <QrCode className="w-6 h-6 text-amber-400 shrink-0" />
                   <span className="text-2xl font-mono font-black tracking-widest text-white">
                     {user?.customer_code || 'CLI-0000'}
                   </span>
+                  {user?.document && (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-400/40 text-amber-300 font-mono text-[11px] py-0.5 px-2 bg-amber-400/10 gap-1"
+                    >
+                      <FileText className="w-3 h-3" />
+                      CPF: {formatCPF(user.document)}
+                    </Badge>
+                  )}
                 </div>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={handleCopyCode}
-                  className="h-8 px-2 text-xs text-slate-200 hover:text-white hover:bg-white/20"
+                  className="h-8 px-2 text-xs text-slate-200 hover:text-white hover:bg-white/20 shrink-0"
                 >
                   {copiedCode ? (
                     <Check className="w-4 h-4 text-emerald-400" />
@@ -601,6 +612,11 @@ export default function CustomerDashboard() {
                     {user?.customer_code}
                   </span>
                 </div>
+                {user?.document && (
+                  <p className="text-xs font-mono text-amber-400 font-semibold">
+                    CPF: {formatCPF(user.document)}
+                  </p>
+                )}
                 <p className="text-xs text-amber-300 font-semibold">{user?.name}</p>
               </div>
 

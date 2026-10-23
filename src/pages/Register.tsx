@@ -16,8 +16,16 @@ import {
   Loader2,
   CheckCircle2,
   Gift,
+  FileText,
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  cleanDocument,
+  formatCPF,
+  formatCNPJ,
+  validateCPF,
+  validateCNPJ,
+} from '@/lib/documentValidation'
 
 export default function Register() {
   const [searchParams] = useSearchParams()
@@ -28,6 +36,7 @@ export default function Register() {
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [documentNumber, setDocumentNumber] = useState('')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [adminToken, setAdminToken] = useState('')
@@ -38,9 +47,49 @@ export default function Register() {
   const { register } = useAuth()
   const navigate = useNavigate()
 
+  const handleDocumentChange = (raw: string) => {
+    const digits = cleanDocument(raw)
+    if (selectedRole === 'merchant') {
+      setDocumentNumber(formatCNPJ(digits))
+    } else {
+      setDocumentNumber(formatCPF(digits))
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg(null)
+
+    // Validate Document (CPF for customer, CNPJ for merchant)
+    if (selectedRole === 'customer') {
+      const digits = cleanDocument(documentNumber)
+      if (!digits) {
+        setErrorMsg('O CPF é obrigatório para cadastro de cliente.')
+        return
+      }
+      if (digits.length !== 11) {
+        setErrorMsg('O CPF deve conter 11 dígitos.')
+        return
+      }
+      if (!validateCPF(digits)) {
+        setErrorMsg('CPF inválido. Por favor, verifique os dígitos digitados.')
+        return
+      }
+    } else if (selectedRole === 'merchant') {
+      const digits = cleanDocument(documentNumber)
+      if (!digits) {
+        setErrorMsg('O CNPJ é obrigatório para cadastro de lojista.')
+        return
+      }
+      if (digits.length !== 14) {
+        setErrorMsg('O CNPJ deve conter 14 dígitos.')
+        return
+      }
+      if (!validateCNPJ(digits)) {
+        setErrorMsg('CNPJ inválido. Por favor, verifique os dígitos digitados.')
+        return
+      }
+    }
 
     if (password.length < 8) {
       setErrorMsg('A senha precisa ter pelo menos 8 caracteres.')
@@ -62,6 +111,7 @@ export default function Register() {
         email,
         password,
         role: selectedRole,
+        document: documentNumber ? cleanDocument(documentNumber) : undefined,
         phone: phone || undefined,
       })
 
@@ -105,8 +155,16 @@ export default function Register() {
             <Tabs
               value={selectedRole}
               onValueChange={(val) => {
-                setSelectedRole(val as UserRole)
+                const nextRole = val as UserRole
+                setSelectedRole(nextRole)
                 setErrorMsg(null)
+                // Re-format existing digits for the new role
+                const digits = cleanDocument(documentNumber)
+                if (nextRole === 'merchant') {
+                  setDocumentNumber(formatCNPJ(digits))
+                } else {
+                  setDocumentNumber(formatCPF(digits))
+                }
               }}
               className="w-full"
             >
@@ -207,6 +265,37 @@ export default function Register() {
                   className="rounded-xl border-slate-200 focus-visible:ring-rose-500"
                 />
               </div>
+
+              {/* CPF for customer / CNPJ for merchant */}
+              {selectedRole !== 'admin' && (
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="document"
+                    className="text-xs font-bold text-slate-700 flex items-center gap-1.5"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    {selectedRole === 'merchant' ? 'CNPJ da Loja / Empresa *' : 'CPF do Cliente *'}
+                  </Label>
+                  <Input
+                    id="document"
+                    type="text"
+                    required
+                    inputMode="numeric"
+                    placeholder={
+                      selectedRole === 'merchant' ? '00.000.000/0000-00' : '000.000.000-00'
+                    }
+                    value={documentNumber}
+                    onChange={(e) => handleDocumentChange(e.target.value)}
+                    maxLength={selectedRole === 'merchant' ? 18 : 14}
+                    className="rounded-xl border-slate-200 focus-visible:ring-rose-500 font-mono text-sm tracking-wider"
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    {selectedRole === 'merchant'
+                      ? 'Informe os 14 dígitos do CNPJ para identificação da sua empresa.'
+                      : 'O CPF permite que lojistas identifiquem você no balcão além do código digital.'}
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-xs font-bold text-slate-700">

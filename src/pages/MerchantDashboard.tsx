@@ -304,7 +304,7 @@ export default function MerchantDashboard() {
     }
   }
 
-  // SEARCH CUSTOMER BY CODE OR EMAIL
+  // SEARCH CUSTOMER BY CODE, EMAIL OR CPF/CNPJ
   const handleSearchCustomer = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (!customerSearchCode.trim() || !store) return
@@ -318,7 +318,8 @@ export default function MerchantDashboard() {
       if (!cust) {
         toast({
           title: 'Cliente não encontrado',
-          description: 'Verifique se o código (ex: CLI-7842) ou e-mail foi digitado corretamente.',
+          description:
+            'Verifique se o código (ex: CLI-7842), e-mail ou CPF/CNPJ foi digitado corretamente.',
           variant: 'destructive',
         })
       } else {
@@ -328,7 +329,7 @@ export default function MerchantDashboard() {
         setCustomerCard(card)
         toast({
           title: 'Cliente localizado!',
-          description: `${cust.name} (${cust.customer_code || cust.email})`,
+          description: `${cust.name} (${cust.customer_code || cust.document || cust.email})`,
         })
       }
     } catch (err: any) {
@@ -638,8 +639,7 @@ export default function MerchantDashboard() {
                       1. Identificar Cliente
                     </CardTitle>
                     <CardDescription className="text-xs text-slate-500">
-                      Peça ao cliente o código exibido no cartão digital dele (ex: CLI-7842) ou o
-                      e-mail
+                      Localize o cliente pelo código (ex: CLI-7842), e-mail ou CPF/CNPJ
                     </CardDescription>
                   </CardHeader>
 
@@ -647,7 +647,7 @@ export default function MerchantDashboard() {
                     <form onSubmit={handleSearchCustomer} className="flex gap-2">
                       <div className="relative flex-1">
                         <Input
-                          placeholder="Ex: CLI-7842 ou cliente@email.com"
+                          placeholder="Código, e-mail ou CPF/CNPJ"
                           value={customerSearchCode}
                           onChange={(e) => setCustomerSearchCode(e.target.value)}
                           className="font-mono text-sm uppercase rounded-xl border-slate-300"
@@ -691,9 +691,14 @@ export default function MerchantDashboard() {
                             <div>
                               <p className="font-extrabold text-sm">{foundCustomer.name}</p>
                               <p className="text-[11px] text-slate-300">{foundCustomer.email}</p>
+                              {foundCustomer.document && (
+                                <p className="text-[10px] text-amber-300 font-mono mt-0.5">
+                                  Doc: {foundCustomer.document}
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <Badge className="bg-white/10 font-mono text-[10px] text-amber-300 border-white/20">
+                          <Badge className="bg-white/10 font-mono text-[10px] text-amber-300 border-white/20 shrink-0">
                             {foundCustomer.customer_code || 'ID'}
                           </Badge>
                         </div>
@@ -797,7 +802,7 @@ export default function MerchantDashboard() {
                           Identifique o cliente ao lado para liberar o registro
                         </p>
                         <p className="text-[11px] text-slate-400 mt-1">
-                          Digite o código de cliente e clique em "Buscar"
+                          Digite o código, e-mail ou CPF/CNPJ e clique em "Buscar"
                         </p>
                       </div>
                     ) : (
