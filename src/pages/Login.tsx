@@ -116,7 +116,7 @@ export default function Login() {
     } finally {
       setIsSendingReset(false)
     }
-  }  }
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-12 px-4">
@@ -298,6 +298,99 @@ export default function Login() {
           </Link>
         </div>
       </div>
+
+      {/* Modal Esqueci a Senha */}
+      <Dialog open={isForgotModalOpen} onOpenChange={setIsForgotModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-2">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-slate-900">Recuperar Senha</DialogTitle>
+            <DialogDescription className="text-xs text-slate-600">
+              Informe o e-mail cadastrado na sua conta. Se o serviço de e-mail estiver ativo,
+              enviaremos as instruções para você redefinir sua senha.
+            </DialogDescription>
+          </DialogHeader>
+
+          {resetSuccess ? (
+            <div className="py-4 space-y-4">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs leading-relaxed flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold mb-1">E-mail de recuperação solicitado!</p>
+                  <p>
+                    Se o e-mail <strong>{forgotEmail}</strong> estiver cadastrado em nossa base e o
+                    servidor de correio estiver conectado, você receberá um link nos próximos
+                    instantes. Verifique também a pasta de spam.
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  onClick={() => setIsForgotModalOpen(false)}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl"
+                >
+                  Fechar
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <form onSubmit={handleRequestPasswordReset} className="space-y-4 py-2">
+              {resetError && (
+                <Alert variant="destructive" className="text-xs py-2">
+                  <AlertCircle className="w-4 h-4" />
+                  <AlertDescription>{resetError}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="forgot-email" className="text-xs font-bold text-slate-700">
+                  E-mail cadastrado
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    required
+                    placeholder="seu@email.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    className="rounded-xl border-slate-200 pl-9"
+                  />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsForgotModalOpen(false)}
+                  className="rounded-xl font-semibold"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSendingReset}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-xs"
+                >
+                  {isSendingReset ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    'Enviar link de recuperação'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
