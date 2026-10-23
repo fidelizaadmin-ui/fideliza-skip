@@ -40,9 +40,9 @@
     stroke-width="1"
   />
 
-  <!-- Letter 'F' in Blue occupying front space -->
+  <!-- Letra 'F' na cor oficial da palavra Fideliza (#0F172A) -->
   <path
     d="M19 30.5 C19 29.7 19.7 29 20.5 29 H44.5 C45.3 29 46 29.7 46 30.5 V34.5 C46 35.3 45.3 36 44.5 36 H27 V40 H40.5 C41.3 40 42 40.7 42 41.5 V45 C42 45.8 41.3 46.5 40.5 46.5 H27 V54.5 C27 55.3 26.3 56 25.5 56 H20.5 C19.7 56 19 55.3 19 54.5 Z"
-    fill="#1D4ED8"
+    fill="#0F172A"
   />
 </svg>

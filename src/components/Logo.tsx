@@ -18,13 +18,31 @@ export interface LogoProps {
  * Símbolo oficial Fideliza: Caixa de presentes na cor laranja vibrante
  * com laço/fita contrastante e a letra "F" em azul preenchendo a área frontal.
  */
+/**
+ * Padrão oficial de cores da marca Fideliza.
+ * O "F" da caixa de presente e a palavra "Fideliza" compartilham a mesma
+ * definição de cor por tema, garantindo consistência em toda a identidade visual.
+ */
+export const FIDELIZA_BRAND_COLORS = {
+  light: {
+    hex: '#0F172A', // slate-900
+    tailwindClass: 'text-slate-900',
+  },
+  dark: {
+    hex: '#FFFFFF', // white
+    tailwindClass: 'text-white',
+  },
+} as const
+
 export const LogoSymbol: React.FC<{
   size?: number | string
   className?: string
   theme?: 'dark' | 'light'
+  fColor?: string
   withBackground?: boolean
-}> = ({ size = 36, className = '', theme: _theme = 'light', withBackground = false }) => {
+}> = ({ size = 36, className = '', theme = 'light', fColor, withBackground = false }) => {
   const numericSize = typeof size === 'number' ? size : parseInt(String(size), 10) || 36
+  const resolvedFColor = fColor || FIDELIZA_BRAND_COLORS[theme].hex
 
   const svgContent = (
     <svg
@@ -71,10 +89,10 @@ export const LogoSymbol: React.FC<{
         strokeWidth="1"
       />
 
-      {/* Letter 'F' in Blue occupying front space (letra F em azul ocupando o espaço da caixa) */}
+      {/* Letra 'F' na caixa seguindo exatamente a cor da palavra Fideliza */}
       <path
         d="M19 30.5 C19 29.7 19.7 29 20.5 29 H44.5 C45.3 29 46 29.7 46 30.5 V34.5 C46 35.3 45.3 36 44.5 36 H27 V40 H40.5 C41.3 40 42 40.7 42 41.5 V45 C42 45.8 41.3 46.5 40.5 46.5 H27 V54.5 C27 55.3 26.3 56 25.5 56 H20.5 C19.7 56 19 55.3 19 54.5 Z"
-        fill="#1D4ED8"
+        fill={resolvedFColor}
       />
     </svg>
   )
@@ -102,7 +120,7 @@ export const LogoWordmark: React.FC<{
   className?: string
   theme?: 'dark' | 'light'
 }> = ({ className = '', theme = 'light' }) => {
-  const textColor = theme === 'dark' ? 'text-white' : 'text-slate-900'
+  const textColor = FIDELIZA_BRAND_COLORS[theme].tailwindClass
 
   return (
     <span
@@ -122,7 +140,7 @@ export const Logo: React.FC<LogoProps> = ({
   showTagline = false,
 }) => {
   const isDark = theme === 'dark'
-  const textColor = isDark ? 'text-white' : 'text-slate-900'
+  const textColor = FIDELIZA_BRAND_COLORS[theme].tailwindClass
   const subtitleColor = isDark ? 'text-slate-400' : 'text-slate-500'
 
   const dimensions = {
