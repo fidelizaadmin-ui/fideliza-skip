@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import {
-  Sparkles,
   Store,
   ShieldCheck,
   CreditCard,
@@ -20,7 +19,9 @@ import {
   LogIn,
   UserPlus,
   Compass,
+  Gift,
 } from 'lucide-react'
+import { Logo } from '@/components/Logo'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 
 export const Navbar: React.FC = () => {
@@ -61,33 +62,23 @@ export const Navbar: React.FC = () => {
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-xs">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-xs">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Brand */}
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-              Fideliza
-            </span>
-            <span className="block text-[10px] uppercase tracking-wider text-rose-600 font-bold -mt-1">
-              Clube de Fidelidade
-            </span>
-          </div>
+        {/* Brand com nova logomarca vetorial */}
+        <Link to="/" className="flex items-center group transition-transform hover:scale-[1.02]">
+          <Logo variant="horizontal" theme="light" size="sm" showTagline={true} />
         </Link>
 
         {/* Center navigation links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-          <Link to="/" className="flex items-center gap-1.5 hover:text-rose-600 transition-colors">
-            <Compass className="w-4 h-4" />
+        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-700">
+          <Link to="/" className="flex items-center gap-1.5 hover:text-[#0D2240] transition-colors">
+            <Compass className="w-4 h-4 text-amber-500" />
             Explorar Lojas
           </Link>
-          <Link to="/planos" className="hover:text-rose-600 transition-colors">
+          <Link to="/planos" className="hover:text-[#0D2240] transition-colors">
             Planos para Lojistas
           </Link>
-          <Link to="/como-funciona" className="hover:text-rose-600 transition-colors">
+          <Link to="/como-funciona" className="hover:text-[#0D2240] transition-colors">
             Como Funciona
           </Link>
         </nav>
@@ -100,11 +91,11 @@ export const Navbar: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate(getDashboardRoute())}
-                className="hidden sm:inline-flex items-center gap-1.5 font-medium border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                className="hidden sm:inline-flex items-center gap-1.5 font-bold border-[#0D2240]/20 text-[#0D2240] hover:bg-amber-50 hover:border-amber-400"
               >
-                {role === 'admin' && <ShieldCheck className="w-4 h-4" />}
-                {role === 'merchant' && <Store className="w-4 h-4" />}
-                {role === 'customer' && <CreditCard className="w-4 h-4" />}
+                {role === 'admin' && <ShieldCheck className="w-4 h-4 text-purple-600" />}
+                {role === 'merchant' && <Store className="w-4 h-4 text-amber-600" />}
+                {role === 'customer' && <CreditCard className="w-4 h-4 text-emerald-600" />}
                 Minha Área
               </Button>
 
@@ -115,7 +106,7 @@ export const Navbar: React.FC = () => {
                     size="sm"
                     className="relative flex items-center gap-2 px-2 hover:bg-slate-100 rounded-full"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-amber-500 text-white font-semibold text-xs flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-[#0D2240] text-amber-400 font-bold text-xs flex items-center justify-center shadow-xs">
                       {user.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <span className="hidden lg:inline-block text-xs font-semibold max-w-[120px] truncate text-slate-800">
@@ -172,7 +163,7 @@ export const Navbar: React.FC = () => {
                       onClick={() => navigate('/cliente')}
                       className="cursor-pointer gap-2"
                     >
-                      <Sparkles className="w-4 h-4 text-rose-500" />
+                      <Gift className="w-4 h-4 text-amber-500" />
                       Meus Cartões Fidelidade
                     </DropdownMenuItem>
                   )}
@@ -202,7 +193,7 @@ export const Navbar: React.FC = () => {
               <Button
                 size="sm"
                 onClick={() => navigate('/cadastro')}
-                className="gap-1.5 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-medium shadow-sm shadow-rose-500/20"
+                className="gap-1.5 bg-amber-400 hover:bg-amber-500 text-[#0D2240] font-black shadow-sm transition-all hover:shadow"
               >
                 <UserPlus className="w-4 h-4" />
                 Criar Conta

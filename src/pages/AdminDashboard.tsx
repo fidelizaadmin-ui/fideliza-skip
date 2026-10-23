@@ -58,6 +58,7 @@ import {
   Search,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { Logo } from '@/components/Logo'
 
 export default function AdminDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -304,21 +305,26 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-purple-100 text-purple-800 border-purple-200 gap-1 font-bold">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Painel do Administrador
-            </Badge>
-            {pendingStores.length > 0 && (
-              <Badge className="bg-amber-500 text-white font-bold animate-pulse">
-                {pendingStores.length} loja(s) aguardando aprovação
-              </Badge>
-            )}
+          <div className="flex items-center gap-3">
+            <Logo variant="symbol" theme="light" size="sm" />
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-[#0D2240] text-amber-400 border-[#0D2240] gap-1 font-bold">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Painel do Administrador
+                </Badge>
+                {pendingStores.length > 0 && (
+                  <Badge className="bg-amber-500 text-slate-950 font-bold animate-pulse">
+                    {pendingStores.length} loja(s) aguardando aprovação
+                  </Badge>
+                )}
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
+                Gestão Global do Sistema Fideliza
+              </h1>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-            Gestão Global do Sistema Fideliza
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Aprovação de lojistas, controle de planos e visão analítica das operações
           </p>
         </div>

@@ -5,7 +5,8 @@ import type { SubscriptionPlanRecord } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Clock, Sparkles, ArrowRight, ShieldCheck, Store } from 'lucide-react'
+import { CheckCircle2, Clock, ArrowRight, ShieldCheck, Store } from 'lucide-react'
+import { Logo } from '@/components/Logo'
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<SubscriptionPlanRecord[]>([])
@@ -31,8 +32,13 @@ export default function PlansPage() {
     <div className="container mx-auto px-4 py-16 max-w-6xl flex-1">
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-        <Badge className="bg-rose-100 text-rose-800 border-rose-200 font-bold px-3 py-1">
-          Planos de Assinatura para Lojistas
+        <div className="flex justify-center mb-2">
+          <div className="p-3.5 rounded-2xl bg-[#0D2240] shadow-lg">
+            <Logo variant="symbol" theme="dark" size="md" />
+          </div>
+        </div>
+        <Badge className="bg-[#0D2240] text-amber-400 border-[#0D2240] font-bold px-3 py-1">
+          Planos de Assinatura para Lojistas • Fidelidade que Premia
         </Badge>
         <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
           Escolha o plano ideal para fidelizar seus clientes
@@ -63,7 +69,7 @@ export default function PlansPage() {
               }`}
             >
               {isBestValue && (
-                <div className="bg-gradient-to-r from-rose-600 to-amber-600 text-white text-[11px] font-black uppercase tracking-widest text-center py-1.5">
+                <div className="bg-[#0D2240] text-amber-400 text-[11px] font-black uppercase tracking-widest text-center py-1.5">
                   Mais Popular & Econômico
                 </div>
               )}

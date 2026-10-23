@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  Sparkles,
   Store,
   CreditCard,
   ShieldCheck,
@@ -19,6 +18,7 @@ import {
   EyeOff,
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Logo } from '@/components/Logo'
 
 export default function Login() {
   const [searchParams] = useSearchParams()
@@ -78,19 +78,16 @@ export default function Login() {
     <div className="min-h-[80vh] flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-md space-y-6">
         {/* Brand header */}
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center text-white mx-auto shadow-lg shadow-rose-500/20">
-            <Sparkles className="w-6 h-6" />
+        <div className="text-center space-y-3">
+          <div className="p-4 rounded-3xl bg-[#0D2240] shadow-xl inline-block mx-auto border border-slate-800">
+            <Logo variant="full" theme="dark" size="lg" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Acesse o Fideliza
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-600 font-medium">
             Selecione seu perfil e faça login com seu e-mail e senha
           </p>
         </div>
 
-        <Card className="border-slate-200/80 shadow-xl shadow-slate-200/50 rounded-3xl">
+        <Card className="border-slate-200 shadow-xl shadow-slate-200/60 rounded-3xl">
           <CardHeader className="pb-3">
             <Tabs
               value={selectedRole}
@@ -181,7 +178,7 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-5 rounded-xl font-bold bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white shadow-md shadow-rose-600/20"
+                className="w-full py-5 rounded-xl font-black bg-[#0D2240] hover:bg-[#132c52] text-amber-400 hover:text-amber-300 shadow-md transition-all"
               >
                 {isLoading ? (
                   <>
@@ -239,7 +236,7 @@ export default function Login() {
           Ainda não tem conta?{' '}
           <Link
             to={`/cadastro?tipo=${selectedRole}`}
-            className="font-bold text-rose-600 hover:text-rose-700 underline underline-offset-2"
+            className="font-bold text-[#0D2240] hover:text-amber-600 underline underline-offset-2"
           >
             Cadastre-se como{' '}
             {selectedRole === 'admin'

@@ -74,6 +74,7 @@ import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 import { generateSalesReportPDF } from '@/lib/pdfReport'
+import { Logo } from '@/components/Logo'
 
 const CATEGORIES: StoreCategory[] = [
   'Alimentação',
@@ -553,10 +554,13 @@ export default function MerchantDashboard() {
             )}
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-            {store ? store.name : 'Configurar Minha Loja'}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <div className="flex items-center gap-2.5 mt-1">
+            <Logo variant="symbol" theme="light" size="sm" />
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              {store ? store.name : 'Configurar Minha Loja'}
+            </h1>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Cadastre compras de clientes com código digital, defina regras e acompanhe vendas
           </p>
         </div>
