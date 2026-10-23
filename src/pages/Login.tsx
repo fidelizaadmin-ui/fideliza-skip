@@ -56,21 +56,6 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  // Preset demo accounts helper
-  const handleUseDemo = (demoRole: UserRole) => {
-    setSelectedRole(demoRole)
-    if (demoRole === 'admin') {
-      setEmail('angelo.marcos_silva@hotmail.com')
-      setPassword('12345678')
-    } else if (demoRole === 'merchant') {
-      setEmail('lojista@fideliza.com')
-      setPassword('Skip@Pass')
-    } else {
-      setEmail('cliente@fideliza.com')
-      setPassword('Skip@Pass')
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg(null)
@@ -269,36 +254,6 @@ export default function Login() {
                 )}
               </Button>
             </form>
-
-            {/* Quick Demo Fill Buttons */}
-            <div className="mt-6 pt-5 border-t border-slate-100">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mb-2">
-                Acesso Rápido de Teste (Preenchimento Automático)
-              </p>
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleUseDemo('customer')}
-                  className="p-1.5 text-[11px] rounded-lg bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 text-center transition-colors"
-                >
-                  Cliente Teste
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUseDemo('merchant')}
-                  className="p-1.5 text-[11px] rounded-lg bg-amber-50 text-amber-700 font-semibold hover:bg-amber-100 text-center transition-colors"
-                >
-                  Lojista Teste
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUseDemo('admin')}
-                  className="p-1.5 text-[11px] rounded-lg bg-purple-50 text-purple-700 font-semibold hover:bg-purple-100 text-center transition-colors"
-                >
-                  Admin Teste
-                </button>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
