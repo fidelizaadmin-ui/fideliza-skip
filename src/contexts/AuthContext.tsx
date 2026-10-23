@@ -19,6 +19,12 @@ interface AuthContextType {
   logout: () => void
   refreshUser: () => Promise<void>
   updateDocument: (documentValue: string) => Promise<UserRecord>
+  updateProfile: (params: {
+    name: string
+    phone?: string
+    currentPassword?: string
+    newPassword?: string
+  }) => Promise<UserRecord>
   generateCustomerCode: () => string
   requestVerificationEmail: (email?: string) => Promise<{ success: boolean; message: string }>
 }
@@ -249,6 +255,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return nextUser
   }
 
+  const updateProfile = async (params: {
+    name: string
+    phone?: string
+    currentPassword?: string
+    newPassword?: string
+  }): Promise<UserRecord> => {
+    if (!user) {
+      throw new Error('Nenhum usuário autenticado.')
+    }
+
+    const payload: Record<string, any> = {
+      name: params.name.trim(),
+      phone: params.phone?.trim() || '',
+    }
+
+    if (params.newPassword && params.newPassword.trim()) {
+      if (!params.currentPassword) {
+        throw new Error('Informe sua senha atual para definir uma nova senha.')
+      }
+      payload.oldPassword = params.currentPassword
+      payload.password = params.newPassword
+      payload.passwordConfirm = params.newPassword
+    }
+
+    const updated = await pb.collection('users').update(user.id, payload)
+    const rec = updated as any
+
+    const nextUser: UserRecord = {
+      ...user,
+      name: rec.name || params.name.trim(),
+      phone: rec.phone ?? params.phone?.trim(),
+      updated: rec.updated,
+    }
+
+    setUser(nextUser)
+
+    // Se houve alteração de senha, atualiza o token do authStore sem deslogar
+    if (params.newPassword && params.newPassword.trim()) {
+      try {
+        await pb.collection('users').authWithPassword(user.email, params.newPassword)
+      } catch (authRefreshErr) {
+        console.warn('Senha atualizada, falha ao reautenticar automaticamente:', authRefreshErr)
+      }
+    }
+
+    return nextUser
+  }
+
   const value: AuthContextType = {
     user,
     role: user?.role || null,
@@ -259,6 +313,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     refreshUser,
     updateDocument,
+    updateProfile,
     generateCustomerCode,
     requestVerificationEmail,
   }

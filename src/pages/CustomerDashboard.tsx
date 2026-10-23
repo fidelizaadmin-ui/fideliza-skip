@@ -34,10 +34,16 @@ import {
   Copy,
   Check,
   FileText,
+  UserCheck,
+  Settings,
+  Phone,
+  Mail,
+  User,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 import { LogoSymbol } from '@/components/Logo'
+import { EditCustomerProfileDialog } from '@/components/EditCustomerProfileDialog'
 
 export default function CustomerDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -52,6 +58,7 @@ export default function CustomerDashboard() {
   // Active card for presentation modal
   const [selectedCard, setSelectedCard] = useState<CustomerCardRecord | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -121,9 +128,20 @@ export default function CustomerDashboard() {
             <CreditCard className="w-3.5 h-3.5" />
             Cartão de Fidelidade do Cliente
           </Badge>
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Olá, {user?.name}!
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              Olá, {user?.name}!
+            </h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditProfileOpen(true)}
+              className="rounded-full text-xs font-bold border-slate-300 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50/60 gap-1.5 shadow-xs"
+            >
+              <Settings className="w-3.5 h-3.5 text-slate-500" />
+              Meus Dados / Alterar Senha
+            </Button>
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-xl">
             Apresente seu código de cliente nas lojas parceiras na hora de pagar para acumular selos
             digitais, pontos ou saldo em cashback.
@@ -276,6 +294,10 @@ export default function CustomerDashboard() {
           <TabsTrigger value="history" className="gap-2 text-xs sm:text-sm font-semibold">
             <Clock className="w-4 h-4" />
             Histórico de Acúmulos e Resgates
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-2 text-xs sm:text-sm font-semibold">
+            <User className="w-4 h-4" />
+            Meus Dados Cadastrais
           </TabsTrigger>
         </TabsList>
 
@@ -587,6 +609,117 @@ export default function CustomerDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB 3: MEUS DADOS CADASTRAIS (VISUALIZAÇÃO E EDIÇÃO) */}
+        {/* ======================================================== */}
+        <TabsContent value="profile" className="space-y-6">
+          <Card className="rounded-3xl border-slate-200 shadow-xs overflow-hidden bg-white">
+            <CardHeader className="bg-slate-50/60 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-emerald-600" />
+                  Dados da Sua Conta
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Visualize seus dados atuais e edite seu nome, telefone ou senha de acesso a
+                  qualquer momento.
+                </CardDescription>
+              </div>
+
+              <Button
+                onClick={() => setIsEditProfileOpen(true)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm gap-2 shrink-0"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Alterar Meus Dados / Senha
+              </Button>
+            </CardHeader>
+
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-slate-400" />
+                    Nome Completo
+                  </p>
+                  <p className="text-sm font-bold text-slate-900">{user?.name || '-'}</p>
+                  <p className="text-[11px] text-slate-400">Exibido nos cartões e extratos</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                    Telefone / WhatsApp
+                  </p>
+                  <p className="text-sm font-bold text-slate-900 font-mono">
+                    {user?.phone || 'Não informado'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">Notificações e contato das lojas</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                    E-mail de Acesso
+                  </p>
+                  <p className="text-sm font-bold text-slate-900 truncate" title={user?.email}>
+                    {user?.email || '-'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">Login principal no portal</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                    <QrCode className="w-3.5 h-3.5 text-slate-400" />
+                    Código de Identificação
+                  </p>
+                  <p className="text-base font-mono font-black text-slate-900">
+                    {user?.customer_code || 'CLI-0000'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">Usado para acumular nos caixas</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                    <FileText className="w-3.5 h-3.5 text-slate-400" />
+                    CPF / CNPJ Vinculado
+                  </p>
+                  <p className="text-sm font-mono font-bold text-slate-900">
+                    {user?.document
+                      ? cleanDocument(user.document).length > 11
+                        ? formatCNPJ(cleanDocument(user.document))
+                        : formatCPF(cleanDocument(user.document))
+                      : 'Não cadastrado'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">Identificação complementar</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    Status da Conta
+                  </p>
+                  <div className="pt-0.5">
+                    {user?.verified ? (
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs">
+                        E-mail Verificado
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-amber-700 border-amber-300 bg-amber-50 text-xs"
+                      >
+                        Pendente de confirmação
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400">Segurança do acesso</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* MODAL: PRESENT DIGITAL CARD AT CASHIER */}
@@ -660,6 +793,9 @@ export default function CustomerDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* MODAL: EDIT CUSTOMER PROFILE & PASSWORD */}
+      <EditCustomerProfileDialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen} />
     </div>
   )
 }
