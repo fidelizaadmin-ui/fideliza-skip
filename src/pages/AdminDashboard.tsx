@@ -49,6 +49,7 @@ import {
   X,
   Clock,
   AlertTriangle,
+  Trash2,
   Plus,
   Edit2,
   DollarSign,
@@ -85,6 +86,10 @@ export default function AdminDashboard() {
   const [planFormDesc, setPlanFormDesc] = useState('')
   const [planFormFeatures, setPlanFormFeatures] = useState('')
   const [planFormActive, setPlanFormActive] = useState(true)
+
+  // Delete Store Modal state
+  const [storeToDelete, setStoreToDelete] = useState<StoreRecord | null>(null)
+  const [isDeletingStore, setIsDeletingStore] = useState(false)
 
   // Edit Store Subscription Status Modal
   const [storeToEditSub, setStoreToEditSub] = useState<StoreRecord | null>(null)
@@ -176,12 +181,73 @@ export default function AdminDashboard() {
     }
   }
 
+  // DELETE STORE HANDLER
+  const handleDeleteStore = async () => {
+    if (!storeToDelete) return
+    setIsDeletingStore(true)
+    try {
+      await pb.collection('stores').delete(storeToDelete.id)
+      setStores((prev) => prev.filter((s) => s.id !== storeToDelete.id))
+      toast({
+        title: 'Loja excluída permanentemente',
+        description: `A loja "${storeToDelete.name}" foi removida do sistema. O lojista deverá solicitar um novo acesso ou cadastrar uma nova loja.`,
+      })
+      setStoreToDelete(null)
+    } catch (err: any) {
+      console.error('Error deleting store:', err)
+      toast({
+        title: 'Erro ao excluir loja',
+        description: err.message || 'Não foi possível excluir a loja.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingStore(false)
+    }
+  }
+
   // STORE SUBSCRIPTION STATUS MODAL HANDLERS
+  const calculateNextExpiry = (baseDateStr: string | undefined, intervalMonths: number): string => {
+    let baseDate = baseDateStr ? new Date(baseDateStr) : new Date()
+    if (isNaN(baseDate.getTime()) || baseDate < new Date()) {
+      baseDate = new Date()
+    }
+    const targetDate = new Date(baseDate)
+    targetDate.setMonth(targetDate.getMonth() + (intervalMonths || 1))
+    return targetDate.toISOString().split('T')[0]
+  }
+
   const openSubscriptionModal = (store: StoreRecord) => {
     setStoreToEditSub(store)
     setSubStatusChoice(store.subscription_status || 'trial')
     setSubPlanChoice(store.subscription_plan_id || plans[0]?.id || '')
     setSubExpiryDate(store.subscription_expires_at || '')
+  }
+
+  const handleApproveSubscriptionPayment = async () => {
+    if (!storeToEditSub) return
+    const plan = plans.find((p) => p.id === (subPlanChoice || storeToEditSub.subscription_plan_id))
+    const intervalMonths = plan?.billing_interval_months || 1
+    const nextExpiry = calculateNextExpiry(storeToEditSub.subscription_expires_at, intervalMonths)
+
+    try {
+      const updated = await updateStore(storeToEditSub.id, {
+        subscription_status: 'active',
+        subscription_plan_id: subPlanChoice || storeToEditSub.subscription_plan_id || undefined,
+        subscription_expires_at: nextExpiry,
+      })
+      setStores((prev) => prev.map((s) => (s.id === storeToEditSub.id ? updated : s)))
+      setStoreToEditSub(null)
+      toast({
+        title: 'Pagamento confirmado e assinatura ativada!',
+        description: `Loja "${storeToEditSub.name}" ativada até ${nextExpiry} (+${intervalMonths} mês/meses).`,
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao aprovar pagamento',
+        description: err.message,
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleSaveStoreSubscription = async () => {
@@ -552,14 +618,19 @@ export default function AdminDashboard() {
                             {st.subscription_status === 'cancelled' && (
                               <span className="w-2 h-2 rounded-full bg-slate-400" />
                             )}
+                            {st.subscription_status === 'pending' && (
+                              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                            )}
                             <span className="font-bold text-slate-800 capitalize">
                               {st.subscription_status === 'active'
                                 ? 'Pago / Ativo'
                                 : st.subscription_status === 'trial'
                                   ? 'Período de Teste'
-                                  : st.subscription_status === 'overdue'
-                                    ? 'Em Atraso'
-                                    : 'Cancelado'}
+                                  : st.subscription_status === 'pending'
+                                    ? 'Aguardando Confirmação'
+                                    : st.subscription_status === 'overdue'
+                                      ? 'Em Atraso (Suspensa)'
+                                      : 'Cancelado (Suspensa)'}
                             </span>
                           </div>
 
@@ -610,6 +681,16 @@ export default function AdminDashboard() {
                           >
                             <CreditCard className="w-3.5 h-3.5" />
                             Gerenciar Assinatura
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setStoreToDelete(st)}
+                            className="text-xs h-8 px-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold"
+                            title="Excluir Loja Permanentemente"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </td>
@@ -942,6 +1023,47 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* MODAL: CONFIRM DELETE STORE */}
+      <Dialog open={!!storeToDelete} onOpenChange={(open) => !open && setStoreToDelete(null)}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-2">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-lg font-black text-slate-900">
+              Excluir Loja Permanentemente?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 leading-relaxed">
+              Você está prestes a excluir a loja <strong>"{storeToDelete?.name}"</strong>. Esta ação
+              é irreversível: a loja será removida imediatamente do portal público e a conta do
+              lojista ficará sem loja vinculada, obrigando-o a solicitar um novo acesso ou cadastrar
+              uma nova loja.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-4 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isDeletingStore}
+              onClick={() => setStoreToDelete(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isDeletingStore}
+              onClick={handleDeleteStore}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              {isDeletingStore ? 'Excluindo...' : 'Confirmar Exclusão'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* MODAL: EDIT STORE SUBSCRIPTION STATUS */}
       <Dialog open={!!storeToEditSub} onOpenChange={(open) => !open && setStoreToEditSub(null)}>
         <DialogContent className="max-w-md rounded-2xl p-6">
@@ -984,9 +1106,10 @@ export default function AdminDashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="trial">Em Período de Teste (Trial)</SelectItem>
+                  <SelectItem value="pending">Aguardando Confirmação (PIX enviado)</SelectItem>
                   <SelectItem value="active">Pago / Assinatura Ativa</SelectItem>
-                  <SelectItem value="overdue">Em Atraso / Pendente de Pagamento</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                  <SelectItem value="overdue">Em Atraso (Suspensa)</SelectItem>
+                  <SelectItem value="cancelled">Cancelado (Suspensa)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1002,6 +1125,30 @@ export default function AdminDashboard() {
                 className="text-xs"
               />
             </div>
+
+            {storeToEditSub?.subscription_status === 'pending' && (
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs space-y-2">
+                <p className="font-bold">Aviso de Pagamento Simulado:</p>
+                <p className="text-[11px] text-blue-800">
+                  O lojista informou que realizou o pagamento da assinatura. Ao clicar no botão
+                  abaixo, a assinatura será marcada como <strong>Ativo/Pago</strong> e a data de
+                  vencimento avançará automaticamente com base no plano.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleApproveSubscriptionPayment}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                >
+                  <Check className="w-3.5 h-3.5 mr-1" />
+                  Confirmar Recebimento e Ativar (+
+                  {plans.find(
+                    (p) => p.id === (subPlanChoice || storeToEditSub.subscription_plan_id),
+                  )?.billing_interval_months || 1}{' '}
+                  mês/meses)
+                </Button>
+              </div>
+            )}
 
             <DialogFooter className="pt-2">
               <Button

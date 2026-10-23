@@ -16,9 +16,20 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  KeyRound,
+  Mail,
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Logo } from '@/components/Logo'
+import { pb } from '@/lib/pocketbase/client'
 
 export default function Login() {
   const [searchParams] = useSearchParams()
@@ -32,6 +43,13 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Forgot password state
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [isSendingReset, setIsSendingReset] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
 
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -57,11 +75,10 @@ export default function Login() {
     setIsLoading(true)
 
     try {
-      const user = await login(email, password)
-      // Redirect based on role
-      if (user.role === 'admin') {
+      await login(email, password)
+      if (selectedRole === 'admin') {
         navigate('/admin')
-      } else if (user.role === 'merchant') {
+      } else if (selectedRole === 'merchant') {
         navigate('/lojista')
       } else {
         navigate('/cliente')
@@ -73,6 +90,33 @@ export default function Login() {
       setIsLoading(false)
     }
   }
+
+  const handleOpenForgotPassword = () => {
+    setForgotEmail(email || '')
+    setResetSuccess(false)
+    setResetError(null)
+    setIsForgotModalOpen(true)
+  }
+
+  const handleRequestPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!forgotEmail.trim()) return
+
+    setIsSendingReset(true)
+    setResetError(null)
+
+    try {
+      await pb.collection('users').requestPasswordReset(forgotEmail.trim())
+      setResetSuccess(true)
+    } catch (err: any) {
+      console.error('Password reset request error:', err)
+      setResetError(
+        'Não foi possível enviar o e-mail de recuperação automaticamente no momento. Por favor, entre em contato com o suporte ou administrador para redefinir seu acesso.',
+      )
+    } finally {
+      setIsSendingReset(false)
+    }
+  }  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-12 px-4">
@@ -152,6 +196,13 @@ export default function Login() {
                   <Label htmlFor="pass" className="text-xs font-bold text-slate-700">
                     Senha
                   </Label>
+                  <button
+                    type="button"
+                    onClick={handleOpenForgotPassword}
+                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline"
+                  >
+                    Esqueci a Senha
+                  </button>
                 </div>
                 <div className="relative">
                   <Input

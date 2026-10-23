@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-23T13:27:28.902Z",
+  "generatedAt": "2026-10-23T13:40:11.263Z",
   "collections": [
     {
       "name": "users",
@@ -240,7 +240,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["trial", "active", "overdue", "cancelled"]
+          "selectValues": ["trial", "active", "overdue", "cancelled", "pending"]
         },
         {
           "name": "subscription_expires_at",
@@ -265,6 +265,18 @@
         {
           "name": "whatsapp",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logo_file",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "banner_file",
+          "type": "file",
           "required": false,
           "system": false
         }

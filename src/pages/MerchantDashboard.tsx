@@ -58,7 +58,6 @@ import {
   Gift,
   CheckCircle2,
   Clock,
-  AlertCircle,
   Sparkles,
   Search,
   UserCheck,
@@ -69,7 +68,12 @@ import {
   FileDown,
   MessageCircle,
   Filter,
+  Copy,
+  AlertCircle,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react'
+import { getStoreImageUrl } from '@/services/fidelityService'
 import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
@@ -107,8 +111,18 @@ export default function MerchantDashboard() {
   const [storeWhatsapp, setStoreWhatsapp] = useState('')
   const [storeLogo, setStoreLogo] = useState('')
   const [storeBanner, setStoreBanner] = useState('')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string>('')
+  const [bannerPreview, setBannerPreview] = useState<string>('')
   const [selectedSubPlanId, setSelectedSubPlanId] = useState('')
   const [isSavingStore, setIsSavingStore] = useState(false)
+
+  // Subscription payment simulation state
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false)
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+  const [copiedPix, setCopiedPix] = useState(false)
+  const [activeTab, setActiveTab] = useState<string>('pos')
 
   // Loyalty plan form state
   const [planType, setPlanType] = useState<FidelityType>('stamps')
@@ -211,6 +225,23 @@ export default function MerchantDashboard() {
     }
   }
 
+  // File change handlers
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setLogoFile(file)
+      setLogoPreview(URL.createObjectURL(file))
+    }
+  }
+
+  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setBannerFile(file)
+      setBannerPreview(URL.createObjectURL(file))
+    }
+  }
+
   // STORE SAVE HANDLER
   const handleSaveStore = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -218,25 +249,45 @@ export default function MerchantDashboard() {
     setIsSavingStore(true)
     try {
       if (store) {
-        const updated = await updateStore(store.id, {
-          name: storeName,
-          category: storeCat,
-          description: storeDesc,
-          address: storeAddr,
-          city: storeCity,
-          phone: storePhone,
-          whatsapp: storeWhatsapp ? formatWhatsAppUrl(storeWhatsapp) : '',
-          logo_url:
-            storeLogo ||
-            `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(storeCat)}&color=orange`,
-          banner_url:
-            storeBanner || `https://img.usecurling.com/p/800/400?q=store+shop&color=black`,
-          subscription_plan_id: selectedSubPlanId || undefined,
-        })
-        setStore(updated)
+        // Build FormData if files are selected, or regular object
+        if (logoFile || bannerFile) {
+          const formData = new FormData()
+          formData.append('name', storeName)
+          formData.append('category', storeCat)
+          formData.append('description', storeDesc)
+          formData.append('address', storeAddr)
+          formData.append('city', storeCity)
+          formData.append('phone', storePhone)
+          formData.append('whatsapp', storeWhatsapp ? formatWhatsAppUrl(storeWhatsapp) : '')
+          if (storeLogo) formData.append('logo_url', storeLogo)
+          if (storeBanner) formData.append('banner_url', storeBanner)
+          if (selectedSubPlanId) formData.append('subscription_plan_id', selectedSubPlanId)
+          if (logoFile) formData.append('logo_file', logoFile)
+          if (bannerFile) formData.append('banner_file', bannerFile)
+
+          const updated = await updateStore(store.id, formData as any)
+          setStore(updated)
+        } else {
+          const updated = await updateStore(store.id, {
+            name: storeName,
+            category: storeCat,
+            description: storeDesc,
+            address: storeAddr,
+            city: storeCity,
+            phone: storePhone,
+            whatsapp: storeWhatsapp ? formatWhatsAppUrl(storeWhatsapp) : '',
+            logo_url:
+              storeLogo ||
+              `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(storeCat)}&color=orange`,
+            banner_url:
+              storeBanner || `https://img.usecurling.com/p/800/400?q=store+shop&color=black`,
+            subscription_plan_id: selectedSubPlanId || undefined,
+          })
+          setStore(updated)
+        }
         toast({
           title: 'Loja atualizada!',
-          description: 'Os dados da sua loja foram salvos com sucesso.',
+          description: 'Os dados e imagens da sua loja foram salvos com sucesso.',
         })
       } else {
         const created = await createStore({
@@ -257,7 +308,15 @@ export default function MerchantDashboard() {
           subscription_plan_id: selectedSubPlanId || undefined,
           subscription_status: 'trial',
         })
-        setStore(created)
+        if (logoFile || bannerFile) {
+          const formData = new FormData()
+          if (logoFile) formData.append('logo_file', logoFile)
+          if (bannerFile) formData.append('banner_file', bannerFile)
+          const withFiles = await updateStore(created.id, formData as any)
+          setStore(withFiles)
+        } else {
+          setStore(created)
+        }
         toast({
           title: 'Loja cadastrada com sucesso!',
           description:
@@ -272,6 +331,46 @@ export default function MerchantDashboard() {
       })
     } finally {
       setIsSavingStore(false)
+    }
+  }
+
+  // SIMULATED PIX PAYMENT
+  const currentSubPlan =
+    subPlans.find((p) => p.id === (selectedSubPlanId || store?.subscription_plan_id)) || subPlans[0]
+  const mockPixPayload = `00020126580014BR.GOV.BCB.PIX0136${store?.id || 'loja'}-fideliza5204000053039865405${Number(currentSubPlan?.price || 49.9).toFixed(2)}5802BR5916FIDELIZA SISTEMAS6009SAO PAULO62070503***6304`
+
+  const handleCopyPix = () => {
+    navigator.clipboard.writeText(mockPixPayload)
+    setCopiedPix(true)
+    setTimeout(() => setCopiedPix(false), 3000)
+    toast({
+      title: 'Código PIX copiado!',
+      description: 'Cole no aplicativo do seu banco para simular o pagamento.',
+    })
+  }
+
+  const handleConfirmSimulatedPayment = async () => {
+    if (!store) return
+    setIsSubmittingPayment(true)
+    try {
+      const updated = await updateStore(store.id, {
+        subscription_status: 'pending',
+      })
+      setStore(updated)
+      setIsPayModalOpen(false)
+      toast({
+        title: 'Pagamento enviado para confirmação!',
+        description:
+          'Seu pagamento está marcado como "Aguardando confirmação". O administrador validará o recebimento para reativar seu acesso.',
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao registrar pagamento',
+        description: err.message || 'Não foi possível registrar o pagamento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmittingPayment(false)
     }
   }
 
@@ -517,6 +616,9 @@ export default function MerchantDashboard() {
   }
 
   // Global Sales metrics (for top cards)
+  const isSuspended =
+    store && (store.subscription_status === 'overdue' || store.subscription_status === 'cancelled')
+
   const totalStoreSales = purchases
     .filter((p) => p.type === 'purchase')
     .reduce((sum, p) => sum + (p.amount || 0), 0)
@@ -525,18 +627,56 @@ export default function MerchantDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
+      {/* SUSPENSION WARNING BANNER (When store is overdue or cancelled) */}
+      {isSuspended && (
+        <div className="mb-6 p-5 rounded-3xl bg-rose-50 border-2 border-rose-300 text-rose-950 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-rose-900 flex items-center gap-2">
+                Acesso e Loja Suspensos por Pendência na Assinatura
+                <Badge className="bg-rose-600 text-white border-0 text-[10px]">
+                  {store.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelado'}
+                </Badge>
+              </h3>
+              <p className="text-xs text-rose-800 leading-relaxed mt-1 max-w-2xl">
+                Sua loja foi temporariamente suspensa do portal público e os recursos operacionais
+                (PDV Caixa e Programa de Fidelidade) estão bloqueados. Regularize sua assinatura via
+                PIX para reativar todos os benefícios e o acesso dos clientes.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            onClick={() => setIsPayModalOpen(true)}
+            className="w-full md:w-auto shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs py-5 px-5 rounded-2xl shadow-md gap-2"
+          >
+            <CreditCard className="w-4 h-4" />
+            Regularizar / Pagar Assinatura
+          </Button>
+        </div>
+      )}
+
       {/* HEADER & STATUS BAR */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge className="bg-amber-100 text-amber-800 border-amber-300 gap-1 font-bold">
               <Store className="w-3.5 h-3.5" />
               Painel do Lojista
             </Badge>
 
-            {store && store.approval_status === 'approved' && (
+            {store && !isSuspended && store.approval_status === 'approved' && (
               <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Loja Ativa no Portal
+              </Badge>
+            )}
+
+            {store && isSuspended && (
+              <Badge className="bg-rose-600 text-white font-bold gap-1">
+                <AlertCircle className="w-3 h-3" /> Loja Suspensa
               </Badge>
             )}
 
@@ -549,6 +689,12 @@ export default function MerchantDashboard() {
             {store && store.subscription_status === 'trial' && (
               <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50">
                 Período de Teste Grátis
+              </Badge>
+            )}
+
+            {store && store.subscription_status === 'pending' && (
+              <Badge className="bg-blue-600 text-white font-bold gap-1">
+                <Clock className="w-3 h-3" /> Pagamento Aguardando Confirmação
               </Badge>
             )}
           </div>
@@ -566,11 +712,27 @@ export default function MerchantDashboard() {
           </p>
         </div>
 
-        {/* Quick jump to register sale */}
-        {store && plan && (
-          <div className="flex items-center gap-2">
+        {/* Quick actions: register sale or pay subscription */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {store && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setActiveTab('subscription')
+                const el = document.getElementById('tabs-section')
+                el?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              className="text-xs font-bold border-purple-200 text-purple-700 hover:bg-purple-50 rounded-xl"
+            >
+              <CreditCard className="w-3.5 h-3.5 mr-1" />
+              Minha Assinatura
+            </Button>
+          )}
+
+          {store && plan && !isSuspended && (
             <Button
               onClick={() => {
+                setActiveTab('pos')
                 const el = document.getElementById('registrar-compra-section')
                 el?.scrollIntoView({ behavior: 'smooth' })
               }}
@@ -579,8 +741,8 @@ export default function MerchantDashboard() {
               <PlusCircle className="w-4 h-4" />
               Registrar Compra do Cliente
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* METRICS ROW */}
@@ -671,23 +833,32 @@ export default function MerchantDashboard() {
       )}
 
       {/* MAIN TABS */}
-      <Tabs defaultValue={store ? 'pos' : 'store'} className="space-y-6">
-        <TabsList className="bg-slate-200/70 p-1 rounded-xl">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6" id="tabs-section">
+        <TabsList className="bg-slate-200/70 p-1 rounded-xl flex-wrap h-auto">
           <TabsTrigger
             value="pos"
+            disabled={isSuspended}
             className="gap-2 text-xs sm:text-sm font-semibold"
             id="registrar-compra-section"
           >
             <ShoppingBag className="w-4 h-4" />
-            Registrar Compra (PDV Caixa)
+            Registrar Compra (PDV)
           </TabsTrigger>
-          <TabsTrigger value="program" className="gap-2 text-xs sm:text-sm font-semibold">
+          <TabsTrigger
+            value="program"
+            disabled={isSuspended}
+            className="gap-2 text-xs sm:text-sm font-semibold"
+          >
             <Award className="w-4 h-4" />
             Meu Plano de Fidelidade
           </TabsTrigger>
           <TabsTrigger value="store" className="gap-2 text-xs sm:text-sm font-semibold">
             <Store className="w-4 h-4" />
             Dados da Loja
+          </TabsTrigger>
+          <TabsTrigger value="subscription" className="gap-2 text-xs sm:text-sm font-semibold">
+            <CreditCard className="w-4 h-4" />
+            Assinatura
           </TabsTrigger>
           <TabsTrigger value="sales" className="gap-2 text-xs sm:text-sm font-semibold">
             <TrendingUp className="w-4 h-4" />
@@ -699,7 +870,28 @@ export default function MerchantDashboard() {
         {/* TAB 1: PDV - REGISTRAR COMPRA PELO CÓDIGO DO CLIENTE */}
         {/* ======================================================== */}
         <TabsContent value="pos" className="space-y-6">
-          {!store ? (
+          {isSuspended ? (
+            <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto border-rose-200 bg-rose-50/50">
+              <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-slate-900 mb-1">
+                PDV Bloqueado por Pendência na Assinatura
+              </h3>
+              <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                Sua assinatura está com status{' '}
+                <strong>
+                  {store?.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelado'}
+                </strong>
+                . Efetue o pagamento da assinatura para reativar o registro de compras e créditos
+                aos clientes.
+              </p>
+              <Button
+                onClick={() => setIsPayModalOpen(true)}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
+              >
+                <CreditCard className="w-4 h-4 mr-2" /> Pagar Assinatura Agora
+              </Button>
+            </Card>
+          ) : !store ? (
             <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
               <Store className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <h3 className="text-lg font-bold text-slate-900 mb-1">Cadastre sua loja primeiro</h3>
@@ -1003,274 +1195,293 @@ export default function MerchantDashboard() {
         {/* TAB 2: MEU PLANO DE FIDELIDADE (SELOS / PONTOS / CASHBACK) */}
         {/* ======================================================== */}
         <TabsContent value="program" className="space-y-6">
-          <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
-            <CardHeader>
-              <CardTitle className="text-xl font-black text-slate-900">
-                Configurar Regras de Fidelidade
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-500">
-                Escolha o modelo que melhor engaja seu público: Selos no cartão, Pontos acumulativos
-                ou Cashback em %
-              </CardDescription>
-            </CardHeader>
+          {isSuspended ? (
+            <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto border-rose-200 bg-rose-50/50">
+              <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-slate-900 mb-1">
+                Configuração Bloqueada por Pendência na Assinatura
+              </h3>
+              <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                Regularize sua assinatura para alterar ou gerenciar as regras do seu plano de
+                fidelidade.
+              </p>
+              <Button
+                onClick={() => setIsPayModalOpen(true)}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
+              >
+                <CreditCard className="w-4 h-4 mr-2" /> Regularizar Assinatura
+              </Button>
+            </Card>
+          ) : (
+            <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
+              <CardHeader>
+                <CardTitle className="text-xl font-black text-slate-900">
+                  Configurar Regras de Fidelidade
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Escolha o modelo que melhor engaja seu público: Selos no cartão, Pontos
+                  acumulativos ou Cashback em %
+                </CardDescription>
+              </CardHeader>
 
-            <CardContent>
-              <form onSubmit={handleSavePlan} className="space-y-6">
-                {/* MODEL SELECTOR */}
-                <div className="space-y-3">
-                  <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Tipo de Fidelidade
-                  </Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPlanType('stamps')}
-                      className={`p-4 rounded-2xl border text-left transition-all ${
-                        planType === 'stamps'
-                          ? 'border-amber-500 bg-amber-50/70 shadow-xs ring-2 ring-amber-500/20'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Award
-                        className={`w-6 h-6 mb-2 ${
-                          planType === 'stamps' ? 'text-amber-600' : 'text-slate-400'
-                        }`}
-                      />
-                      <p className="font-extrabold text-sm text-slate-900">Selos Digitais</p>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Estilo cafeteria: complete 10 selos e ganhe uma cortesia.
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPlanType('points')}
-                      className={`p-4 rounded-2xl border text-left transition-all ${
-                        planType === 'points'
-                          ? 'border-indigo-500 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Coins
-                        className={`w-6 h-6 mb-2 ${
-                          planType === 'points' ? 'text-indigo-600' : 'text-slate-400'
-                        }`}
-                      />
-                      <p className="font-extrabold text-sm text-slate-900">Pontos por R$</p>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Acumule pontos proporcionais ao gasto e troque por prêmios.
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPlanType('cashback')}
-                      className={`p-4 rounded-2xl border text-left transition-all ${
-                        planType === 'cashback'
-                          ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Percent
-                        className={`w-6 h-6 mb-2 ${
-                          planType === 'cashback' ? 'text-emerald-600' : 'text-slate-400'
-                        }`}
-                      />
-                      <p className="font-extrabold text-sm text-slate-900">Cashback</p>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Devolva uma % em reais para abater em compras futuras.
-                      </p>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Plan Title & General Description */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">Título do Programa</Label>
-                    <Input
-                      required
-                      placeholder="Ex: Cartão 10 Cafés ou Clube VIP"
-                      value={planTitle}
-                      onChange={(e) => setPlanTitle(e.target.value)}
-                      className="text-xs rounded-xl"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">
-                      Descrição curta para o cliente
+              <CardContent>
+                <form onSubmit={handleSavePlan} className="space-y-6">
+                  {/* MODEL SELECTOR */}
+                  <div className="space-y-3">
+                    <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Tipo de Fidelidade
                     </Label>
-                    <Input
-                      placeholder="Ex: A cada R$ 20 ganhe 1 selo"
-                      value={planDesc}
-                      onChange={(e) => setPlanDesc(e.target.value)}
-                      className="text-xs rounded-xl"
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPlanType('stamps')}
+                        className={`p-4 rounded-2xl border text-left transition-all ${
+                          planType === 'stamps'
+                            ? 'border-amber-500 bg-amber-50/70 shadow-xs ring-2 ring-amber-500/20'
+                            : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Award
+                          className={`w-6 h-6 mb-2 ${
+                            planType === 'stamps' ? 'text-amber-600' : 'text-slate-400'
+                          }`}
+                        />
+                        <p className="font-extrabold text-sm text-slate-900">Selos Digitais</p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Estilo cafeteria: complete 10 selos e ganhe uma cortesia.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPlanType('points')}
+                        className={`p-4 rounded-2xl border text-left transition-all ${
+                          planType === 'points'
+                            ? 'border-indigo-500 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
+                            : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Coins
+                          className={`w-6 h-6 mb-2 ${
+                            planType === 'points' ? 'text-indigo-600' : 'text-slate-400'
+                          }`}
+                        />
+                        <p className="font-extrabold text-sm text-slate-900">Pontos por R$</p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Acumule pontos proporcionais ao gasto e troque por prêmios.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPlanType('cashback')}
+                        className={`p-4 rounded-2xl border text-left transition-all ${
+                          planType === 'cashback'
+                            ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20'
+                            : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Percent
+                          className={`w-6 h-6 mb-2 ${
+                            planType === 'cashback' ? 'text-emerald-600' : 'text-slate-400'
+                          }`}
+                        />
+                        <p className="font-extrabold text-sm text-slate-900">Cashback</p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Devolva uma % em reais para abater em compras futuras.
+                        </p>
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {/* TYPE-SPECIFIC PARAMETERS */}
-                {planType === 'stamps' && (
-                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
-                      Regras de Selos
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-700">
-                          Quantidade de Selos para Resgatar (Meta)
-                        </Label>
-                        <Input
-                          type="number"
-                          min={2}
-                          max={50}
-                          required
-                          value={planTargetStamps}
-                          onChange={(e) => setPlanTargetStamps(Number(e.target.value))}
-                          className="text-xs bg-white rounded-xl"
-                        />
+                  {/* Plan Title & General Description */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Título do Programa</Label>
+                      <Input
+                        required
+                        placeholder="Ex: Cartão 10 Cafés ou Clube VIP"
+                        value={planTitle}
+                        onChange={(e) => setPlanTitle(e.target.value)}
+                        className="text-xs rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Descrição curta para o cliente
+                      </Label>
+                      <Input
+                        placeholder="Ex: A cada R$ 20 ganhe 1 selo"
+                        value={planDesc}
+                        onChange={(e) => setPlanDesc(e.target.value)}
+                        className="text-xs rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  {/* TYPE-SPECIFIC PARAMETERS */}
+                  {planType === 'stamps' && (
+                    <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                        Regras de Selos
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Quantidade de Selos para Resgatar (Meta)
+                          </Label>
+                          <Input
+                            type="number"
+                            min={2}
+                            max={50}
+                            required
+                            value={planTargetStamps}
+                            onChange={(e) => setPlanTargetStamps(Number(e.target.value))}
+                            className="text-xs bg-white rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Valor Mínimo da Compra por Selo (R$)
+                          </Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            step="0.50"
+                            required
+                            value={planMinAmount}
+                            onChange={(e) => setPlanMinAmount(Number(e.target.value))}
+                            className="text-xs bg-white rounded-xl"
+                          />
+                          <p className="text-[10px] text-slate-500">
+                            Ex: R$ 20,00 significa que uma compra de R$ 60 dá 3 selos.
+                          </p>
+                        </div>
                       </div>
+                    </div>
+                  )}
 
-                      <div className="space-y-1.5">
+                  {planType === 'points' && (
+                    <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                        Regras de Pontos
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Pontos Gerados por R$ 1,00 Gasto
+                          </Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            required
+                            value={planPointsRate}
+                            onChange={(e) => setPlanPointsRate(Number(e.target.value))}
+                            className="text-xs bg-white rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Pontos Necessários para Resgate
+                          </Label>
+                          <Input
+                            type="number"
+                            min={10}
+                            required
+                            value={planPointsRedeem}
+                            onChange={(e) => setPlanPointsRedeem(Number(e.target.value))}
+                            className="text-xs bg-white rounded-xl"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {planType === 'cashback' && (
+                    <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                        Regras de Cashback
+                      </h4>
+                      <div className="space-y-1.5 max-w-xs">
                         <Label className="text-xs font-bold text-slate-700">
-                          Valor Mínimo da Compra por Selo (R$)
+                          Porcentagem de Devolução (%)
                         </Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          step="0.50"
-                          required
-                          value={planMinAmount}
-                          onChange={(e) => setPlanMinAmount(Number(e.target.value))}
-                          className="text-xs bg-white rounded-xl"
-                        />
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={50}
+                            step="0.5"
+                            required
+                            value={planCashbackPct}
+                            onChange={(e) => setPlanCashbackPct(Number(e.target.value))}
+                            className="text-xs bg-white rounded-xl pr-8"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
+                            %
+                          </span>
+                        </div>
                         <p className="text-[10px] text-slate-500">
-                          Ex: R$ 20,00 significa que uma compra de R$ 60 dá 3 selos.
+                          Ex: 8% em uma compra de R$ 100 credita R$ 8,00 no saldo digital.
                         </p>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {planType === 'points' && (
-                  <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-900">
-                      Regras de Pontos
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-700">
-                          Pontos Gerados por R$ 1,00 Gasto
-                        </Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          required
-                          value={planPointsRate}
-                          onChange={(e) => setPlanPointsRate(Number(e.target.value))}
-                          className="text-xs bg-white rounded-xl"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-700">
-                          Pontos Necessários para Resgate
-                        </Label>
-                        <Input
-                          type="number"
-                          min={10}
-                          required
-                          value={planPointsRedeem}
-                          onChange={(e) => setPlanPointsRedeem(Number(e.target.value))}
-                          className="text-xs bg-white rounded-xl"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {planType === 'cashback' && (
-                  <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900">
-                      Regras de Cashback
-                    </h4>
-                    <div className="space-y-1.5 max-w-xs">
-                      <Label className="text-xs font-bold text-slate-700">
-                        Porcentagem de Devolução (%)
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min={1}
-                          max={50}
-                          step="0.5"
-                          required
-                          value={planCashbackPct}
-                          onChange={(e) => setPlanCashbackPct(Number(e.target.value))}
-                          className="text-xs bg-white rounded-xl pr-8"
-                        />
-                        <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
-                          %
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500">
-                        Ex: 8% em uma compra de R$ 100 credita R$ 8,00 no saldo digital.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* REWARD DETAILS */}
-                <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Recompensa Oferecida
-                  </h4>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">
-                      Nome do Prêmio / Benefício *
-                    </Label>
-                    <Input
-                      required
-                      placeholder="Ex: 1 Hambúrguer Smash ou R$ 20 de Desconto"
-                      value={planRewardTitle}
-                      onChange={(e) => setPlanRewardTitle(e.target.value)}
-                      className="text-xs rounded-xl"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">
-                      Instruções de Resgate no Caixa (Opcional)
-                    </Label>
-                    <Textarea
-                      rows={2}
-                      placeholder="Ex: Apresente o cartão digital ao atendente antes de fechar a conta."
-                      value={planRewardDesc}
-                      onChange={(e) => setPlanRewardDesc(e.target.value)}
-                      className="text-xs rounded-xl resize-none"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isSavingPlan}
-                  className="w-full py-5 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white"
-                >
-                  {isSavingPlan ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Salvando Plano...
-                    </>
-                  ) : (
-                    'Salvar e Publicar Plano de Fidelidade'
                   )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+
+                  {/* REWARD DETAILS */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Recompensa Oferecida
+                    </h4>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Nome do Prêmio / Benefício *
+                      </Label>
+                      <Input
+                        required
+                        placeholder="Ex: 1 Hambúrguer Smash ou R$ 20 de Desconto"
+                        value={planRewardTitle}
+                        onChange={(e) => setPlanRewardTitle(e.target.value)}
+                        className="text-xs rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Instruções de Resgate no Caixa (Opcional)
+                      </Label>
+                      <Textarea
+                        rows={2}
+                        placeholder="Ex: Apresente o cartão digital ao atendente antes de fechar a conta."
+                        value={planRewardDesc}
+                        onChange={(e) => setPlanRewardDesc(e.target.value)}
+                        className="text-xs rounded-xl resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isSavingPlan}
+                    className="w-full py-5 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white"
+                  >
+                    {isSavingPlan ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando Plano...
+                      </>
+                    ) : (
+                      'Salvar e Publicar Plano de Fidelidade'
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ======================================================== */}
@@ -1392,6 +1603,95 @@ export default function MerchantDashboard() {
                   </div>
                 </div>
 
+                {/* LOGO AND BANNER UPLOAD SECTION */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 pt-4">
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-rose-600" />
+                      Imagens da Loja para o Portal Público
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Personalize a logo e o banner que seus clientes verão na página da sua loja
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Logo upload */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5 text-slate-500" />
+                        Logo do Estabelecimento
+                      </Label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                          {logoPreview ? (
+                            <img
+                              src={logoPreview}
+                              alt="Logo preview"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : store ? (
+                            <img
+                              src={getStoreImageUrl(store, 'logo')}
+                              alt={store.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Store className="w-7 h-7 text-slate-300" />
+                          )}
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoFileChange}
+                            className="text-xs rounded-xl file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100 cursor-pointer"
+                          />
+                          <p className="text-[10px] text-slate-400">JPG, PNG ou WebP (máx. 5MB)</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Banner upload */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5 text-slate-500" />
+                        Banner de Capa (Topo)
+                      </Label>
+                      <div className="space-y-1.5">
+                        <div className="w-full h-16 rounded-xl bg-slate-200 overflow-hidden border border-slate-300 flex items-center justify-center">
+                          {bannerPreview ? (
+                            <img
+                              src={bannerPreview}
+                              alt="Banner preview"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : store ? (
+                            <img
+                              src={getStoreImageUrl(store, 'banner')}
+                              alt={store.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-bold">
+                              Banner padrão
+                            </span>
+                          )}
+                        </div>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBannerFileChange}
+                          className="text-xs rounded-xl file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
+                        />
+                        <p className="text-[10px] text-slate-400">
+                          Recomendado 800x400 (máx. 10MB)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Subscription plan select */}
                 <div className="space-y-1.5 pt-2">
                   <Label className="text-xs font-bold text-slate-700">
@@ -1429,6 +1729,143 @@ export default function MerchantDashboard() {
                   )}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB: ASSINATURA DA LOJA & PAGAMENTO */}
+        {/* ======================================================== */}
+        <TabsContent value="subscription" className="space-y-6">
+          <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-purple-600" />
+                    Assinatura do Estabelecimento
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Gerencie seu plano de assinatura mensal/anual e mantenha seus serviços em dia
+                  </CardDescription>
+                </div>
+                <Badge
+                  className={`text-xs px-3 py-1 font-bold ${
+                    store?.subscription_status === 'active'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : store?.subscription_status === 'trial'
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : store?.subscription_status === 'pending'
+                          ? 'bg-blue-100 text-blue-800 border-blue-300'
+                          : 'bg-rose-100 text-rose-800 border-rose-300'
+                  }`}
+                >
+                  {store?.subscription_status === 'active'
+                    ? 'Ativa / Paga'
+                    : store?.subscription_status === 'trial'
+                      ? 'Período de Teste Grátis'
+                      : store?.subscription_status === 'pending'
+                        ? 'Aguardando Confirmação'
+                        : store?.subscription_status === 'overdue'
+                          ? 'Em Atraso (Suspensa)'
+                          : 'Cancelada (Suspensa)'}
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {/* STATUS SUMMARY BANNER */}
+              {store?.subscription_status === 'pending' ? (
+                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 space-y-1">
+                  <p className="font-bold text-xs flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    Pagamento em análise pelo Administrador
+                  </p>
+                  <p className="text-[11px] text-blue-800 leading-relaxed">
+                    Você já enviou a confirmação de pagamento via PIX. O administrador irá conferir
+                    o recebimento e reativar sua assinatura em instantes.
+                  </p>
+                </div>
+              ) : isSuspended ? (
+                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 space-y-1">
+                  <p className="font-bold text-xs flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-rose-600" />
+                    Assinatura Pendente ou Suspensa
+                  </p>
+                  <p className="text-[11px] text-rose-800 leading-relaxed">
+                    Sua loja não está visível no portal público e as funcionalidades estão
+                    bloqueadas. Clique no botão abaixo para pagar e regularizar.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
+                  <p className="font-bold text-xs flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Tudo certo com sua assinatura!
+                  </p>
+                  <p className="text-[11px] text-emerald-800 leading-relaxed">
+                    Sua loja está ativa no portal e os clientes podem pontuar e resgatar
+                    normalmente.
+                  </p>
+                </div>
+              )}
+
+              {/* PLAN DETAILS GRID */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Plano Atual
+                  </p>
+                  <h4 className="text-base font-black text-slate-900 mt-1">
+                    {currentSubPlan?.name || 'Plano Básico'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Cobrança a cada {currentSubPlan?.billing_interval_months || 1} mês(es)
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Valor da Assinatura
+                  </p>
+                  <h4 className="text-xl font-black text-slate-900 mt-1">
+                    R$ {Number(currentSubPlan?.price || 49.9).toFixed(2)}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Sem taxa de adesão</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Data de Vencimento
+                  </p>
+                  <h4 className="text-base font-black text-slate-900 mt-1">
+                    {store?.subscription_expires_at
+                      ? new Date(store.subscription_expires_at).toLocaleDateString('pt-BR')
+                      : 'Não definida'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {store?.subscription_status === 'trial'
+                      ? 'Fim do teste grátis'
+                      : 'Próxima renovação'}
+                  </p>
+                </div>
+              </div>
+
+              {/* ACTION BUTTON */}
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="button"
+                  onClick={() => setIsPayModalOpen(true)}
+                  className="flex-1 py-6 rounded-2xl font-black text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg shadow-purple-600/20"
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {store?.subscription_status === 'pending'
+                    ? 'Ver Dados do PIX / Pagar Novamente'
+                    : isSuspended
+                      ? 'Pagar Assinatura e Regularizar Loja'
+                      : 'Renovar / Pagar Assinatura'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1665,6 +2102,98 @@ export default function MerchantDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* MODAL: PAGAMENTO SIMULADO DE ASSINATURA (PIX) */}
+      <Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center mb-2">
+              <QrCode className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-xl font-black text-slate-900">
+              Pagamento da Assinatura
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 leading-relaxed">
+              Demonstração de pagamento via PIX. Copie o código abaixo e simule o pagamento para
+              enviar a confirmação ao administrador.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Amount card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
+                  {currentSubPlan?.name || 'Plano Fideliza'}
+                </p>
+                <p className="text-2xl font-black text-slate-900 mt-0.5">
+                  R$ {Number(currentSubPlan?.price || 49.9).toFixed(2)}
+                </p>
+              </div>
+              <Badge className="bg-purple-600 text-white font-bold text-xs py-1 px-3">
+                PIX Instantâneo
+              </Badge>
+            </div>
+
+            {/* Simulated PIX QR / Code */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-700">
+                Código PIX Copia e Cola (Exemplo / Demonstração)
+              </Label>
+              <div className="p-3 bg-slate-900 text-slate-200 rounded-2xl font-mono text-xs break-all select-all leading-relaxed">
+                {mockPixPayload}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCopyPix}
+                className="w-full text-xs font-bold rounded-xl gap-2 h-10 border-slate-300"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                {copiedPix ? 'Código PIX Copiado!' : 'Copiar Código PIX'}
+              </Button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+              💡 <strong>Ambiente de Demonstração:</strong> Ao clicar no botão abaixo, sua
+              assinatura mudará para status <strong>"Aguardando confirmação"</strong> e o
+              administrador poderá aprovar na gestão do sistema.
+            </div>
+
+            <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsPayModalOpen(false)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isSubmittingPayment}
+                onClick={handleConfirmSimulatedPayment}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-5 rounded-xl flex-1 shadow-md"
+              >
+                {isSubmittingPayment ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Registrando Pagamento...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Já Paguei / Confirmar Pagamento
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL: RESGATE DE RECOMPENSA PELO CLIENTE */}
       <Dialog open={isRedeemModalOpen} onOpenChange={setIsRedeemModalOpen}>

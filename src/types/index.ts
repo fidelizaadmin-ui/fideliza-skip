@@ -24,7 +24,7 @@ export type StoreCategory =
   | 'Outros'
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
-export type SubscriptionStatus = 'trial' | 'active' | 'overdue' | 'cancelled'
+export type SubscriptionStatus = 'trial' | 'active' | 'overdue' | 'cancelled' | 'pending'
 export type FidelityType = 'stamps' | 'points' | 'cashback'
 
 export interface SubscriptionPlanRecord {
@@ -53,6 +53,8 @@ export interface StoreRecord {
   whatsapp?: string
   logo_url: string
   banner_url: string
+  logo_file?: string
+  banner_file?: string
   approval_status: ApprovalStatus
   subscription_plan_id?: string
   subscription_status?: SubscriptionStatus

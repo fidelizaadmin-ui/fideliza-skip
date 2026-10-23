@@ -16,7 +16,11 @@ export async function getApprovedStores(
   category?: string,
 ): Promise<StoreRecord[]> {
   try {
-    const filters: string[] = ['approval_status = "approved"']
+    const filters: string[] = [
+      'approval_status = "approved"',
+      'subscription_status != "overdue"',
+      'subscription_status != "cancelled"',
+    ]
 
     if (category && category !== 'Todas') {
       filters.push(`category = "${category}"`)
@@ -82,8 +86,34 @@ export async function createStore(data: Partial<StoreRecord>): Promise<StoreReco
   return await pb.collection('stores').create<StoreRecord>(data)
 }
 
-export async function updateStore(id: string, data: Partial<StoreRecord>): Promise<StoreRecord> {
+export async function updateStore(
+  id: string,
+  data: Partial<StoreRecord> | FormData,
+): Promise<StoreRecord> {
   return await pb.collection('stores').update<StoreRecord>(id, data)
+}
+
+export async function deleteStore(id: string): Promise<boolean> {
+  try {
+    return await pb.collection('stores').delete(id)
+  } catch (error) {
+    console.error('Error deleting store:', error)
+    throw error
+  }
+}
+
+export function getStoreImageUrl(store: StoreRecord, type: 'logo' | 'banner'): string {
+  if (type === 'logo') {
+    if (store.logo_file) {
+      return pb.files.getURL(store as any, store.logo_file)
+    }
+    return store.logo_url || ''
+  } else {
+    if (store.banner_file) {
+      return pb.files.getURL(store as any, store.banner_file)
+    }
+    return store.banner_url || ''
+  }
 }
 
 // ==========================================
