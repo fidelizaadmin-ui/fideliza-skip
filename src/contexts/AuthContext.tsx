@@ -137,14 +137,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document: document?.trim(),
     })
 
-    // 2. Disparar e-mail de verificação (best-effort: erro no SMTP não quebra cadastro)
+    // 2. Disparar e-mail de verificação via Gmail do owner (endpoint customizado ou fallback nativo)
     let verificationSent = false
     try {
-      await pb.collection('users').requestVerification(cleanEmail)
+      await pb.send('/backend/v1/auth/request-verification', {
+        method: 'POST',
+        body: { email: cleanEmail },
+      })
       verificationSent = true
-    } catch (verErr) {
-      console.warn('Não foi possível disparar e-mail de verificação no cadastro:', verErr)
-      verificationSent = false
+    } catch (apiErr) {
+      console.warn('Endpoint customizado falhou, tentando fallback nativo:', apiErr)
+      try {
+        await pb.collection('users').requestVerification(cleanEmail)
+        verificationSent = true
+      } catch (verErr) {
+        console.warn('Não foi possível disparar e-mail de verificação no cadastro:', verErr)
+        verificationSent = false
+      }
     }
 
     // 3. Auto log in
@@ -190,30 +199,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      await pb.collection('users').requestVerification(emailToSend)
+      // 1. Tenta endpoint customizado conectado ao Gmail do Owner
+      const res = await pb.send('/backend/v1/auth/request-verification', {
+        method: 'POST',
+        body: { email: emailToSend },
+      })
       return {
         success: true,
         message:
+          res?.message ||
           'E-mail de confirmação enviado com sucesso! Verifique sua caixa de entrada e spam.',
       }
-    } catch (err: any) {
-      console.error('Erro ao solicitar verificação de e-mail:', err)
-      const errDetail = err?.data?.message || err?.message || ''
-      if (
-        errDetail.toLowerCase().includes('mail') ||
-        errDetail.toLowerCase().includes('smtp') ||
-        err?.status === 400 ||
-        err?.status === 500
-      ) {
+    } catch (apiErr: any) {
+      console.warn('Endpoint customizado falhou, tentando requestVerification nativo:', apiErr)
+      // 2. Fallback para requisição nativa (interceptada pelo hook onMailerRecordVerificationSend)
+      try {
+        await pb.collection('users').requestVerification(emailToSend)
+        return {
+          success: true,
+          message:
+            'E-mail de confirmação enviado com sucesso! Verifique sua caixa de entrada e spam.',
+        }
+      } catch (err: any) {
+        console.error('Erro ao solicitar verificação de e-mail:', err)
         return {
           success: false,
           message:
-            'Não foi possível enviar o e-mail no momento. O serviço de envio pode estar indisponível temporariamente.',
+            'Não foi possível enviar o e-mail no momento. Verifique o endereço digitado ou tente novamente mais tarde.',
         }
-      }
-      return {
-        success: false,
-        message: 'Ocorreu um erro ao tentar reenviar o e-mail de confirmação.',
       }
     }
   }

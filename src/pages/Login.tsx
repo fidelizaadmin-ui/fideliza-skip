@@ -115,11 +115,24 @@ export default function Login() {
     setResetError(null)
 
     try {
-      await pb.collection('users').requestPasswordReset(cleanEmail)
-      setResetSuccess(true)
+      // 1. Tenta endpoint customizado conectado ao Gmail do Owner
+      try {
+        await pb.send('/backend/v1/auth/request-password-reset', {
+          method: 'POST',
+          body: { email: cleanEmail },
+        })
+        setResetSuccess(true)
+      } catch (apiErr) {
+        console.warn('Endpoint customizado falhou, tentando requestPasswordReset nativo:', apiErr)
+        // 2. Fallback para rota nativa (interceptada pelo hook onMailerRecordPasswordResetSend)
+        await pb.collection('users').requestPasswordReset(cleanEmail)
+        setResetSuccess(true)
+      }
     } catch (err: any) {
       console.error('Password reset request error:', err)
-      setResetError('Não foi possível enviar o e-mail agora. Contate o suporte.')
+      setResetError(
+        'Não foi possível enviar o e-mail agora. Verifique o e-mail digitado ou tente novamente mais tarde.',
+      )
     } finally {
       setIsSendingReset(false)
     }
