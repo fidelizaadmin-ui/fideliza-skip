@@ -50,6 +50,7 @@ export interface StoreRecord {
   address: string
   city: string
   phone: string
+  whatsapp?: string
   logo_url: string
   banner_url: string
   approval_status: ApprovalStatus

@@ -66,9 +66,14 @@ import {
   QrCode,
   DollarSign,
   Loader2,
+  FileDown,
+  MessageCircle,
+  Filter,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
+import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
+import { generateSalesReportPDF } from '@/lib/pdfReport'
 
 const CATEGORIES: StoreCategory[] = [
   'Alimentação',
@@ -99,6 +104,7 @@ export default function MerchantDashboard() {
   const [storeAddr, setStoreAddr] = useState('')
   const [storeCity, setStoreCity] = useState('')
   const [storePhone, setStorePhone] = useState('')
+  const [storeWhatsapp, setStoreWhatsapp] = useState('')
   const [storeLogo, setStoreLogo] = useState('')
   const [storeBanner, setStoreBanner] = useState('')
   const [selectedSubPlanId, setSelectedSubPlanId] = useState('')
@@ -131,6 +137,11 @@ export default function MerchantDashboard() {
   const [cashbackToRedeem, setCashbackToRedeem] = useState<number | ''>('')
   const [isSubmittingRedeem, setIsSubmittingRedeem] = useState(false)
 
+  // Sales report filter state
+  const [reportPeriodMonths, setReportPeriodMonths] = useState<string>('all')
+  const [reportTypeFilter, setReportTypeFilter] = useState<string>('all')
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || (role !== 'merchant' && role !== 'admin'))) {
       navigate('/login?tipo=lojista')
@@ -157,6 +168,7 @@ export default function MerchantDashboard() {
         setStoreAddr(storeData.address || '')
         setStoreCity(storeData.city || '')
         setStorePhone(storeData.phone || '')
+        setStoreWhatsapp(storeData.whatsapp || '')
         setStoreLogo(storeData.logo_url || '')
         setStoreBanner(storeData.banner_url || '')
         setSelectedSubPlanId(storeData.subscription_plan_id || plansList[0]?.id || '')
@@ -213,6 +225,7 @@ export default function MerchantDashboard() {
           address: storeAddr,
           city: storeCity,
           phone: storePhone,
+          whatsapp: storeWhatsapp ? formatWhatsAppUrl(storeWhatsapp) : '',
           logo_url:
             storeLogo ||
             `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(storeCat)}&color=orange`,
@@ -234,6 +247,7 @@ export default function MerchantDashboard() {
           address: storeAddr,
           city: storeCity,
           phone: storePhone,
+          whatsapp: storeWhatsapp ? formatWhatsAppUrl(storeWhatsapp) : '',
           logo_url:
             storeLogo ||
             `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(storeCat)}&color=orange`,
@@ -431,7 +445,78 @@ export default function MerchantDashboard() {
     }
   }
 
-  // Sales metrics
+  // Filtered purchases for Sales Report tab
+  const filteredPurchases = purchases.filter((p) => {
+    // 1. Type filter
+    if (reportTypeFilter !== 'all' && p.type !== reportTypeFilter) {
+      return false
+    }
+
+    // 2. Period in months filter
+    if (reportPeriodMonths !== 'all') {
+      const months = Number(reportPeriodMonths)
+      if (!isNaN(months) && months > 0) {
+        const purchaseDate = new Date(p.created)
+        const cutoffDate = new Date()
+        cutoffDate.setMonth(cutoffDate.getMonth() - months)
+        if (purchaseDate < cutoffDate) {
+          return false
+        }
+      }
+    }
+
+    return true
+  })
+
+  // Filtered metrics
+  const filteredTotalSales = filteredPurchases
+    .filter((p) => p.type === 'purchase')
+    .reduce((sum, p) => sum + (p.amount || 0), 0)
+  const filteredPurchasesCount = filteredPurchases.filter((p) => p.type === 'purchase').length
+  const filteredRedemptionsCount = filteredPurchases.filter((p) => p.type === 'redemption').length
+
+  // PDF Export Handler
+  const handleExportPDF = () => {
+    setIsGeneratingPdf(true)
+    try {
+      let periodLabel = 'Todo o histórico'
+      if (reportPeriodMonths === '1') periodLabel = 'Último 1 mês'
+      else if (reportPeriodMonths === '3') periodLabel = 'Últimos 3 meses'
+      else if (reportPeriodMonths === '6') periodLabel = 'Últimos 6 meses'
+      else if (reportPeriodMonths === '12') periodLabel = 'Últimos 12 meses'
+
+      let typeFilterLabel = 'Todas as movimentações'
+      if (reportTypeFilter === 'purchase') typeFilterLabel = 'Apenas Compras (Crédito/Acúmulo)'
+      else if (reportTypeFilter === 'redemption') typeFilterLabel = 'Apenas Resgates de Recompensas'
+
+      generateSalesReportPDF({
+        storeName: store?.name || 'Minha Loja',
+        periodLabel,
+        typeFilterLabel,
+        totalSalesCount: filteredPurchasesCount,
+        totalSalesAmount: filteredTotalSales,
+        totalRedemptionsCount: filteredRedemptionsCount,
+        purchases: filteredPurchases,
+        storeInfo: store,
+      })
+
+      toast({
+        title: 'PDF gerado com sucesso!',
+        description: 'O download do relatório de vendas foi iniciado.',
+      })
+    } catch (err: any) {
+      console.error('Error generating PDF report:', err)
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: err.message || 'Não foi possível exportar o relatório.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
+
+  // Global Sales metrics (for top cards)
   const totalStoreSales = purchases
     .filter((p) => p.type === 'purchase')
     .reduce((sum, p) => sum + (p.amount || 0), 0)
@@ -1266,14 +1351,40 @@ export default function MerchantDashboard() {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700">WhatsApp / Telefone</Label>
-                  <Input
-                    placeholder="Ex: (11) 98765-4321"
-                    value={storePhone}
-                    onChange={(e) => setStorePhone(e.target.value)}
-                    className="text-xs rounded-xl max-w-sm"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">
+                      Telefone Fixo / Contato
+                    </Label>
+                    <Input
+                      placeholder="Ex: (11) 3456-7890"
+                      value={storePhone}
+                      onChange={(e) => setStorePhone(e.target.value)}
+                      className="text-xs rounded-xl"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      WhatsApp da Loja (Link wa.me)
+                    </Label>
+                    <Input
+                      placeholder="Ex: (11) 98765-4321 ou wa.me/5511..."
+                      value={storeWhatsapp}
+                      onChange={(e) => setStoreWhatsapp(e.target.value)}
+                      className="text-xs rounded-xl"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      {storeWhatsapp ? (
+                        <span className="text-emerald-700 font-medium flex items-center gap-1">
+                          Link gerado: {formatWhatsAppUrl(storeWhatsapp)}
+                        </span>
+                      ) : (
+                        'Gera link https://wa.me/55... automaticamente para clientes conversarem pelo portal.'
+                      )}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Subscription plan select */}
@@ -1321,17 +1432,151 @@ export default function MerchantDashboard() {
         {/* TAB 4: RELATÓRIO DE VENDAS */}
         {/* ======================================================== */}
         <TabsContent value="sales" className="space-y-6">
-          <Card className="rounded-3xl border-slate-200 shadow-xs">
-            <CardHeader>
-              <CardTitle className="text-lg font-black text-slate-900">
-                Histórico de Vendas e Resgates da Loja
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-500">
-                Todas as operações registradas no caixa com os cartões dos clientes
-              </CardDescription>
+          {/* FILTERS & PDF EXPORT HEADER CARD */}
+          <Card className="rounded-3xl border-slate-200 shadow-xs bg-gradient-to-br from-slate-50 to-white">
+            <CardHeader className="pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-rose-600" />
+                    Relatório de Vendas e Resgates
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Filtre por período e tipo de movimentação para acompanhar ou exportar em PDF
+                  </CardDescription>
+                </div>
+
+                <Button
+                  onClick={handleExportPDF}
+                  disabled={isGeneratingPdf || filteredPurchases.length === 0}
+                  className="bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold rounded-xl gap-2 shadow-sm text-xs py-5 shrink-0"
+                >
+                  {isGeneratingPdf ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Gerando PDF...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="w-4 h-4" />
+                      Gerar PDF ({filteredPurchases.length})
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
 
-            <CardContent>
+            <CardContent className="space-y-4 pt-0">
+              {/* Filter controls row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+                {/* Period in months selector */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-500" />
+                    Período em Meses
+                  </Label>
+                  <Select value={reportPeriodMonths} onValueChange={setReportPeriodMonths}>
+                    <SelectTrigger className="text-xs rounded-xl bg-white border-slate-200">
+                      <SelectValue placeholder="Selecione o período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todo o Histórico</SelectItem>
+                      <SelectItem value="1">Último 1 Mês (30 dias)</SelectItem>
+                      <SelectItem value="3">Últimos 3 Meses</SelectItem>
+                      <SelectItem value="6">Últimos 6 Meses</SelectItem>
+                      <SelectItem value="12">Últimos 12 Meses (1 ano)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Movement type selector */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5 text-slate-500" />
+                    Tipo de Movimentação
+                  </Label>
+                  <Select value={reportTypeFilter} onValueChange={setReportTypeFilter}>
+                    <SelectTrigger className="text-xs rounded-xl bg-white border-slate-200">
+                      <SelectValue placeholder="Selecione a operação" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as Operações</SelectItem>
+                      <SelectItem value="purchase">Compras (Crédito/Acúmulo)</SelectItem>
+                      <SelectItem value="redemption">Resgates de Recompensas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Reset filters shortcut */}
+                <div className="flex items-end">
+                  {(reportPeriodMonths !== 'all' || reportTypeFilter !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setReportPeriodMonths('all')
+                        setReportTypeFilter('all')
+                      }}
+                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl"
+                    >
+                      Limpar Filtros
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Dynamic summary KPI cards for active filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Total Filtrado em Vendas
+                  </p>
+                  <p className="text-lg font-black text-emerald-600 mt-0.5">
+                    R$ {filteredTotalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {filteredPurchasesCount} compras registradas
+                  </p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Resgates Filtrados
+                  </p>
+                  <p className="text-lg font-black text-amber-600 mt-0.5">
+                    {filteredRedemptionsCount}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Prêmios entregues aos clientes
+                  </p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Total de Linhas no Relatório
+                  </p>
+                  <p className="text-lg font-black text-slate-800 mt-0.5">
+                    {filteredPurchases.length}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Prontas para exportação em PDF
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* TABLE OF MOVEMENTS */}
+          <Card className="rounded-3xl border-slate-200 shadow-xs">
+            <CardHeader className="py-4 border-b border-slate-100 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-800">
+                  Movimentações Filtradas ({filteredPurchases.length})
+                </CardTitle>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
@@ -1345,7 +1590,7 @@ export default function MerchantDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {purchases.map((pc) => (
+                    {filteredPurchases.map((pc) => (
                       <tr key={pc.id} className="hover:bg-slate-50/70">
                         <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
                           {new Date(pc.created).toLocaleDateString('pt-BR')} às{' '}
@@ -1401,11 +1646,10 @@ export default function MerchantDashboard() {
                         </td>
                       </tr>
                     ))}
-                    {purchases.length === 0 && (
+                    {filteredPurchases.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-slate-400">
-                          Nenhuma compra registrada ainda. Use a aba "Registrar Compra" quando um
-                          cliente comprar na sua loja.
+                        <td colSpan={6} className="py-12 text-center text-slate-400">
+                          Nenhuma movimentação encontrada com os filtros selecionados.
                         </td>
                       </tr>
                     )}

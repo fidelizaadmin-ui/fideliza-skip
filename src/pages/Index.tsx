@@ -33,7 +33,9 @@ import {
   Clock,
   ShieldCheck,
   TrendingUp,
+  MessageCircle,
 } from 'lucide-react'
+import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 
 const CATEGORIES: ('Todas' | StoreCategory)[] = [
   'Todas',
@@ -364,9 +366,23 @@ export default function Index() {
                     {/* Loyalty program highlight footer */}
                     <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                       <div>{renderPlanBadge(plan)}</div>
-                      <span className="text-xs font-bold text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
-                        Ver detalhes <ArrowRight className="w-3 h-3" />
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {store.whatsapp && (
+                          <a
+                            href={formatWhatsAppUrl(store.whatsapp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors"
+                            title="Conversar no WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        <span className="text-xs font-bold text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
+                          Ver detalhes <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -517,6 +533,32 @@ export default function Index() {
                         <p className="font-bold text-slate-800">Telefone / Contato</p>
                         <p className="text-slate-600">{activeStore.phone}</p>
                       </div>
+                    </div>
+                  )}
+
+                  {activeStore.whatsapp && (
+                    <div className="sm:col-span-2 flex items-center justify-between bg-emerald-50/80 p-3 rounded-xl border border-emerald-200">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                          <MessageCircle className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-emerald-950 text-xs">WhatsApp da Loja</p>
+                          <p className="text-[11px] text-emerald-800">
+                            {formatWhatsAppDisplay(activeStore.whatsapp)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <a
+                        href={formatWhatsAppUrl(activeStore.whatsapp)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        Conversar no WhatsApp
+                      </a>
                     </div>
                   )}
                 </div>
