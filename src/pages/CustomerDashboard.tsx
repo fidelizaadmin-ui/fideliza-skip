@@ -156,15 +156,15 @@ export default function CustomerDashboard() {
 
             <div className="relative z-10 flex items-start justify-between mb-5">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center p-1 shadow-sm">
-                  <LogoSymbol size={24} theme="dark" />
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center p-1 shadow-sm">
+                  <LogoSymbol size={28} theme="dark" />
                 </div>
                 <div>
                   <span className="font-extrabold text-base tracking-tight text-white">
                     Cartão Digital
                   </span>
-                  <span className="block text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                    Fideliza
+                  <span className="block text-[10px] text-blue-300 font-semibold uppercase tracking-wider">
+                    Fideliza Pass
                   </span>
                 </div>
               </div>
