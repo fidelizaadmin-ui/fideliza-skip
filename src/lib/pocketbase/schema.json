@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T14:29:23.201Z",
+  "generatedAt": "2026-10-26T16:32:37.586Z",
   "collections": [
     {
       "name": "users",
@@ -727,6 +727,248 @@
       "indexes": [
         "CREATE INDEX idx_payment_credentials_provider ON payment_credentials (provider)",
         "CREATE INDEX idx_payment_credentials_active ON payment_credentials (is_active)"
+      ]
+    },
+    {
+      "name": "store_customers",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (customer = @request.auth.id || store.owner_id = @request.auth.id || @request.auth.role = 'admin')",
+        "view": "@request.auth.id != '' && (customer = @request.auth.id || store.owner_id = @request.auth.id || @request.auth.role = 'admin')",
+        "create": "@request.auth.id != '' && @request.body.customer = @request.auth.id",
+        "update": "@request.auth.id != '' && (customer = @request.auth.id || store.owner_id = @request.auth.id || @request.auth.role = 'admin')",
+        "delete": "@request.auth.id != '' && (customer = @request.auth.id || store.owner_id = @request.auth.id || @request.auth.role = 'admin')"
+      },
+      "fields": [
+        {
+          "name": "store",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stores"
+        },
+        {
+          "name": "customer",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_store_customers_unique ON store_customers (store, customer)",
+        "CREATE INDEX idx_store_customers_store ON store_customers (store)",
+        "CREATE INDEX idx_store_customers_customer ON store_customers (customer)"
+      ]
+    },
+    {
+      "name": "giveaways",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (store.owner_id = @request.auth.id || winner = @request.auth.id || @request.auth.role = 'admin')",
+        "view": "@request.auth.id != '' && (store.owner_id = @request.auth.id || winner = @request.auth.id || @request.auth.role = 'admin')",
+        "create": "@request.auth.id != '' && store.owner_id = @request.auth.id",
+        "update": "@request.auth.id != '' && (store.owner_id = @request.auth.id || @request.auth.role = 'admin')",
+        "delete": "@request.auth.id != '' && (store.owner_id = @request.auth.id || @request.auth.role = 'admin')"
+      },
+      "fields": [
+        {
+          "name": "store",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stores"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "reward_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["gift", "discount"]
+        },
+        {
+          "name": "reward_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discount_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "redemption_days",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["draft", "open", "drawn", "redeemed", "expired"]
+        },
+        {
+          "name": "winner",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "drawn_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "expires_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "redeemed_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_participants",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_giveaways_store ON giveaways (store)",
+        "CREATE INDEX idx_giveaways_status ON giveaways (status)",
+        "CREATE INDEX idx_giveaways_winner ON giveaways (winner)"
+      ]
+    },
+    {
+      "name": "notifications",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user = @request.auth.id",
+        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "store",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "stores"
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["giveaway_won", "fidelity_reward", "system"]
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_read",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_notifications_user ON notifications (user)",
+        "CREATE INDEX idx_notifications_is_read ON notifications (is_read)"
       ]
     }
   ]

@@ -195,3 +195,61 @@ export interface PaymentProviderInfoResponse {
   source: 'database' | 'env' | 'none'
   is_simulated: boolean
 }
+
+export interface StoreCustomerRecord {
+  id: string
+  store: string
+  customer: string
+  notes?: string
+  created: string
+  updated: string
+  expand?: {
+    store?: StoreRecord
+    customer?: UserRecord
+  }
+}
+
+export type GiveawayRewardType = 'gift' | 'discount'
+export type GiveawayStatus = 'draft' | 'open' | 'drawn' | 'redeemed' | 'expired'
+
+export interface GiveawayRecord {
+  id: string
+  store: string
+  title: string
+  reward_type: GiveawayRewardType
+  reward_description?: string
+  discount_amount?: number
+  redemption_days: number
+  status: GiveawayStatus
+  winner?: string
+  drawn_at?: string
+  expires_at?: string
+  redeemed_at?: string
+  total_participants?: number
+  notes?: string
+  created: string
+  updated: string
+  expand?: {
+    store?: StoreRecord
+    winner?: UserRecord
+  }
+}
+
+export type NotificationType = 'giveaway_won' | 'fidelity_reward' | 'system'
+
+export interface NotificationRecord {
+  id: string
+  user: string
+  store?: string
+  type: NotificationType
+  title: string
+  message: string
+  is_read?: boolean
+  data?: Record<string, any>
+  created: string
+  updated: string
+  expand?: {
+    store?: StoreRecord
+    user?: UserRecord
+  }
+}

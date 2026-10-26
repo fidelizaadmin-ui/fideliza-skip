@@ -11,6 +11,11 @@ import type {
   PaymentCheckResponse,
   PaymentCredentialRecord,
   PaymentProviderInfoResponse,
+  StoreCustomerRecord,
+  GiveawayRecord,
+  GiveawayStatus,
+  GiveawayRewardType,
+  NotificationRecord,
 } from '@/types'
 
 // ==========================================
@@ -616,4 +621,366 @@ export async function updatePaymentCredential(
  */
 export async function deletePaymentCredential(id: string): Promise<boolean> {
   return await pb.collection('payment_credentials').delete(id)
+}
+
+// ==========================================
+// STORE CUSTOMERS (FIDELIZAÇÃO DO CLIENTE À LOJA)
+// ==========================================
+
+/**
+ * Verifica se um cliente está fidelizado a uma loja específica.
+ */
+export async function isCustomerFidelityEnrolled(
+  customerId: string,
+  storeId: string,
+): Promise<boolean> {
+  try {
+    const list = await pb.collection('store_customers').getList<StoreCustomerRecord>(1, 1, {
+      filter: `store = "${storeId}" && customer = "${customerId}"`,
+    })
+    return list.items.length > 0
+  } catch (error) {
+    console.error('Error checking fidelity enrollment:', error)
+    return false
+  }
+}
+
+/**
+ * Obtém a fidelização de um cliente para uma loja específica.
+ */
+export async function getCustomerFidelityEnrollment(
+  customerId: string,
+  storeId: string,
+): Promise<StoreCustomerRecord | null> {
+  try {
+    const list = await pb.collection('store_customers').getList<StoreCustomerRecord>(1, 1, {
+      filter: `store = "${storeId}" && customer = "${customerId}"`,
+      expand: 'store,customer',
+    })
+    return list.items[0] || null
+  } catch (error) {
+    console.error('Error getting fidelity enrollment:', error)
+    return null
+  }
+}
+
+/**
+ * Cliente se fideliza à loja (adiciona aos clientes da loja e garante que exista cartão digital).
+ */
+export async function enrollCustomerToStore(
+  customerId: string,
+  storeId: string,
+): Promise<StoreCustomerRecord> {
+  // 1. Criar registro de store_customers
+  let enrollment: StoreCustomerRecord
+  try {
+    enrollment = await pb.collection('store_customers').create<StoreCustomerRecord>({
+      store: storeId,
+      customer: customerId,
+    })
+  } catch (err: any) {
+    // Se já existir, busca o registro existente
+    const existing = await getCustomerFidelityEnrollment(customerId, storeId)
+    if (existing) return existing
+    throw err
+  }
+
+  // 2. Garantir que exista um customer_card inicial para esta loja
+  const card = await getCustomerCardForStore(customerId, storeId)
+  if (!card) {
+    try {
+      await pb.collection('customer_cards').create<CustomerCardRecord>({
+        customer_id: customerId,
+        store_id: storeId,
+        stamps_count: 0,
+        points_balance: 0,
+        cashback_balance: 0,
+        total_purchases_count: 0,
+        total_spent: 0,
+        rewards_redeemed_count: 0,
+      })
+    } catch (cardErr) {
+      console.warn('Could not auto-create customer card on enroll:', cardErr)
+    }
+  }
+
+  return enrollment
+}
+
+/**
+ * Cliente cancela fidelização com a loja.
+ */
+export async function unenrollCustomerFromStore(
+  customerId: string,
+  storeId: string,
+): Promise<boolean> {
+  const existing = await getCustomerFidelityEnrollment(customerId, storeId)
+  if (!existing) return true
+  return await pb.collection('store_customers').delete(existing.id)
+}
+
+/**
+ * Lista todos os clientes fidelizados de uma loja (visão do lojista).
+ */
+export async function getStoreFidelityCustomers(storeId: string): Promise<StoreCustomerRecord[]> {
+  try {
+    return await pb.collection('store_customers').getFullList<StoreCustomerRecord>({
+      filter: `store = "${storeId}"`,
+      sort: '-created',
+      expand: 'customer',
+    })
+  } catch (error) {
+    console.error('Error fetching store customers:', error)
+    return []
+  }
+}
+
+/**
+ * Lista todas as lojas às quais o cliente está fidelizado.
+ */
+export async function getCustomerEnrolledStores(
+  customerId: string,
+): Promise<StoreCustomerRecord[]> {
+  try {
+    return await pb.collection('store_customers').getFullList<StoreCustomerRecord>({
+      filter: `customer = "${customerId}"`,
+      sort: '-created',
+      expand: 'store',
+    })
+  } catch (error) {
+    console.error('Error fetching customer enrolled stores:', error)
+    return []
+  }
+}
+
+// ==========================================
+// GIVEAWAYS & MARKETING (SORTEIOS)
+// ==========================================
+
+export async function getStoreGiveaways(storeId: string): Promise<GiveawayRecord[]> {
+  try {
+    return await pb.collection('giveaways').getFullList<GiveawayRecord>({
+      filter: `store = "${storeId}"`,
+      sort: '-created',
+      expand: 'winner,store',
+    })
+  } catch (error) {
+    console.error('Error fetching giveaways:', error)
+    return []
+  }
+}
+
+export async function createGiveaway(data: {
+  store: string
+  title: string
+  reward_type: GiveawayRewardType
+  reward_description?: string
+  discount_amount?: number
+  redemption_days: number
+  status?: GiveawayStatus
+  notes?: string
+}): Promise<GiveawayRecord> {
+  return await pb.collection('giveaways').create<GiveawayRecord>({
+    ...data,
+    status: data.status || 'open',
+  })
+}
+
+export async function updateGiveaway(
+  id: string,
+  data: Partial<GiveawayRecord>,
+): Promise<GiveawayRecord> {
+  return await pb.collection('giveaways').update<GiveawayRecord>(id, data)
+}
+
+export async function deleteGiveaway(id: string): Promise<boolean> {
+  return await pb.collection('giveaways').delete(id)
+}
+
+/**
+ * Executa o sorteio de um brinde entre os clientes fidelizados da loja.
+ * - Seleciona aleatoriamente um cliente dentre os fidelizados;
+ * - Registra o ganhador, data do sorteio e prazo limite de resgate calculado;
+ * - Dispara notificação in-app (collection notifications);
+ * - Dispara e-mail para o ganhador via backend hook (Gmail do owner).
+ */
+export async function drawGiveawayWinner(giveawayId: string): Promise<{
+  giveaway: GiveawayRecord
+  winner: UserRecord
+  emailSent?: boolean
+}> {
+  const giveaway = await pb.collection('giveaways').getOne<GiveawayRecord>(giveawayId, {
+    expand: 'store',
+  })
+
+  if (!giveaway) {
+    throw new Error('Sorteio não encontrado.')
+  }
+
+  // Buscar clientes fidelizados da loja
+  const customers = await getStoreFidelityCustomers(giveaway.store)
+  if (customers.length === 0) {
+    throw new Error(
+      'Nenhum cliente fidelizado encontrado nesta loja. É necessário ter clientes fidelizados para realizar o sorteio.',
+    )
+  }
+
+  // Sorteio aleatório
+  const randomIndex = Math.floor(Math.random() * customers.length)
+  const selectedEnrollment = customers[randomIndex]
+  const winnerUser = selectedEnrollment.expand?.customer
+
+  if (!winnerUser) {
+    throw new Error('Não foi possível identificar o cliente sorteado.')
+  }
+
+  // Calcular data limite de resgate
+  const days = Number(giveaway.redemption_days) || 7
+  const now = new Date()
+  const expiresDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
+
+  // Atualizar o sorteio no banco
+  const updatedGiveaway = await pb.collection('giveaways').update<GiveawayRecord>(giveaway.id, {
+    winner: winnerUser.id,
+    status: 'drawn',
+    drawn_at: now.toISOString(),
+    expires_at: expiresDate.toISOString(),
+    total_participants: customers.length,
+  })
+
+  // Criar notificação in-app para o cliente ganhador
+  const storeName = giveaway.expand?.store?.name || 'Loja'
+  const rewardText =
+    giveaway.reward_type === 'discount' && giveaway.discount_amount
+      ? `Desconto de R$ ${Number(giveaway.discount_amount).toFixed(2)}`
+      : giveaway.reward_description || 'Brinde especial'
+
+  const formattedDate = expiresDate.toLocaleDateString('pt-BR')
+
+  try {
+    await pb.collection('notifications').create<NotificationRecord>({
+      user: winnerUser.id,
+      store: giveaway.store,
+      type: 'giveaway_won',
+      title: '🎉 Você ganhou um sorteio!',
+      message: `Você ganhou o sorteio "${giveaway.title}" da loja ${storeName}! Prêmio: ${rewardText}. Resgate até ${formattedDate} apresentando seu código no caixa.`,
+      is_read: false,
+      data: {
+        giveaway_id: giveaway.id,
+        reward_type: giveaway.reward_type,
+        reward_description: giveaway.reward_description,
+        discount_amount: giveaway.discount_amount,
+        expires_at: expiresDate.toISOString(),
+      },
+    })
+  } catch (notifErr) {
+    console.warn('Erro ao criar notificação in-app:', notifErr)
+  }
+
+  // Disparar e-mail via endpoint backend
+  let emailSent = false
+  try {
+    const notifyRes = await pb.send<{ sent: boolean; message: string }>(
+      '/backend/v1/giveaways/notify-winner',
+      {
+        method: 'POST',
+        body: { giveaway_id: giveaway.id },
+      },
+    )
+    emailSent = !!notifyRes.sent
+  } catch (emailErr) {
+    console.warn('Erro ao disparar envio de e-mail ao ganhador:', emailErr)
+  }
+
+  return {
+    giveaway: updatedGiveaway,
+    winner: winnerUser,
+    emailSent,
+  }
+}
+
+/**
+ * Lojista confirma o resgate presencial do prêmio na loja.
+ */
+export async function confirmGiveawayRedemption(giveawayId: string): Promise<GiveawayRecord> {
+  const giveaway = await pb.collection('giveaways').getOne<GiveawayRecord>(giveawayId)
+  if (!giveaway) throw new Error('Sorteio não encontrado.')
+  if (giveaway.status !== 'drawn') {
+    throw new Error('Apenas sorteios realizados podem ter o resgate confirmado.')
+  }
+
+  const updated = await pb.collection('giveaways').update<GiveawayRecord>(giveawayId, {
+    status: 'redeemed',
+    redeemed_at: new Date().toISOString(),
+  })
+
+  // Criar notificação in-app informando resgate confirmado
+  if (giveaway.winner) {
+    try {
+      await pb.collection('notifications').create<NotificationRecord>({
+        user: giveaway.winner,
+        store: giveaway.store,
+        type: 'giveaway_won',
+        title: 'Prêmio Resgatado com Sucesso! 🎁',
+        message: `O resgate do prêmio do sorteio "${giveaway.title}" foi confirmado pela loja. Esperamos que aproveite!`,
+        is_read: false,
+      })
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
+  return updated
+}
+
+// ==========================================
+// NOTIFICATIONS SERVICE (NOTIFICAÇÕES DO CLIENTE)
+// ==========================================
+
+export async function getCustomerNotifications(userId: string): Promise<NotificationRecord[]> {
+  try {
+    return await pb.collection('notifications').getFullList<NotificationRecord>({
+      filter: `user = "${userId}"`,
+      sort: '-created',
+      expand: 'store',
+    })
+  } catch (error) {
+    console.error('Error fetching notifications:', error)
+    return []
+  }
+}
+
+export async function markNotificationAsRead(notificationId: string): Promise<NotificationRecord> {
+  return await pb.collection('notifications').update<NotificationRecord>(notificationId, {
+    is_read: true,
+  })
+}
+
+export async function markAllNotificationsAsRead(userId: string): Promise<void> {
+  try {
+    const list = await pb.collection('notifications').getFullList<NotificationRecord>({
+      filter: `user = "${userId}" && is_read != true`,
+    })
+    for (const item of list) {
+      await pb.collection('notifications').update(item.id, { is_read: true })
+    }
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error)
+  }
+}
+
+/**
+ * Busca sorteios ganhos pelo cliente (para exibir seus prêmios a resgatar)
+ */
+export async function getCustomerWonGiveaways(customerId: string): Promise<GiveawayRecord[]> {
+  try {
+    return await pb.collection('giveaways').getFullList<GiveawayRecord>({
+      filter: `winner = "${customerId}"`,
+      sort: '-drawn_at',
+      expand: 'store',
+    })
+  } catch (error) {
+    console.error('Error fetching customer won giveaways:', error)
+    return []
+  }
 }

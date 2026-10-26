@@ -4,6 +4,9 @@ import {
   getApprovedStores,
   getStoreFidelityPlan,
   getCustomerCardForStore,
+  isCustomerFidelityEnrolled,
+  enrollCustomerToStore,
+  unenrollCustomerFromStore,
 } from '@/services/fidelityService'
 import type { StoreRecord, StoreCategory, FidelityPlanRecord, CustomerCardRecord } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
@@ -64,6 +67,8 @@ export default function Index() {
   const [activeStore, setActiveStore] = useState<StoreRecord | null>(null)
   const [activePlan, setActivePlan] = useState<FidelityPlanRecord | null>(null)
   const [activeCustomerCard, setActiveCustomerCard] = useState<CustomerCardRecord | null>(null)
+  const [isEnrolledInActiveStore, setIsEnrolledInActiveStore] = useState(false)
+  const [isEnrolling, setIsEnrolling] = useState(false)
   const [isLoadingModal, setIsLoadingModal] = useState(false)
 
   useEffect(() => {
@@ -108,15 +113,48 @@ export default function Index() {
       setActivePlan(plan)
 
       if (user && role === 'customer') {
-        const card = await getCustomerCardForStore(user.id, store.id)
+        const [card, enrolled] = await Promise.all([
+          getCustomerCardForStore(user.id, store.id),
+          isCustomerFidelityEnrolled(user.id, store.id),
+        ])
         setActiveCustomerCard(card)
+        setIsEnrolledInActiveStore(enrolled)
       } else {
         setActiveCustomerCard(null)
+        setIsEnrolledInActiveStore(false)
       }
     } catch (err) {
       console.error('Error fetching details for store:', err)
     } finally {
       setIsLoadingModal(false)
+    }
+  }
+
+  const handleToggleFidelity = async () => {
+    if (!activeStore || !user || role !== 'customer') return
+    // Validação: loja suspensa não permite nova fidelização
+    if (activeStore.suspend_public || activeStore.suspend_merchant) {
+      alert('Esta loja está temporariamente indisponível para novas fidelizações.')
+      return
+    }
+
+    setIsEnrolling(true)
+    try {
+      if (isEnrolledInActiveStore) {
+        await unenrollCustomerFromStore(user.id, activeStore.id)
+        setIsEnrolledInActiveStore(false)
+      } else {
+        await enrollCustomerToStore(user.id, activeStore.id)
+        setIsEnrolledInActiveStore(true)
+        // Recarregar cartão
+        const card = await getCustomerCardForStore(user.id, activeStore.id)
+        setActiveCustomerCard(card)
+      }
+    } catch (err: any) {
+      console.error('Erro ao alternar fidelização:', err)
+      alert('Não foi possível atualizar a fidelização: ' + (err.message || 'tente novamente.'))
+    } finally {
+      setIsEnrolling(false)
     }
   }
 
@@ -374,6 +412,11 @@ export default function Index() {
                     <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                       <div>{renderPlanBadge(plan)}</div>
                       <div className="flex items-center gap-2">
+                        {isAuthenticated && role === 'customer' && (
+                          <span className="hidden sm:inline-block text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                            🎁 Sorteios
+                          </span>
+                        )}
                         {store.whatsapp && (
                           <a
                             href={formatWhatsAppUrl(store.whatsapp)}
@@ -679,6 +722,58 @@ export default function Index() {
                     </div>
                   )}
                 </div>
+
+                {/* FIDELIZAÇÃO: CARD DE AÇÃO PARA CLIENTE */}
+                {isAuthenticated && role === 'customer' && (
+                  <div className="p-4 rounded-2xl border border-rose-200 bg-rose-50/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 ${
+                          isEnrolledInActiveStore
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-rose-600 text-white'
+                        }`}
+                      >
+                        {isEnrolledInActiveStore ? (
+                          <CheckCircle2 className="w-5 h-5" />
+                        ) : (
+                          <Sparkles className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-xs sm:text-sm">
+                          {isEnrolledInActiveStore
+                            ? 'Você é um Cliente Fidelizado desta Loja!'
+                            : 'Fidelize-se a esta Loja para concorrer a sorteios!'}
+                        </p>
+                        <p className="text-[11px] text-slate-600">
+                          {isEnrolledInActiveStore
+                            ? 'Seus dados e código constam na base da loja e você participa de sorteios e promoções.'
+                            : 'Entre na base da loja para acumular prêmios e concorrer a sorteios exclusivos.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      disabled={
+                        isEnrolling || activeStore.suspend_public || activeStore.suspend_merchant
+                      }
+                      onClick={handleToggleFidelity}
+                      className={
+                        isEnrolledInActiveStore
+                          ? 'bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl shrink-0'
+                          : 'bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md shrink-0'
+                      }
+                    >
+                      {isEnrolling
+                        ? 'Processando...'
+                        : isEnrolledInActiveStore
+                          ? 'Cancelar Fidelização'
+                          : 'Fidelizar-se a esta Loja'}
+                    </Button>
+                  </div>
+                )}
 
                 {/* Action footer in modal */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">

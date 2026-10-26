@@ -16,6 +16,12 @@ import {
   createInfinitePayCheckoutLink,
   getStoreSubscriptionPayments,
   getPaymentProviderInfo,
+  getStoreFidelityCustomers,
+  getStoreGiveaways,
+  createGiveaway,
+  drawGiveawayWinner,
+  confirmGiveawayRedemption,
+  deleteGiveaway,
 } from '@/services/fidelityService'
 import type {
   StoreRecord,
@@ -28,6 +34,9 @@ import type {
   FidelityType,
   SubscriptionPaymentRecord,
   PaymentProviderInfoResponse,
+  StoreCustomerRecord,
+  GiveawayRecord,
+  GiveawayRewardType,
 } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -167,6 +176,20 @@ export default function MerchantDashboard() {
   const [reportTypeFilter, setReportTypeFilter] = useState<string>('all')
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
 
+  // Marketing & Sorteios state
+  const [fidelityCustomers, setFidelityCustomers] = useState<StoreCustomerRecord[]>([])
+  const [giveaways, setGiveaways] = useState<GiveawayRecord[]>([])
+  const [isCreateGiveawayOpen, setIsCreateGiveawayOpen] = useState(false)
+  const [newGiveawayTitle, setNewGiveawayTitle] = useState('')
+  const [newGiveawayRewardType, setNewGiveawayRewardType] = useState<GiveawayRewardType>('gift')
+  const [newGiveawayDesc, setNewGiveawayDesc] = useState('')
+  const [newGiveawayDiscount, setNewGiveawayDiscount] = useState<number | ''>('')
+  const [newGiveawayDays, setNewGiveawayDays] = useState(7)
+  const [isSavingGiveaway, setIsSavingGiveaway] = useState(false)
+  const [isDrawingWinner, setIsDrawingWinner] = useState<string | null>(null)
+  const [isConfirmingRedeem, setIsConfirmingRedeem] = useState<string | null>(null)
+  const [customerFilterQuery, setCustomerFilterQuery] = useState('')
+
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || (role !== 'merchant' && role !== 'admin'))) {
       navigate('/login?tipo=lojista')
@@ -208,11 +231,15 @@ export default function MerchantDashboard() {
         setStoreBanner(storeData.banner_url || '')
         setSelectedSubPlanId(storeData.subscription_plan_id || plansList[0]?.id || '')
 
-        // Fetch fidelity plan and purchases
-        const [planData, purchasesData] = await Promise.all([
+        // Fetch fidelity plan, purchases, customers and giveaways
+        const [planData, purchasesData, customersData, giveawaysData] = await Promise.all([
           getStoreFidelityPlan(storeData.id),
           getStorePurchases(storeData.id),
+          getStoreFidelityCustomers(storeData.id),
+          getStoreGiveaways(storeData.id),
         ])
+        setFidelityCustomers(customersData)
+        setGiveaways(giveawaysData)
 
         if (planData) {
           setPlan(planData)
@@ -445,6 +472,143 @@ export default function MerchantDashboard() {
       })
     } finally {
       setIsCreatingCheckout(false)
+    }
+  }
+
+  // MARKETING & GIVEAWAY HANDLERS
+  const handleCreateGiveaway = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!store) return
+    if (!newGiveawayTitle.trim()) {
+      toast({
+        title: 'Título obrigatório',
+        description: 'Informe um título descritivo para o sorteio.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSavingGiveaway(true)
+    try {
+      const created = await createGiveaway({
+        store: store.id,
+        title: newGiveawayTitle.trim(),
+        reward_type: newGiveawayRewardType,
+        reward_description: newGiveawayRewardType === 'gift' ? newGiveawayDesc.trim() : undefined,
+        discount_amount:
+          newGiveawayRewardType === 'discount' && typeof newGiveawayDiscount === 'number'
+            ? newGiveawayDiscount
+            : undefined,
+        redemption_days: Number(newGiveawayDays) || 7,
+        status: 'open',
+      })
+
+      setGiveaways((prev) => [created, ...prev])
+      setIsCreateGiveawayOpen(false)
+      setNewGiveawayTitle('')
+      setNewGiveawayDesc('')
+      setNewGiveawayDiscount('')
+      setNewGiveawayDays(7)
+
+      toast({
+        title: 'Sorteio criado com sucesso!',
+        description: 'O sorteio já está aberto. Quando quiser, clique em "Realizar Sorteio".',
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao criar sorteio',
+        description: err.message || 'Não foi possível cadastrar o sorteio.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingGiveaway(false)
+    }
+  }
+
+  const handleDrawWinner = async (giveawayId: string) => {
+    if (!store) return
+    if (fidelityCustomers.length === 0) {
+      toast({
+        title: 'Sem participantes',
+        description:
+          'Não há nenhum cliente fidelizado nesta loja ainda. Divulgue o link da loja para os clientes se fidelizarem!',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (
+      !confirm(
+        'Deseja realizar o sorteio agora entre todos os clientes fidelizados? O ganhador será notificado.',
+      )
+    ) {
+      return
+    }
+
+    setIsDrawingWinner(giveawayId)
+    try {
+      const result = await drawGiveawayWinner(giveawayId)
+      // Atualizar lista de sorteios
+      const updatedList = await getStoreGiveaways(store.id)
+      setGiveaways(updatedList)
+
+      toast({
+        title: '🎉 Sorteio realizado com sucesso!',
+        description: `Ganhador: ${result.winner.name} (${result.winner.customer_code || 'Cliente'}). ${
+          result.emailSent
+            ? 'Notificação por e-mail enviada!'
+            : 'Notificação in-app registrada no painel do cliente.'
+        }`,
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao realizar sorteio',
+        description: err.message || 'Não foi possível sortear o ganhador.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDrawingWinner(null)
+    }
+  }
+
+  const handleConfirmRedemption = async (giveawayId: string) => {
+    if (!store) return
+    if (!confirm('Confirmar que o cliente retirou/utilizou o prêmio do sorteio?')) return
+
+    setIsConfirmingRedeem(giveawayId)
+    try {
+      await confirmGiveawayRedemption(giveawayId)
+      const updatedList = await getStoreGiveaways(store.id)
+      setGiveaways(updatedList)
+      toast({
+        title: 'Resgate confirmado!',
+        description: 'O prêmio foi marcado como resgatado no sistema.',
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao confirmar resgate',
+        description: err.message || 'Falha ao confirmar resgate.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsConfirmingRedeem(null)
+    }
+  }
+
+  const handleDeleteGiveaway = async (giveawayId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este sorteio?')) return
+    try {
+      await deleteGiveaway(giveawayId)
+      setGiveaways((prev) => prev.filter((g) => g.id !== giveawayId))
+      toast({
+        title: 'Sorteio excluído.',
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao excluir sorteio',
+        description: err.message,
+        variant: 'destructive',
+      })
     }
   }
 
@@ -1011,6 +1175,14 @@ export default function MerchantDashboard() {
           <TabsTrigger value="subscription" className="gap-2 text-xs sm:text-sm font-semibold">
             <CreditCard className="w-4 h-4" />
             Assinatura
+          </TabsTrigger>
+          <TabsTrigger value="marketing" className="gap-2 text-xs sm:text-sm font-semibold">
+            <Gift className="w-4 h-4 text-rose-600" />
+            Marketing & Sorteios ({giveaways.length})
+          </TabsTrigger>
+          <TabsTrigger value="customers" className="gap-2 text-xs sm:text-sm font-semibold">
+            <UserCheck className="w-4 h-4 text-emerald-600" />
+            Base de Clientes ({fidelityCustomers.length})
           </TabsTrigger>
           <TabsTrigger value="sales" className="gap-2 text-xs sm:text-sm font-semibold">
             <TrendingUp className="w-4 h-4" />
@@ -2339,7 +2511,525 @@ export default function MerchantDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB: MARKETING & SORTEIOS */}
+        {/* ======================================================== */}
+        <TabsContent value="marketing" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                <Gift className="w-6 h-6 text-rose-600" />
+                Marketing & Sorteios de Brindes
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Crie sorteios exclusivos para os clientes fidelizados da sua loja. O sistema sorteia
+                aleatoriamente e notifica o ganhador por e-mail e no aplicativo.
+              </p>
+            </div>
+
+            <Button
+              onClick={() => setIsCreateGiveawayOpen(true)}
+              className="bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md gap-2 shrink-0"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Novo Sorteio
+            </Button>
+          </div>
+
+          {/* KPI CARDS MARKETING */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="rounded-2xl border-slate-200 bg-white">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Clientes Participantes
+                  </p>
+                  <p className="text-2xl font-black text-slate-900 mt-0.5">
+                    {fidelityCustomers.length}
+                  </p>
+                  <p className="text-[11px] text-slate-500">Fidelizados à sua loja</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-slate-200 bg-white">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Sorteios Ativos / Abertos
+                  </p>
+                  <p className="text-2xl font-black text-rose-600 mt-0.5">
+                    {giveaways.filter((g) => g.status === 'open').length}
+                  </p>
+                  <p className="text-[11px] text-rose-700">Aguardando sorteio</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-slate-200 bg-white">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Prêmios Entregues / Resgatados
+                  </p>
+                  <p className="text-2xl font-black text-amber-600 mt-0.5">
+                    {giveaways.filter((g) => g.status === 'redeemed').length}
+                  </p>
+                  <p className="text-[11px] text-slate-500">Resgate confirmado</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <Award className="w-5 h-5" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* LISTA DE SORTEIOS */}
+          <Card className="rounded-3xl border-slate-200 shadow-xs">
+            <CardHeader className="py-4 border-b border-slate-100 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-800">
+                  Histórico de Sorteios ({giveaways.length})
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-400">
+                  Gerencie os sorteios criados, realize o sorteio e confirme o resgate dos prêmios
+                </CardDescription>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-4">
+              {giveaways.length === 0 ? (
+                <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 max-w-md mx-auto">
+                  <Gift className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-700">Nenhum sorteio criado ainda</p>
+                  <p className="text-[11px] text-slate-400 mt-1 mb-4">
+                    Crie campanhas de sorteio de brindes ou descontos para incentivar os clientes a
+                    se fidelizarem à sua loja.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsCreateGiveawayOpen(true)}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
+                  >
+                    Criar Primeiro Sorteio
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {giveaways.map((gw) => {
+                    const winner = gw.expand?.winner
+                    const isExpired =
+                      gw.expires_at &&
+                      new Date(gw.expires_at).getTime() < Date.now() &&
+                      gw.status === 'drawn'
+                    const rewardLabel =
+                      gw.reward_type === 'discount' && gw.discount_amount
+                        ? `Desconto de R$ ${Number(gw.discount_amount).toFixed(2)}`
+                        : gw.reward_description || 'Brinde'
+
+                    return (
+                      <Card
+                        key={gw.id}
+                        className="rounded-2xl border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white"
+                      >
+                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                          <Badge
+                            className={
+                              gw.status === 'redeemed'
+                                ? 'bg-slate-200 text-slate-800 text-[10px]'
+                                : isExpired
+                                  ? 'bg-red-100 text-red-700 border-red-200 text-[10px]'
+                                  : gw.status === 'drawn'
+                                    ? 'bg-amber-100 text-amber-800 border-amber-200 text-[10px]'
+                                    : 'bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]'
+                            }
+                          >
+                            {gw.status === 'redeemed'
+                              ? 'Prêmio Resgatado'
+                              : isExpired
+                                ? 'Prazo Expirado'
+                                : gw.status === 'drawn'
+                                  ? 'Sorteado (Aguardando Resgate)'
+                                  : 'Aberto / Ativo'}
+                          </Badge>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteGiveaway(gw.id)}
+                            className="text-slate-400 hover:text-rose-600 text-[11px] font-semibold"
+                            title="Excluir sorteio"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+
+                        <CardContent className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                          <div>
+                            <h4 className="font-black text-sm text-slate-900">{gw.title}</h4>
+                            <p className="text-xs font-bold text-rose-600 mt-1 flex items-center gap-1">
+                              🎁 {rewardLabel}
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-2">
+                              Prazo de resgate: <strong>{gw.redemption_days} dias</strong>
+                            </p>
+
+                            {/* Informações do Ganhador se já sorteado */}
+                            {gw.status !== 'open' && winner && (
+                              <div className="mt-3 p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-xs space-y-1">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                                  🎉 Ganhador Sorteado:
+                                </p>
+                                <p className="font-black text-slate-900">{winner.name}</p>
+                                <p className="text-[11px] text-slate-600 font-mono">
+                                  Código: {winner.customer_code || 'CLI-0000'}
+                                </p>
+                                {winner.document && (
+                                  <p className="text-[10px] text-slate-500 font-mono">
+                                    Doc:{' '}
+                                    {cleanDocument(winner.document).length > 11
+                                      ? formatCNPJ(cleanDocument(winner.document))
+                                      : formatCPF(cleanDocument(winner.document))}
+                                  </p>
+                                )}
+                                {gw.drawn_at && (
+                                  <p className="text-[10px] text-slate-400 pt-1">
+                                    Sorteado em: {new Date(gw.drawn_at).toLocaleDateString('pt-BR')}
+                                  </p>
+                                )}
+                                {gw.expires_at && (
+                                  <p className="text-[10px] text-rose-700 font-bold">
+                                    Válido até:{' '}
+                                    {new Date(gw.expires_at).toLocaleDateString('pt-BR')}
+                                  </p>
+                                )}
+                                {gw.redeemed_at && (
+                                  <p className="text-[10px] text-emerald-700 font-bold">
+                                    Resgatado em:{' '}
+                                    {new Date(gw.redeemed_at).toLocaleDateString('pt-BR')}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {gw.status === 'open' && (
+                              <div className="mt-2 text-[11px] text-slate-500">
+                                Participantes aptos:{' '}
+                                <strong className="text-slate-800">
+                                  {fidelityCustomers.length}
+                                </strong>{' '}
+                                clientes fidelizados.
+                              </div>
+                            )}
+                          </div>
+
+                          {/* AÇÕES DO SORTEIO */}
+                          <div className="pt-2 border-t border-slate-100 space-y-2">
+                            {gw.status === 'open' && (
+                              <Button
+                                size="sm"
+                                disabled={
+                                  isDrawingWinner === gw.id || fidelityCustomers.length === 0
+                                }
+                                onClick={() => handleDrawWinner(gw.id)}
+                                className="w-full bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                              >
+                                {isDrawingWinner === gw.id ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                    Sorteando cliente e enviando e-mail...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                                    Realizar Sorteio Agora
+                                  </>
+                                )}
+                              </Button>
+                            )}
+
+                            {gw.status === 'drawn' && (
+                              <Button
+                                size="sm"
+                                disabled={isConfirmingRedeem === gw.id}
+                                onClick={() => handleConfirmRedemption(gw.id)}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                              >
+                                {isConfirmingRedeem === gw.id ? (
+                                  'Confirmando...'
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                                    Confirmar Resgate na Loja
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB: BASE DE CLIENTES FIDELIZADOS */}
+        {/* ======================================================== */}
+        <TabsContent value="customers" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                <UserCheck className="w-6 h-6 text-emerald-600" />
+                Base de Clientes Fidelizados ({fidelityCustomers.length})
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Clientes que se cadastraram ou se fidelizaram diretamente à sua loja, com dados
+                completos e código pessoal para identificação.
+              </p>
+            </div>
+
+            <div className="w-full sm:w-64">
+              <Input
+                placeholder="Filtrar por nome, CPF ou código..."
+                value={customerFilterQuery}
+                onChange={(e) => setCustomerFilterQuery(e.target.value)}
+                className="text-xs rounded-xl border-slate-300"
+              />
+            </div>
+          </div>
+
+          <Card className="rounded-3xl border-slate-200 shadow-xs">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                      <th className="py-3 px-4">Código do Cliente</th>
+                      <th className="py-3 px-4">Nome Completo</th>
+                      <th className="py-3 px-4">E-mail</th>
+                      <th className="py-3 px-4">Telefone / WhatsApp</th>
+                      <th className="py-3 px-4">CPF / CNPJ</th>
+                      <th className="py-3 px-4">Data de Fidelização</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {fidelityCustomers
+                      .filter((item) => {
+                        if (!customerFilterQuery.trim()) return true
+                        const q = customerFilterQuery.toLowerCase()
+                        const c = item.expand?.customer
+                        return (
+                          (c?.name && c.name.toLowerCase().includes(q)) ||
+                          (c?.email && c.email.toLowerCase().includes(q)) ||
+                          (c?.customer_code && c.customer_code.toLowerCase().includes(q)) ||
+                          (c?.document && c.document.includes(q))
+                        )
+                      })
+                      .map((item) => {
+                        const cust = item.expand?.customer
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50/70">
+                            <td className="py-3 px-4">
+                              <span className="font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded text-[11px]">
+                                {cust?.customer_code || 'CLI-0000'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 font-bold text-slate-900">
+                              {cust?.name || 'Cliente'}
+                            </td>
+                            <td className="py-3 px-4 text-slate-600">{cust?.email || '-'}</td>
+                            <td className="py-3 px-4 text-slate-600">
+                              {cust?.phone ? (
+                                <a
+                                  href={formatWhatsAppUrl(cust.phone)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-700 hover:underline font-medium"
+                                >
+                                  {formatWhatsAppDisplay(cust.phone)}
+                                </a>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td className="py-3 px-4 font-mono text-slate-600">
+                              {cust?.document
+                                ? cleanDocument(cust.document).length > 11
+                                  ? formatCNPJ(cleanDocument(cust.document))
+                                  : formatCPF(cleanDocument(cust.document))
+                                : '-'}
+                            </td>
+                            <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                              {new Date(item.created).toLocaleDateString('pt-BR')}
+                            </td>
+                          </tr>
+                        )
+                      })}
+
+                    {fidelityCustomers.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-400">
+                          Nenhum cliente fidelizado ainda. Os clientes entram nesta lista ao se
+                          fidelizarem pelo portal da sua loja ou ao terem sua primeira compra
+                          registrada.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* MODAL: CRIAR NOVO SORTEIO */}
+      <Dialog open={isCreateGiveawayOpen} onOpenChange={setIsCreateGiveawayOpen}>
+        <DialogContent className="max-w-lg rounded-3xl p-6">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white flex items-center justify-center mb-2 shadow-md">
+              <Gift className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-xl font-black text-slate-900">
+              Criar Novo Sorteio de Marketing
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Configure os detalhes do prêmio. Todos os {fidelityCustomers.length} clientes
+              fidelizados participarão automaticamente do sorteio.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateGiveaway} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Título do Sorteio *</Label>
+              <Input
+                required
+                placeholder="Ex: Sorteio de Páscoa, Aniversário da Loja..."
+                value={newGiveawayTitle}
+                onChange={(e) => setNewGiveawayTitle(e.target.value)}
+                className="text-xs rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Tipo de Prêmio *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNewGiveawayRewardType('gift')}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    newGiveawayRewardType === 'gift'
+                      ? 'border-rose-500 bg-rose-50 text-rose-900 font-bold ring-2 ring-rose-500/20'
+                      : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="text-xs font-bold">🎁 Brinde Pré-definido</p>
+                  <p className="text-[10px] text-slate-500 font-normal mt-0.5">
+                    Ex: Kit de produtos, lanche grátis, cesta
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNewGiveawayRewardType('discount')}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    newGiveawayRewardType === 'discount'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-900 font-bold ring-2 ring-emerald-500/20'
+                      : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="text-xs font-bold">💰 Desconto em R$</p>
+                  <p className="text-[10px] text-slate-500 font-normal mt-0.5">
+                    Ex: R$ 50,00 de desconto na loja
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {newGiveawayRewardType === 'gift' ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">Descrição do Brinde *</Label>
+                <Input
+                  required
+                  placeholder="Ex: 1 Garrafa de Vinho Especial, 1 Pizza Grande da Casa..."
+                  value={newGiveawayDesc}
+                  onChange={(e) => setNewGiveawayDesc(e.target.value)}
+                  className="text-xs rounded-xl"
+                />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">Valor do Desconto (R$) *</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-xs">
+                    R$
+                  </span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    required
+                    placeholder="50,00"
+                    value={newGiveawayDiscount}
+                    onChange={(e) =>
+                      setNewGiveawayDiscount(e.target.value === '' ? '' : Number(e.target.value))
+                    }
+                    className="pl-9 text-xs rounded-xl font-bold"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">
+                Prazo para Resgate na Loja (em dias) *
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                max="90"
+                required
+                value={newGiveawayDays}
+                onChange={(e) => setNewGiveawayDays(Number(e.target.value))}
+                className="text-xs rounded-xl"
+              />
+              <p className="text-[10px] text-slate-400">
+                O cliente terá este número de dias corridos para comparecer à loja e resgatar.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCreateGiveawayOpen(false)}
+                className="rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSavingGiveaway}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
+              >
+                {isSavingGiveaway ? 'Criando Sorteio...' : 'Salvar Sorteio'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL: CHECKOUT DE ASSINATURA (REAL INFINITEPAY COM FALLBACK PIX) */}
       <Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>

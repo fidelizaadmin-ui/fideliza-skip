@@ -5,8 +5,19 @@ import {
   getCustomerCards,
   getCustomerPurchases,
   getStoreFidelityPlan,
+  getCustomerWonGiveaways,
+  getCustomerEnrolledStores,
+  getCustomerNotifications,
+  markNotificationAsRead,
 } from '@/services/fidelityService'
-import type { CustomerCardRecord, PurchaseRecord, FidelityPlanRecord } from '@/types'
+import type {
+  CustomerCardRecord,
+  PurchaseRecord,
+  FidelityPlanRecord,
+  GiveawayRecord,
+  StoreCustomerRecord,
+  NotificationRecord,
+} from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -53,6 +64,9 @@ export default function CustomerDashboard() {
   const [cards, setCards] = useState<CustomerCardRecord[]>([])
   const [plansMap, setPlansMap] = useState<Record<string, FidelityPlanRecord | null>>({})
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([])
+  const [wonGiveaways, setWonGiveaways] = useState<GiveawayRecord[]>([])
+  const [enrolledStores, setEnrolledStores] = useState<StoreCustomerRecord[]>([])
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // Active card for presentation modal
@@ -74,13 +88,19 @@ export default function CustomerDashboard() {
     if (!user) return
     setIsLoading(true)
     try {
-      const [cardsData, purchasesData] = await Promise.all([
+      const [cardsData, purchasesData, wonData, enrolledData, notifData] = await Promise.all([
         getCustomerCards(user.id),
         getCustomerPurchases(user.id),
+        getCustomerWonGiveaways(user.id),
+        getCustomerEnrolledStores(user.id),
+        getCustomerNotifications(user.id),
       ])
 
       setCards(cardsData)
       setPurchases(purchasesData)
+      setWonGiveaways(wonData)
+      setEnrolledStores(enrolledData)
+      setNotifications(notifData)
 
       // Load plans for each store card
       const planPromises = cardsData.map(async (c) => {
@@ -284,20 +304,103 @@ export default function CustomerDashboard() {
         </Card>
       </div>
 
-      {/* TABS: MEUS CARTÕES / HISTÓRICO DE COMPRAS */}
+      {/* BANNER DE PRÊMIO DE SORTEIO PENDENTE DE RESGATE (SE HOUVER) */}
+      {wonGiveaways.some((g) => g.status === 'drawn') && (
+        <div className="mb-8 p-5 rounded-3xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white shadow-xl shadow-rose-500/20 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shrink-0">
+                🎉
+              </div>
+              <div>
+                <h3 className="font-black text-lg sm:text-xl">
+                  Parabéns! Você tem prêmio(s) de sorteio para resgatar!
+                </h3>
+                <p className="text-xs sm:text-sm text-rose-100">
+                  Apresente seu código{' '}
+                  <span className="font-mono font-bold bg-white/20 px-2 py-0.5 rounded text-white">
+                    {user?.customer_code}
+                  </span>{' '}
+                  no caixa da loja para validar e retirar seu prêmio.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            {wonGiveaways
+              .filter((g) => g.status === 'drawn')
+              .map((giveaway) => {
+                const storeName = giveaway.expand?.store?.name || 'Loja Parceira'
+                const rewardText =
+                  giveaway.reward_type === 'discount' && giveaway.discount_amount
+                    ? `Desconto de R$ ${Number(giveaway.discount_amount).toFixed(2)}`
+                    : giveaway.reward_description || 'Brinde especial'
+
+                const isExpired =
+                  giveaway.expires_at && new Date(giveaway.expires_at).getTime() < Date.now()
+
+                return (
+                  <div
+                    key={giveaway.id}
+                    className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-amber-200 uppercase tracking-wider">
+                          {storeName}
+                        </span>
+                        <Badge
+                          className={
+                            isExpired
+                              ? 'bg-red-500/80 text-white text-[10px]'
+                              : 'bg-emerald-500 text-white text-[10px]'
+                          }
+                        >
+                          {isExpired ? 'Expirado' : 'Aguardando Resgate'}
+                        </Badge>
+                      </div>
+                      <p className="font-black text-base text-white">{giveaway.title}</p>
+                      <p className="text-sm font-bold text-amber-300 mt-1">🎁 {rewardText}</p>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-rose-100">
+                      <span>
+                        {giveaway.expires_at
+                          ? `Resgatar até: ${new Date(giveaway.expires_at).toLocaleDateString('pt-BR')}`
+                          : 'Prazo a consultar'}
+                      </span>
+                      <span className="font-bold underline text-white">Apresentar na Loja</span>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* TABS: MEUS CARTÕES / SORTEIOS / HISTÓRICO / DADOS */}
       <Tabs defaultValue="cards" className="space-y-6">
-        <TabsList className="bg-slate-200/70 p-1 rounded-xl">
+        <TabsList className="bg-slate-200/70 p-1 rounded-xl flex-wrap h-auto">
           <TabsTrigger value="cards" className="gap-2 text-xs sm:text-sm font-semibold">
             <CreditCard className="w-4 h-4" />
             Meus Cartões de Fidelidade ({cards.length})
           </TabsTrigger>
+          <TabsTrigger value="giveaways" className="gap-2 text-xs sm:text-sm font-semibold">
+            <Gift className="w-4 h-4" />
+            Meus Prêmios e Sorteios ({wonGiveaways.length})
+          </TabsTrigger>
+          <TabsTrigger value="stores" className="gap-2 text-xs sm:text-sm font-semibold">
+            <Store className="w-4 h-4" />
+            Lojas Fidelizadas ({enrolledStores.length})
+          </TabsTrigger>
           <TabsTrigger value="history" className="gap-2 text-xs sm:text-sm font-semibold">
             <Clock className="w-4 h-4" />
-            Histórico de Acúmulos e Resgates
+            Histórico
           </TabsTrigger>
           <TabsTrigger value="profile" className="gap-2 text-xs sm:text-sm font-semibold">
             <User className="w-4 h-4" />
-            Meus Dados Cadastrais
+            Meus Dados
           </TabsTrigger>
         </TabsList>
 
@@ -509,6 +612,221 @@ export default function CustomerDashboard() {
               })}
             </div>
           )}
+        </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB: MEUS PRÊMIOS E SORTEIOS GANHOS */}
+        {/* ======================================================== */}
+        <TabsContent value="giveaways" className="space-y-6">
+          <Card className="rounded-3xl border-slate-200 shadow-xs">
+            <CardHeader>
+              <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <Gift className="w-5 h-5 text-rose-600" />
+                Sorteios e Prêmios Conquistados
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500">
+                Acompanhe os brindes e descontos que você ganhou nos sorteios das lojas que você se
+                fidelizou.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              {wonGiveaways.length === 0 ? (
+                <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 max-w-md mx-auto">
+                  <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center mx-auto mb-3">
+                    <Gift className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800 mb-1">
+                    Nenhum prêmio de sorteio até o momento
+                  </h4>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Continue se fidelizando às suas lojas favoritas no portal para participar
+                    automaticamente dos sorteios realizados pelos lojistas!
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate('/')}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
+                  >
+                    Ver Lojas no Portal
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {wonGiveaways.map((giveaway) => {
+                    const store = giveaway.expand?.store
+                    const storeName = store?.name || 'Loja Parceira'
+                    const isExpired =
+                      giveaway.expires_at &&
+                      new Date(giveaway.expires_at).getTime() < Date.now() &&
+                      giveaway.status === 'drawn'
+                    const isRedeemed = giveaway.status === 'redeemed'
+                    const rewardText =
+                      giveaway.reward_type === 'discount' && giveaway.discount_amount
+                        ? `Desconto de R$ ${Number(giveaway.discount_amount).toFixed(2)}`
+                        : giveaway.reward_description || 'Brinde especial'
+
+                    return (
+                      <Card
+                        key={giveaway.id}
+                        className="rounded-2xl border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between"
+                      >
+                        <div className="p-4 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
+                          <span className="font-extrabold text-xs text-slate-800 truncate">
+                            {storeName}
+                          </span>
+                          <Badge
+                            className={
+                              isRedeemed
+                                ? 'bg-slate-200 text-slate-700 text-[10px]'
+                                : isExpired
+                                  ? 'bg-red-100 text-red-700 border-red-200 text-[10px]'
+                                  : 'bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]'
+                            }
+                          >
+                            {isRedeemed
+                              ? 'Resgatado'
+                              : isExpired
+                                ? 'Prazo Expirado'
+                                : 'Pronto p/ Resgatar'}
+                          </Badge>
+                        </div>
+
+                        <CardContent className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                          <div>
+                            <p className="font-black text-base text-slate-900">{giveaway.title}</p>
+                            <p className="text-sm font-bold text-rose-600 mt-1">🎁 {rewardText}</p>
+                            {giveaway.drawn_at && (
+                              <p className="text-[11px] text-slate-400 mt-2">
+                                Sorteado em:{' '}
+                                {new Date(giveaway.drawn_at).toLocaleDateString('pt-BR')}
+                              </p>
+                            )}
+                            {giveaway.expires_at && (
+                              <p className="text-[11px] text-slate-500">
+                                Prazo limite:{' '}
+                                {new Date(giveaway.expires_at).toLocaleDateString('pt-BR')}
+                              </p>
+                            )}
+                            {giveaway.redeemed_at && (
+                              <p className="text-[11px] text-emerald-700 font-medium">
+                                Confirmado em:{' '}
+                                {new Date(giveaway.redeemed_at).toLocaleDateString('pt-BR')}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100">
+                            {!isRedeemed && !isExpired && (
+                              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 leading-tight">
+                                Apresente seu código{' '}
+                                <strong className="font-mono">{user?.customer_code}</strong> ao
+                                lojista para retirar.
+                              </div>
+                            )}
+                            {isRedeemed && (
+                              <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Prêmio resgatado com
+                                sucesso!
+                              </div>
+                            )}
+                            {isExpired && (
+                              <div className="text-[11px] text-red-600 font-semibold">
+                                O prazo determinado pelo lojista foi encerrado.
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB: LOJAS QUE ESTOU FIDELIZADO */}
+        {/* ======================================================== */}
+        <TabsContent value="stores" className="space-y-6">
+          <Card className="rounded-3xl border-slate-200 shadow-xs">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Store className="w-5 h-5 text-rose-600" />
+                  Lojas Onde Você Está Fidelizado
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Ao se fidelizar, você entra na base de clientes da loja, recebe sorteios e
+                  benefícios exclusivos.
+                </CardDescription>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={() => navigate('/')}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl"
+              >
+                Explorar Mais Lojas
+              </Button>
+            </CardHeader>
+
+            <CardContent>
+              {enrolledStores.length === 0 ? (
+                <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 max-w-md mx-auto">
+                  <p className="text-sm font-bold text-slate-800 mb-1">
+                    Você ainda não se fidelizou a nenhuma loja
+                  </p>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Abra o portal de lojas e clique no botão "Fidelizar-se a esta Loja" nos detalhes
+                    da loja.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate('/')}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
+                  >
+                    Abrir Portal
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {enrolledStores.map((enrollment) => {
+                    const st = enrollment.expand?.store
+                    const stName = st?.name || 'Loja Parceira'
+                    return (
+                      <div
+                        key={enrollment.id}
+                        className="p-4 rounded-2xl border border-slate-200 bg-white hover:shadow-md transition-shadow flex items-center gap-3.5"
+                      >
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600 shrink-0">
+                          {st?.logo_url ? (
+                            <img src={st.logo_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            stName.charAt(0)
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-extrabold text-sm text-slate-900 truncate">{stName}</p>
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 mt-0.5">
+                            {st?.category || 'Parceiro'}
+                          </Badge>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Fidelizado em:{' '}
+                            {new Date(enrollment.created).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        <Badge className="bg-emerald-100 text-emerald-800 border-0 text-[10px]">
+                          Fidelizado
+                        </Badge>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ======================================================== */}
