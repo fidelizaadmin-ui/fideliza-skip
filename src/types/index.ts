@@ -126,3 +126,48 @@ export interface PurchaseRecord {
     customer_id?: UserRecord
   }
 }
+
+export type SubscriptionPaymentStatus = 'pending' | 'paid' | 'canceled' | 'refunded' | 'failed'
+
+export interface SubscriptionPaymentRecord {
+  id: string
+  store: string
+  plan: string
+  amount: number // centavos
+  order_nsu: string
+  slug?: string
+  transaction_nsu?: string
+  status: SubscriptionPaymentStatus
+  capture_method?: string
+  checkout_url?: string
+  paid_at?: string
+  metadata?: any
+  created: string
+  updated: string
+  expand?: {
+    store?: StoreRecord
+    plan?: SubscriptionPlanRecord
+  }
+}
+
+export interface CheckoutLinkResponse {
+  configured: boolean
+  checkout_url?: string
+  order_nsu?: string
+  slug?: string
+  amount?: number
+  message?: string
+  error?: string
+}
+
+export interface PaymentCheckResponse {
+  configured?: boolean
+  paid: boolean
+  status: string
+  capture_method?: string
+  paid_at?: string
+  order_nsu?: string
+  slug?: string
+  details?: any
+  error?: string
+}

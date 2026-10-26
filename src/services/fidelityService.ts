@@ -6,6 +6,9 @@ import type {
   CustomerCardRecord,
   PurchaseRecord,
   UserRecord,
+  SubscriptionPaymentRecord,
+  CheckoutLinkResponse,
+  PaymentCheckResponse,
 } from '@/types'
 
 // ==========================================
@@ -478,4 +481,59 @@ export async function demoteToCustomer(userId: string): Promise<UserRecord> {
   return await pb.collection('users').update<UserRecord>(userId, {
     role: 'customer',
   })
+}
+
+// ==========================================
+// INFINITEPAY SUBSCRIPTION PAYMENTS
+// ==========================================
+
+/**
+ * Cria o link de checkout online da InfinitePay para a assinatura da loja.
+ * Caso a chave INFINITEPAY_API_KEY não esteja configurada no backend, retorna { configured: false }.
+ */
+export async function createInfinitePayCheckoutLink(
+  storeId: string,
+  planId?: string,
+): Promise<CheckoutLinkResponse> {
+  const response = await pb.send<CheckoutLinkResponse>('/backend/v1/subscriptions/checkout-link', {
+    method: 'POST',
+    body: {
+      store_id: storeId,
+      plan_id: planId,
+    },
+  })
+  return response
+}
+
+/**
+ * Consulta manual / rechecagem de status de um pagamento na InfinitePay.
+ */
+export async function checkInfinitePayPayment(params: {
+  order_nsu?: string
+  slug?: string
+  transaction_nsu?: string
+}): Promise<PaymentCheckResponse> {
+  const response = await pb.send<PaymentCheckResponse>('/backend/v1/subscriptions/payment-check', {
+    method: 'POST',
+    body: params,
+  })
+  return response
+}
+
+/**
+ * Lista o histórico de pagamentos de assinaturas de uma loja.
+ */
+export async function getStoreSubscriptionPayments(
+  storeId: string,
+): Promise<SubscriptionPaymentRecord[]> {
+  try {
+    return await pb.collection('subscription_payments').getFullList<SubscriptionPaymentRecord>({
+      filter: `store = "${storeId}"`,
+      sort: '-created',
+      expand: 'plan',
+    })
+  } catch (error) {
+    console.error('Error fetching subscription payments:', error)
+    return []
+  }
 }

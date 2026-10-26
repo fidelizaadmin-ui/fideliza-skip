@@ -13,6 +13,8 @@ import {
   getCustomerCardForStore,
   registerPurchase,
   redeemReward,
+  createInfinitePayCheckoutLink,
+  getStoreSubscriptionPayments,
 } from '@/services/fidelityService'
 import type {
   StoreRecord,
@@ -23,6 +25,7 @@ import type {
   UserRecord,
   StoreCategory,
   FidelityType,
+  SubscriptionPaymentRecord,
 } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -118,10 +121,14 @@ export default function MerchantDashboard() {
   const [selectedSubPlanId, setSelectedSubPlanId] = useState('')
   const [isSavingStore, setIsSavingStore] = useState(false)
 
-  // Subscription payment simulation state
+  // Subscription payment state (InfinitePay real checkout + simulated fallback)
   const [isPayModalOpen, setIsPayModalOpen] = useState(false)
+  const [isCreatingCheckout, setIsCreatingCheckout] = useState(false)
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
   const [copiedPix, setCopiedPix] = useState(false)
+  const [infinitePayConfigured, setInfinitePayConfigured] = useState<boolean | null>(null)
+  const [showPixFallback, setShowPixFallback] = useState(false)
+  const [subPaymentsHistory, setSubPaymentsHistory] = useState<SubscriptionPaymentRecord[]>([])
   const [activeTab, setActiveTab] = useState<string>('pos')
 
   // Loyalty plan form state
@@ -213,6 +220,10 @@ export default function MerchantDashboard() {
         }
 
         setPurchases(purchasesData)
+
+        // Load store subscription payments history
+        const paymentsData = await getStoreSubscriptionPayments(storeData.id)
+        setSubPaymentsHistory(paymentsData)
       } else {
         // No store yet, prepare initial values
         setSelectedSubPlanId(plansList[0]?.id || '')
@@ -371,6 +382,55 @@ export default function MerchantDashboard() {
       })
     } finally {
       setIsSubmittingPayment(false)
+    }
+  }
+
+  // REAL INFINITEPAY CHECKOUT FLOW
+  const handleStartInfinitePayCheckout = async () => {
+    if (!store) return
+    setIsCreatingCheckout(true)
+    try {
+      const result = await createInfinitePayCheckoutLink(
+        store.id,
+        selectedSubPlanId || store.subscription_plan_id,
+      )
+
+      if (!result.configured) {
+        // Se a chave não estiver configurada no backend, ativa o fallback suave para o PIX simulado
+        setInfinitePayConfigured(false)
+        setShowPixFallback(true)
+        toast({
+          title: 'Checkout InfinitePay em configuração',
+          description:
+            'A integração automática via InfinitePay será ativada em breve. Você pode utilizar a confirmação via PIX.',
+        })
+        return
+      }
+
+      setInfinitePayConfigured(true)
+      if (result.checkout_url) {
+        toast({
+          title: 'Redirecionando para o Checkout...',
+          description: 'Você será levado com segurança para a página de pagamento da InfinitePay.',
+        })
+        // Redireciona na mesma janela para permitir retorno automático
+        window.location.href = result.checkout_url
+      } else {
+        throw new Error(result.error || 'URL de checkout não retornada pela InfinitePay.')
+      }
+    } catch (err: any) {
+      console.error('Error starting InfinitePay checkout:', err)
+      // Se houver erro, ativa o fallback do PIX
+      setShowPixFallback(true)
+      toast({
+        title: 'Não foi possível abrir o checkout automático',
+        description:
+          err.message ||
+          'Ocorreu uma instabilidade no checkout. Você pode efetuar o pagamento via PIX demonstrativo.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsCreatingCheckout(false)
     }
   }
 
@@ -1969,17 +2029,67 @@ export default function MerchantDashboard() {
               <div className="pt-2 flex flex-col sm:flex-row gap-3">
                 <Button
                   type="button"
-                  onClick={() => setIsPayModalOpen(true)}
+                  onClick={() => {
+                    setShowPixFallback(false)
+                    setIsPayModalOpen(true)
+                  }}
                   className="flex-1 py-6 rounded-2xl font-black text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg shadow-purple-600/20"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
                   {store?.subscription_status === 'pending'
-                    ? 'Ver Dados do PIX / Pagar Novamente'
+                    ? 'Opções de Pagamento / Pagar Novamente'
                     : hasOverdueSub
                       ? 'Pagar Assinatura e Regularizar Loja'
                       : 'Renovar / Pagar Assinatura'}
                 </Button>
               </div>
+
+              {/* HISTÓRICO DE PAGAMENTOS ONLINE */}
+              {subPaymentsHistory.length > 0 && (
+                <div className="pt-4 border-t border-slate-100">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+                    Histórico Recente de Pagamentos
+                  </h4>
+                  <div className="space-y-2">
+                    {subPaymentsHistory.slice(0, 5).map((pay) => (
+                      <div
+                        key={pay.id}
+                        className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <p className="font-bold text-slate-900">
+                            R$ {(pay.amount / 100).toFixed(2)}{' '}
+                            <span className="font-normal text-slate-500">• {pay.order_nsu}</span>
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {new Date(pay.created).toLocaleDateString('pt-BR')} às{' '}
+                            {new Date(pay.created).toLocaleTimeString('pt-BR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                            {pay.capture_method && ` • Método: ${pay.capture_method.toUpperCase()}`}
+                          </p>
+                        </div>
+                        <Badge
+                          className={`text-[10px] border-0 font-bold ${
+                            pay.status === 'paid'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : pay.status === 'pending'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {pay.status === 'paid'
+                            ? 'Pago'
+                            : pay.status === 'pending'
+                              ? 'Aguardando'
+                              : pay.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -2217,92 +2327,166 @@ export default function MerchantDashboard() {
         </TabsContent>
       </Tabs>
 
-      {/* MODAL: PAGAMENTO SIMULADO DE ASSINATURA (PIX) */}
+      {/* MODAL: CHECKOUT DE ASSINATURA (REAL INFINITEPAY COM FALLBACK PIX) */}
       <Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>
         <DialogContent className="max-w-md rounded-3xl p-6">
           <DialogHeader>
-            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center mb-2">
-              <QrCode className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center mb-2 shadow-md">
+              <CreditCard className="w-6 h-6" />
             </div>
             <DialogTitle className="text-xl font-black text-slate-900">
-              Pagamento da Assinatura
+              {showPixFallback ? 'Pagamento via PIX' : 'Checkout de Assinatura'}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 leading-relaxed">
-              Demonstração de pagamento via PIX. Copie o código abaixo e simule o pagamento para
-              enviar a confirmação ao administrador.
+              {showPixFallback
+                ? 'Copie o código PIX abaixo para simular o pagamento ou concluir a ativação.'
+                : 'Pague sua assinatura com segurança via PIX ou Cartão de Crédito pela InfinitePay.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
             {/* Amount card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 flex items-center justify-between">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                   {currentSubPlan?.name || 'Plano Fideliza'}
                 </p>
                 <p className="text-2xl font-black text-slate-900 mt-0.5">
                   R$ {Number(currentSubPlan?.price || 49.9).toFixed(2)}
                 </p>
+                <p className="text-[11px] text-slate-500">
+                  Cobrança a cada {currentSubPlan?.billing_interval_months || 1} mês(es)
+                </p>
               </div>
-              <Badge className="bg-purple-600 text-white font-bold text-xs py-1 px-3">
-                PIX Instantâneo
+              <Badge className="bg-emerald-600 text-white font-bold text-xs py-1 px-3">
+                {showPixFallback ? 'PIX Demonstrativo' : 'InfinitePay'}
               </Badge>
             </div>
 
-            {/* Simulated PIX QR / Code */}
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-700">
-                Código PIX Copia e Cola (Exemplo / Demonstração)
-              </Label>
-              <div className="p-3 bg-slate-900 text-slate-200 rounded-2xl font-mono text-xs break-all select-all leading-relaxed">
-                {mockPixPayload}
+            {/* SE ESTIVER NO MODO CHECKOUT REAL (PADRÃO) */}
+            {!showPixFallback && (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-slate-900">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    Pagamento Rápido e Seguro
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Você será redirecionado para o ambiente seguro de pagamento da{' '}
+                    <strong>InfinitePay</strong> com suporte a <strong>PIX</strong> e{' '}
+                    <strong>Cartão de Crédito</strong>. Assim que aprovado, sua loja é ativada
+                    automaticamente.
+                  </p>
+                </div>
+
+                {infinitePayConfigured === false && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+                    ℹ️ O checkout online da InfinitePay está em fase de ativação. Você pode utilizar
+                    a opção alternativa de confirmação via PIX abaixo.
+                  </div>
+                )}
+
+                <Button
+                  type="button"
+                  disabled={isCreatingCheckout}
+                  onClick={handleStartInfinitePayCheckout}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-6 rounded-2xl shadow-lg shadow-emerald-600/20 gap-2"
+                >
+                  {isCreatingCheckout ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Gerando Link de Pagamento...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      Pagar com InfinitePay
+                    </>
+                  )}
+                </Button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowPixFallback(true)}
+                    className="text-xs text-slate-500 hover:text-slate-700 underline font-medium"
+                  >
+                    Usar código PIX manual / demonstrativo
+                  </button>
+                </div>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleCopyPix}
-                className="w-full text-xs font-bold rounded-xl gap-2 h-10 border-slate-300"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                {copiedPix ? 'Código PIX Copiado!' : 'Copiar Código PIX'}
-              </Button>
-            </div>
+            )}
 
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
-              💡 <strong>Ambiente de Demonstração:</strong> Ao clicar no botão abaixo, sua
-              assinatura mudará para status <strong>"Aguardando confirmação"</strong> e o
-              administrador poderá aprovar na gestão do sistema.
-            </div>
+            {/* SE ESTIVER NO FALLBACK DO PIX SIMULADO */}
+            {showPixFallback && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-700">
+                    Código PIX Copia e Cola (Exemplo / Demonstração)
+                  </Label>
+                  <div className="p-3 bg-slate-900 text-slate-200 rounded-2xl font-mono text-xs break-all select-all leading-relaxed max-h-28 overflow-y-auto">
+                    {mockPixPayload}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyPix}
+                    className="w-full text-xs font-bold rounded-xl gap-2 h-10 border-slate-300"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    {copiedPix ? 'Código PIX Copiado!' : 'Copiar Código PIX'}
+                  </Button>
+                </div>
 
-            <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2">
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+                  💡 <strong>Ambiente de Demonstração:</strong> Ao clicar no botão abaixo, sua
+                  assinatura mudará para status <strong>"Aguardando confirmação"</strong> e o
+                  administrador poderá aprovar na gestão do sistema.
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPixFallback(false)}
+                    className="text-xs"
+                  >
+                    Voltar ao Checkout Online
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isSubmittingPayment}
+                    onClick={handleConfirmSimulatedPayment}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-5 rounded-xl flex-1 shadow-md"
+                  >
+                    {isSubmittingPayment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Registrando Pagamento...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        Confirmar Pagamento PIX
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="pt-1">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsPayModalOpen(false)}
-                className="text-xs"
+                className="text-xs w-full text-slate-400 hover:text-slate-600"
               >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={isSubmittingPayment}
-                onClick={handleConfirmSimulatedPayment}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-5 rounded-xl flex-1 shadow-md"
-              >
-                {isSubmittingPayment ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Registrando Pagamento...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Já Paguei / Confirmar Pagamento
-                  </>
-                )}
+                Fechar
               </Button>
             </DialogFooter>
           </div>

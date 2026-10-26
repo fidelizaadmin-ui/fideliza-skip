@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T12:35:34.578Z",
+  "generatedAt": "2026-10-26T12:46:47.135Z",
   "collections": [
     {
       "name": "users",
@@ -565,6 +565,108 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "subscription_payments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'admin' || @request.auth.role = 'collaborator' || store.owner_id = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'admin' || @request.auth.role = 'collaborator' || store.owner_id = @request.auth.id)",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.role = 'admin' || @request.auth.role = 'collaborator'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "store",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stores"
+        },
+        {
+          "name": "plan",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "subscription_plans"
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "order_nsu",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transaction_nsu",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pending", "paid", "canceled", "refunded", "failed"]
+        },
+        {
+          "name": "capture_method",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "checkout_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "paid_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_sub_payments_order_nsu ON subscription_payments (order_nsu)",
+        "CREATE INDEX idx_sub_payments_store ON subscription_payments (store)",
+        "CREATE INDEX idx_sub_payments_slug ON subscription_payments (slug)",
+        "CREATE INDEX idx_sub_payments_status ON subscription_payments (status)"
+      ]
     }
   ]
 }

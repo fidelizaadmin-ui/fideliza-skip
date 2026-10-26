@@ -15,6 +15,7 @@ import PlansPage from './pages/PlansPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import ConfirmVerificationPage from './pages/ConfirmVerificationPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import PaymentReturnPage from './pages/PaymentReturnPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { CompleteDocumentDialog } from './components/CompleteDocumentDialog'
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/cliente" element={<CustomerDashboard />} />
             <Route path="/planos" element={<PlansPage />} />
             <Route path="/como-funciona" element={<HowItWorksPage />} />
+            <Route path="/pagamento-retorno" element={<PaymentReturnPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
