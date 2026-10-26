@@ -100,7 +100,11 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <p>© {new Date().getFullYear()} Fideliza. Todos os direitos reservados.</p>
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span>© {new Date().getFullYear()} Fideliza. Todos os direitos reservados.</span>
+            <span className="hidden sm:inline text-slate-600">•</span>
+            <span className="text-slate-300">Desenvolvido por Angelo Design</span>
+          </p>
           <div className="flex items-center gap-1">
             <span>Programa de Fidelidade</span>
             <span className="text-rose-500 font-bold">•</span>
