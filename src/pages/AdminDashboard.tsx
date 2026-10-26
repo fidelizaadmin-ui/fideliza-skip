@@ -15,6 +15,10 @@ import {
   createPaymentCredential,
   updatePaymentCredential,
   deletePaymentCredential,
+  getPixSettings,
+  createPixSetting,
+  updatePixSetting,
+  deletePixSetting,
 } from '@/services/fidelityService'
 import type {
   StoreRecord,
@@ -24,6 +28,8 @@ import type {
   SubscriptionStatus,
   UserRecord,
   PaymentCredentialRecord,
+  PixSettingRecord,
+  PixKeyType,
 } from '@/types'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
@@ -148,6 +154,22 @@ export default function AdminDashboard() {
   const [credExtraConfig, setCredExtraConfig] = useState('')
   const [credIsActive, setCredIsActive] = useState(true)
 
+  // Pix Settings state (Exclusive Admin)
+  const [pixSettings, setPixSettings] = useState<PixSettingRecord[]>([])
+  const [isPixModalOpen, setIsPixModalOpen] = useState(false)
+  const [editingPix, setEditingPix] = useState<PixSettingRecord | null>(null)
+  const [pixToDelete, setPixToDelete] = useState<PixSettingRecord | null>(null)
+  const [isDeletingPix, setIsDeletingPix] = useState(false)
+  const [isSavingPix, setIsSavingPix] = useState(false)
+  const [showPixRawKey, setShowPixRawKey] = useState(false)
+
+  // Pix form fields
+  const [pixKeyInput, setPixKeyInput] = useState('')
+  const [pixKeyType, setPixKeyType] = useState<PixKeyType>('aleatoria')
+  const [pixReceiverName, setPixReceiverName] = useState('')
+  const [pixReceiverCity, setPixReceiverCity] = useState('')
+  const [pixIsActive, setPixIsActive] = useState(true)
+
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || (role !== 'admin' && role !== 'collaborator'))) {
       navigate('/login?tipo=admin')
@@ -162,14 +184,16 @@ export default function AdminDashboard() {
     setIsLoading(true)
     try {
       if (isAdmin) {
-        // Admin carrega tudo: lojas, planos, compras, clientes, colaboradores e credenciais de pagamento
-        const [storesData, plansData, purchasesData, usersData, credsData] = await Promise.all([
-          getAllStores(),
-          getSubscriptionPlans(),
-          getAllPurchases(),
-          getCustomersAndCollaborators(),
-          getPaymentCredentials(),
-        ])
+        // Admin carrega tudo: lojas, planos, compras, clientes, colaboradores, credenciais e configurações Pix
+        const [storesData, plansData, purchasesData, usersData, credsData, pixData] =
+          await Promise.all([
+            getAllStores(),
+            getSubscriptionPlans(),
+            getAllPurchases(),
+            getCustomersAndCollaborators(),
+            getPaymentCredentials(),
+            getPixSettings(),
+          ])
 
         setStores(storesData)
         setPlans(plansData)
@@ -177,6 +201,7 @@ export default function AdminDashboard() {
         setCustomersList(usersData.customers)
         setCollaboratorsList(usersData.collaborators)
         setPaymentCredentials(credsData)
+        setPixSettings(pixData)
         setCustomersCount(usersData.customers.length)
       } else {
         // Colaborador carrega APENAS lojas e planos de assinatura
@@ -604,6 +629,154 @@ export default function AdminDashboard() {
     }
   }
 
+  // PIX SETTINGS HANDLERS (Exclusive Admin)
+  const openPixModal = (pix?: PixSettingRecord) => {
+    if (pix) {
+      setEditingPix(pix)
+      setPixKeyInput('') // Nunca reexibida
+      setShowPixRawKey(false)
+      setPixKeyType(pix.key_type || 'aleatoria')
+      setPixReceiverName(pix.receiver_name || '')
+      setPixReceiverCity(pix.receiver_city || '')
+      setPixIsActive(pix.is_active ?? true)
+    } else {
+      setEditingPix(null)
+      setPixKeyInput('')
+      setShowPixRawKey(false)
+      setPixKeyType('aleatoria')
+      setPixReceiverName('FIDELIZA SISTEMAS')
+      setPixReceiverCity('SAO PAULO')
+      setPixIsActive(true)
+    }
+    setIsPixModalOpen(true)
+  }
+
+  const handleSavePixSetting = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isAdmin) return
+
+    if (!editingPix && !pixKeyInput.trim()) {
+      toast({
+        title: 'Chave Pix obrigatória',
+        description: 'Informe a chave Pix de recebimento.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!pixReceiverName.trim()) {
+      toast({
+        title: 'Nome do recebedor obrigatório',
+        description: 'Informe o nome do recebedor (máx 25 caracteres para o padrão EMV).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!pixReceiverCity.trim()) {
+      toast({
+        title: 'Cidade obrigatória',
+        description: 'Informe a cidade do recebedor (máx 15 caracteres para o padrão EMV).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Sanitizar nome e cidade para caber nos limites do EMV (25 e 15 caracteres)
+    const treatedName = pixReceiverName.trim().slice(0, 25)
+    const treatedCity = pixReceiverCity.trim().slice(0, 15)
+
+    setIsSavingPix(true)
+    try {
+      if (editingPix) {
+        const payload: any = {
+          key_type: pixKeyType,
+          receiver_name: treatedName,
+          receiver_city: treatedCity,
+          is_active: pixIsActive,
+        }
+        if (pixKeyInput.trim()) {
+          payload.pix_key = pixKeyInput.trim()
+        }
+        await updatePixSetting(editingPix.id, payload)
+        toast({
+          title: 'Configuração Pix atualizada!',
+          description: `Chave Pix de "${treatedName}" salva com sucesso.`,
+        })
+      } else {
+        await createPixSetting({
+          pix_key: pixKeyInput.trim(),
+          key_type: pixKeyType,
+          receiver_name: treatedName,
+          receiver_city: treatedCity,
+          is_active: pixIsActive,
+        })
+        toast({
+          title: 'Chave Pix cadastrada!',
+          description: `Chave Pix de "${treatedName}" cadastrada com sucesso.`,
+        })
+      }
+
+      const updatedList = await getPixSettings()
+      setPixSettings(updatedList)
+      setIsPixModalOpen(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar chave Pix',
+        description: err.message || 'Não foi possível salvar a configuração Pix.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingPix(false)
+    }
+  }
+
+  const handleTogglePixActive = async (pix: PixSettingRecord) => {
+    if (!isAdmin) return
+    const nextState = !pix.is_active
+    try {
+      await updatePixSetting(pix.id, {
+        is_active: nextState,
+      })
+      const updatedList = await getPixSettings()
+      setPixSettings(updatedList)
+      toast({
+        title: nextState ? 'Chave Pix ativada!' : 'Chave Pix desativada',
+        description: nextState
+          ? `A chave de ${pix.receiver_name} foi definida como ativa para geração de PIX copia e cola.`
+          : `A chave Pix foi desativada.`,
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao alterar status da chave Pix',
+        description: err.message,
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleDeletePixSetting = async () => {
+    if (!pixToDelete || !isAdmin) return
+    setIsDeletingPix(true)
+    try {
+      await deletePixSetting(pixToDelete.id)
+      setPixSettings((prev) => prev.filter((p) => p.id !== pixToDelete.id))
+      toast({
+        title: 'Chave Pix removida',
+        description: `A configuração Pix de "${pixToDelete.receiver_name}" foi excluída.`,
+      })
+      setPixToDelete(null)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao excluir chave Pix',
+        description: err.message || 'Não foi possível excluir a configuração.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingPix(false)
+    }
+  }
+
   // SUBSCRIPTION PLAN MODAL HANDLERS
   const openPlanModal = (plan?: SubscriptionPlanRecord) => {
     if (plan) {
@@ -954,7 +1127,7 @@ export default function AdminDashboard() {
           {isAdmin && (
             <TabsTrigger value="credentials" className="gap-2 text-xs sm:text-sm font-semibold">
               <Key className="w-4 h-4 text-emerald-600" />
-              Credenciais de Pagamento ({paymentCredentials.length})
+              Credenciais & Pix ({paymentCredentials.length + pixSettings.length})
             </TabsTrigger>
           )}
 
@@ -1366,11 +1539,19 @@ export default function AdminDashboard() {
                           </strong>
                           .
                         </>
+                      ) : pixSettings.some((p) => p.is_active) ? (
+                        <>
+                          Gateway de pagamento inativo. Pagamentos sendo processados diretamente via{' '}
+                          <strong>
+                            PIX Copia e Cola (Chave de{' '}
+                            {pixSettings.find((p) => p.is_active)?.receiver_name})
+                          </strong>
+                          .
+                        </>
                       ) : (
                         <>
-                          Nenhuma credencial ativa cadastrada no painel. O checkout usará a chave de
-                          ambiente (se houver) ou entrará em modo <strong>PIX Demonstrativo</strong>
-                          .
+                          Nenhuma credencial de provedor ou chave Pix ativa. Cadastre uma chave Pix
+                          abaixo para habilitar o pagamento das assinaturas.
                         </>
                       )}
                     </p>
@@ -1496,6 +1677,145 @@ export default function AdminDashboard() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* SEÇÃO: CHAVE PIX DE RECEBIMENTO DO ADMINISTRADOR (EMV REAL) */}
+              <div className="mt-12 pt-8 border-t border-slate-200">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-indigo-600" />
+                      Chave Pix de Recebimento do Administrador
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Cadastre a chave Pix oficial para recebimento direto de assinaturas quando não
+                      houver gateway ativo (ex: InfinitePay). O servidor gera o payload oficial do
+                      Banco Central (EMV / CRC16) com o valor exato do plano. A chave nunca é
+                      exibida ao lojista.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => openPixModal()}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Nova Chave Pix
+                  </Button>
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="py-3 px-4">Recebedor (EMV)</th>
+                        <th className="py-3 px-4">Cidade</th>
+                        <th className="py-3 px-4">Tipo de Chave</th>
+                        <th className="py-3 px-4">Chave Pix Mascarada</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">Atualizado</th>
+                        <th className="py-3 px-4 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {pixSettings.map((pix) => (
+                        <tr key={pix.id} className="hover:bg-slate-50/70">
+                          <td className="py-3.5 px-4 font-bold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-black text-xs">
+                                PIX
+                              </div>
+                              <div>
+                                <p className="font-extrabold text-slate-900">{pix.receiver_name}</p>
+                                <span className="text-[10px] text-indigo-600 font-semibold">
+                                  Recebedor Oficial
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-800">
+                            {pix.receiver_city}
+                          </td>
+                          <td className="py-3.5 px-4 capitalize text-slate-700">
+                            <Badge
+                              variant="outline"
+                              className="text-[11px] font-medium bg-slate-50"
+                            >
+                              {pix.key_type}
+                            </Badge>
+                          </td>
+                          <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600">
+                            <Badge
+                              variant="outline"
+                              className="font-mono bg-slate-50 border-slate-200 text-slate-700"
+                            >
+                              {pix.pix_key_masked || '****'}
+                            </Badge>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePixActive(pix)}
+                              className="inline-flex items-center gap-1.5 focus:outline-hidden"
+                              title="Clique para alternar o status desta chave Pix"
+                            >
+                              {pix.is_active ? (
+                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 gap-1 font-bold cursor-pointer hover:bg-emerald-200">
+                                  <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                  Ativa (Padrão)
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-slate-500 border-slate-300 gap-1 cursor-pointer hover:bg-slate-100"
+                                >
+                                  Inativa
+                                </Badge>
+                              )}
+                            </button>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap text-[11px]">
+                            {new Date(pix.updated || pix.created).toLocaleDateString('pt-BR')} às{' '}
+                            {new Date(pix.updated || pix.created).toLocaleTimeString('pt-BR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openPixModal(pix)}
+                                className="text-xs h-8 px-2 text-slate-600 hover:text-slate-900"
+                                title="Editar configuração / alterar chave Pix"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setPixToDelete(pix)}
+                                className="text-xs h-8 px-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                title="Excluir configuração Pix"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {pixSettings.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-slate-400">
+                            Nenhuma chave Pix de recebimento cadastrada. Cadastre uma chave para
+                            permitir que os lojistas paguem a assinatura via Pix direto (EMV Banco
+                            Central).
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -2214,8 +2534,8 @@ export default function AdminDashboard() {
             <DialogDescription className="text-xs text-slate-500 leading-relaxed">
               Você está prestes a excluir a credencial <strong>"{credToDelete?.name}"</strong> (
               {credToDelete?.provider}). Se esta credencial estiver ativa, os pagamentos por este
-              canal não serão mais processados e o sistema recorrerá ao ambiente ou PIX
-              demonstrativo.
+              canal não serão mais processados e o sistema recorrerá ao ambiente ou à chave Pix
+              direta.
             </DialogDescription>
           </DialogHeader>
 
@@ -2237,6 +2557,222 @@ export default function AdminDashboard() {
               className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
             >
               {isDeletingCred ? 'Excluindo...' : 'Confirmar Exclusão'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: CRIAR OU EDITAR CONFIGURAÇÃO PIX (ADMIN) */}
+      <Dialog open={isPixModalOpen} onOpenChange={setIsPixModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center mb-1">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-lg font-black text-slate-900">
+              {editingPix
+                ? 'Editar Chave Pix de Recebimento'
+                : 'Cadastrar Chave Pix de Recebimento'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Configure a chave Pix que receberá o valor das assinaturas dos lojistas via padrão EMV
+              oficial do Banco Central.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSavePixSetting} className="space-y-4 pt-2">
+            {/* Tipo de chave */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Tipo da Chave Pix</Label>
+              <Select value={pixKeyType} onValueChange={(val: PixKeyType) => setPixKeyType(val)}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Selecione o tipo da chave" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cpf">CPF</SelectItem>
+                  <SelectItem value="cnpj">CNPJ</SelectItem>
+                  <SelectItem value="telefone">Telefone (DDD + Número)</SelectItem>
+                  <SelectItem value="email">E-mail</SelectItem>
+                  <SelectItem value="aleatoria">Chave Aleatória (EVP)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Chave Pix */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-slate-700">
+                  {editingPix
+                    ? 'Nova Chave Pix (deixe em branco para manter a atual)'
+                    : 'Chave Pix'}
+                </Label>
+                {editingPix?.pix_key_masked && (
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Atual: {editingPix.pix_key_masked}
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  type={showPixRawKey ? 'text' : 'password'}
+                  required={!editingPix}
+                  placeholder={
+                    pixKeyType === 'cpf'
+                      ? '000.000.000-00'
+                      : pixKeyType === 'cnpj'
+                        ? '00.000.000/0001-00'
+                        : pixKeyType === 'telefone'
+                          ? '(11) 99999-9999'
+                          : pixKeyType === 'email'
+                            ? 'pagamentos@seusite.com'
+                            : 'Cole a chave aleatória'
+                  }
+                  value={pixKeyInput}
+                  onChange={(e) => setPixKeyInput(e.target.value)}
+                  className="text-xs pr-10 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPixRawKey(!showPixRawKey)}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-hidden"
+                  tabIndex={-1}
+                >
+                  {showPixRawKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                A chave bruta fica armazenada de forma segura no backend e nunca será enviada para o
+                navegador do lojista.
+              </p>
+            </div>
+
+            {/* Nome do recebedor (max 25 chars) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-slate-700">
+                  Nome do Titular / Recebedor
+                </Label>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {pixReceiverName.length}/25 caracteres
+                </span>
+              </div>
+              <Input
+                required
+                maxLength={25}
+                placeholder="Ex: FIDELIZA SISTEMAS"
+                value={pixReceiverName}
+                onChange={(e) => setPixReceiverName(e.target.value)}
+                className="text-xs"
+              />
+              <p className="text-[10px] text-slate-400">
+                Padrão Banco Central: máximo de 25 caracteres (sem acentos especiais).
+              </p>
+            </div>
+
+            {/* Cidade do recebedor (max 15 chars) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-slate-700">Cidade do Recebedor</Label>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {pixReceiverCity.length}/15 caracteres
+                </span>
+              </div>
+              <Input
+                required
+                maxLength={15}
+                placeholder="Ex: SAO PAULO"
+                value={pixReceiverCity}
+                onChange={(e) => setPixReceiverCity(e.target.value)}
+                className="text-xs"
+              />
+              <p className="text-[10px] text-slate-400">
+                Padrão Banco Central: máximo de 15 caracteres.
+              </p>
+            </div>
+
+            {/* Ativa / Inativa */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-800">Chave Ativa para Recebimento</p>
+                <p className="text-[11px] text-slate-500">
+                  Ao ativar, as demais chaves Pix serão colocadas como inativas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPixIsActive(!pixIsActive)}
+                className="focus:outline-hidden"
+              >
+                {pixIsActive ? (
+                  <ToggleRight className="w-7 h-7 text-indigo-600 cursor-pointer" />
+                ) : (
+                  <ToggleLeft className="w-7 h-7 text-slate-400 cursor-pointer" />
+                )}
+              </button>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPixModalOpen(false)}
+                disabled={isSavingPix}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                disabled={isSavingPix}
+              >
+                {isSavingPix
+                  ? 'Salvando...'
+                  : editingPix
+                    ? 'Salvar Alterações'
+                    : 'Cadastrar Chave Pix'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: CONFIRMAR EXCLUSÃO DE CONFIGURAÇÃO PIX (ADMIN) */}
+      <Dialog open={!!pixToDelete} onOpenChange={(open) => !open && setPixToDelete(null)}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-2">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-lg font-black text-slate-900">
+              Excluir Chave Pix de Recebimento?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 leading-relaxed">
+              Você está prestes a excluir a configuração Pix de{' '}
+              <strong>"{pixToDelete?.receiver_name}"</strong>. Se esta for a chave ativa, o checkout
+              deixará de oferecer a opção de PIX direto até que uma nova seja cadastrada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-4 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isDeletingPix}
+              onClick={() => setPixToDelete(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isDeletingPix}
+              onClick={handleDeletePixSetting}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              {isDeletingPix ? 'Excluindo...' : 'Confirmar Exclusão'}
             </Button>
           </DialogFooter>
         </DialogContent>

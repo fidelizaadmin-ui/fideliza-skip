@@ -11,6 +11,9 @@ import type {
   PaymentCheckResponse,
   PaymentCredentialRecord,
   PaymentProviderInfoResponse,
+  PixSettingRecord,
+  PixKeyType,
+  PixPayloadResponse,
   StoreCustomerRecord,
   GiveawayRecord,
   GiveawayStatus,
@@ -566,11 +569,70 @@ export async function getPaymentProviderInfo(): Promise<PaymentProviderInfoRespo
     return {
       configured: false,
       provider: 'none',
-      provider_name: 'PIX Demonstrativo',
+      provider_name: 'Nenhuma forma de pagamento configurada',
       source: 'none',
-      is_simulated: true,
+      is_simulated: false,
     }
   }
+}
+
+/**
+ * Gera o payload PIX copia e cola real oficial do Banco Central no backend (EMV padrão).
+ * Nunca expõe a chave Pix ao frontend.
+ */
+export async function generatePixSubscriptionPayload(
+  storeId: string,
+  planId?: string,
+): Promise<PixPayloadResponse> {
+  return await pb.send<PixPayloadResponse>('/backend/v1/subscriptions/pix-payload', {
+    method: 'POST',
+    body: {
+      store_id: storeId,
+      plan_id: planId,
+    },
+  })
+}
+
+// ==========================================
+// PIX SETTINGS (EXCLUSIVO ADMIN)
+// ==========================================
+
+export async function getPixSettings(): Promise<PixSettingRecord[]> {
+  try {
+    return await pb.collection('pix_settings').getFullList<PixSettingRecord>({
+      sort: '-created',
+    })
+  } catch (error) {
+    console.error('Error fetching pix settings:', error)
+    return []
+  }
+}
+
+export async function createPixSetting(data: {
+  pix_key: string
+  key_type: PixKeyType
+  receiver_name: string
+  receiver_city: string
+  is_active?: boolean
+}): Promise<PixSettingRecord> {
+  return await pb.collection('pix_settings').create<PixSettingRecord>(data)
+}
+
+export async function updatePixSetting(
+  id: string,
+  data: {
+    pix_key?: string
+    key_type?: PixKeyType
+    receiver_name?: string
+    receiver_city?: string
+    is_active?: boolean
+  },
+): Promise<PixSettingRecord> {
+  return await pb.collection('pix_settings').update<PixSettingRecord>(id, data)
+}
+
+export async function deletePixSetting(id: string): Promise<boolean> {
+  return await pb.collection('pix_settings').delete(id)
 }
 
 /**

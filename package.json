@@ -18,6 +18,7 @@
     "test:watch": "echo \"there are no tests for this project\" && exit 0"
   },
   "dependencies": {
+    "qrcode.react": "^4.2.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
     "@hookform/resolvers": "^5.4.0",

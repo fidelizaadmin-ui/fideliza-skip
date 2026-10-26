@@ -186,14 +186,49 @@ export interface PaymentCredentialRecord {
   updated: string
 }
 
+export type PixKeyType = 'cpf' | 'cnpj' | 'telefone' | 'email' | 'aleatoria'
+
+export interface PixSettingRecord {
+  id: string
+  pix_key?: string
+  pix_key_masked?: string
+  key_type: PixKeyType
+  receiver_name: string
+  receiver_city: string
+  is_active: boolean
+  created: string
+  updated: string
+}
+
 export interface PaymentProviderInfoResponse {
   configured: boolean
   provider: string
   provider_name: string
   api_key_masked?: string
   updated_at?: string
-  source: 'database' | 'env' | 'none'
+  source: 'database' | 'env' | 'pix_settings' | 'none'
   is_simulated: boolean
+  pix_info?: {
+    receiver_name: string
+    receiver_city: string
+    key_type: PixKeyType
+    key_masked: string
+  }
+}
+
+export interface PixPayloadResponse {
+  configured: boolean
+  pix_payload?: string
+  txid?: string
+  order_nsu?: string
+  amount?: number
+  amount_formatted?: string
+  receiver_name?: string
+  receiver_city?: string
+  plan_name?: string
+  billing_interval_months?: number
+  payment_id?: string | null
+  error?: string
 }
 
 export interface StoreCustomerRecord {

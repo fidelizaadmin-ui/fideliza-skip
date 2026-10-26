@@ -124,14 +124,47 @@ routerAdd('GET', '/backend/v1/subscriptions/payment-provider-info', (e) => {
     })
   }
 
-  // 4. Sem credenciais ativas -> PIX simulado
+  // 4. Fallback para configuração direta de PIX do administrador (collection pix_settings)
+  let activePix = null
+  try {
+    const pixList = e.app.findRecordsByFilter('pix_settings', 'is_active = true', '-updated', 1, 0)
+    if (pixList && pixList.length > 0) {
+      activePix = pixList[0]
+    }
+  } catch (_) {}
+
+  if (activePix) {
+    const receiverName = activePix.getString('receiver_name') || 'Administrador'
+    const receiverCity = activePix.getString('receiver_city') || 'BRASIL'
+    const keyType = activePix.getString('key_type') || 'aleatoria'
+    const masked = activePix.getString('pix_key_masked') || '****'
+    const updated = activePix.getString('updated') || activePix.getString('created')
+
+    return e.json(200, {
+      configured: true,
+      provider: 'PIX',
+      provider_name: 'PIX direto (chave Pix do administrador)',
+      api_key_masked: masked,
+      updated_at: updated,
+      source: 'pix_settings',
+      is_simulated: false,
+      pix_info: {
+        receiver_name: receiverName,
+        receiver_city: receiverCity,
+        key_type: keyType,
+        key_masked: masked,
+      },
+    })
+  }
+
+  // 5. Nenhuma via configurada
   return e.json(200, {
     configured: false,
     provider: 'none',
-    provider_name: 'PIX Demonstrativo',
+    provider_name: 'Nenhuma forma de pagamento configurada',
     api_key_masked: '',
     source: 'none',
-    is_simulated: true,
+    is_simulated: false,
   })
 })
 
@@ -681,5 +714,399 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
     order_nsu: orderNsu,
     slug: slug,
     details: resultData,
+  })
+})
+
+// ========================================================
+// 4. CICLO DE VIDA E ROTAS PARA PIX_SETTINGS (ADMIN & CHECKOUT)
+// ========================================================
+
+// 4.1 Hooks de ciclo de vida em pix_settings para mascaramento da chave e exclusividade de ativo
+onRecordCreate((e) => {
+  const rec = e.record
+  const rawKey = rec.getString('pix_key')
+  const keyType = rec.getString('key_type')
+  if (rawKey && rawKey.trim()) {
+    const str = String(rawKey).trim()
+    let masked = '****'
+    if (keyType === 'email') {
+      const parts = str.split('@')
+      if (parts.length === 2) {
+        const userPart = parts[0]
+        const maskedUser =
+          userPart.length <= 2
+            ? userPart.charAt(0) + '***'
+            : userPart.slice(0, 2) + '***' + userPart.slice(-1)
+        masked = maskedUser + '@' + parts[1]
+      } else {
+        masked = str.slice(0, 2) + '***' + str.slice(-2)
+      }
+    } else if (keyType === 'telefone') {
+      const digits = str.replace(/\D/g, '')
+      masked = digits.length >= 4 ? '(**) *****-' + digits.slice(-4) : '****'
+    } else if (keyType === 'cpf') {
+      const digits = str.replace(/\D/g, '')
+      masked =
+        digits.length === 11
+          ? '***.' + digits.slice(3, 6) + '.***-' + digits.slice(-2)
+          : '***.***.***-**'
+    } else if (keyType === 'cnpj') {
+      const digits = str.replace(/\D/g, '')
+      masked =
+        digits.length === 14
+          ? digits.slice(0, 2) + '.***.***/****-' + digits.slice(-2)
+          : '**.***.***/****-**'
+    } else {
+      masked = str.length > 8 ? str.slice(0, 4) + '...' + str.slice(-4) : '****' + str.slice(-2)
+    }
+    rec.set('pix_key_masked', masked)
+  }
+
+  if (rec.getBool('is_active')) {
+    try {
+      const records = e.app.findRecordsByFilter('pix_settings', 'is_active = true')
+      for (let i = 0; i < records.length; i++) {
+        records[i].set('is_active', false)
+        e.app.save(records[i])
+      }
+    } catch (_) {}
+  }
+  e.next()
+}, 'pix_settings')
+
+onRecordUpdate((e) => {
+  const rec = e.record
+  const rawKey = rec.getString('pix_key')
+  const keyType = rec.getString('key_type')
+
+  if (rawKey && rawKey.trim()) {
+    const str = String(rawKey).trim()
+    let masked = '****'
+    if (keyType === 'email') {
+      const parts = str.split('@')
+      if (parts.length === 2) {
+        const userPart = parts[0]
+        const maskedUser =
+          userPart.length <= 2
+            ? userPart.charAt(0) + '***'
+            : userPart.slice(0, 2) + '***' + userPart.slice(-1)
+        masked = maskedUser + '@' + parts[1]
+      } else {
+        masked = str.slice(0, 2) + '***' + str.slice(-2)
+      }
+    } else if (keyType === 'telefone') {
+      const digits = str.replace(/\D/g, '')
+      masked = digits.length >= 4 ? '(**) *****-' + digits.slice(-4) : '****'
+    } else if (keyType === 'cpf') {
+      const digits = str.replace(/\D/g, '')
+      masked =
+        digits.length === 11
+          ? '***.' + digits.slice(3, 6) + '.***-' + digits.slice(-2)
+          : '***.***.***-**'
+    } else if (keyType === 'cnpj') {
+      const digits = str.replace(/\D/g, '')
+      masked =
+        digits.length === 14
+          ? digits.slice(0, 2) + '.***.***/****-' + digits.slice(-2)
+          : '**.***.***/****-**'
+    } else {
+      masked = str.length > 8 ? str.slice(0, 4) + '...' + str.slice(-4) : '****' + str.slice(-2)
+    }
+    rec.set('pix_key_masked', masked)
+  } else {
+    // Se não reenviou pix_key (ou veio vazio), preserva a chave anterior
+    try {
+      const original = rec.original()
+      if (original) {
+        rec.set('pix_key', original.getString('pix_key'))
+        rec.set('pix_key_masked', original.getString('pix_key_masked'))
+      }
+    } catch (_) {}
+  }
+
+  if (rec.getBool('is_active')) {
+    try {
+      const records = e.app.findRecordsByFilter(
+        'pix_settings',
+        `is_active = true && id != "${rec.id}"`,
+      )
+      for (let i = 0; i < records.length; i++) {
+        records[i].set('is_active', false)
+        e.app.save(records[i])
+      }
+    } catch (_) {}
+  }
+  e.next()
+}, 'pix_settings')
+
+// 4.2 Rota pública autenticada para o checkout gerar o payload EMV completo no SERVIDOR
+// POST /backend/v1/subscriptions/pix-payload
+routerAdd('POST', '/backend/v1/subscriptions/pix-payload', (e) => {
+  const reqInfo = e.requestInfo()
+  const authRecord = reqInfo ? reqInfo.auth : null
+  if (!authRecord) {
+    return e.json(401, { error: 'Autenticação necessária.' })
+  }
+
+  const body = (reqInfo && reqInfo.body) || {}
+  const storeId = (body.store_id || '').trim()
+  const planId = (body.plan_id || '').trim()
+
+  if (!storeId) {
+    return e.json(400, { error: 'O parâmetro store_id é obrigatório.' })
+  }
+
+  let store = null
+  try {
+    store = e.app.findRecordById('stores', storeId)
+  } catch (_) {
+    return e.json(404, { error: 'Loja não encontrada.' })
+  }
+
+  const userRole = authRecord.getString('role')
+  const ownerId = store.getString('owner_id')
+  if (authRecord.id !== ownerId && userRole !== 'admin' && userRole !== 'collaborator') {
+    return e.json(403, { error: 'Você não tem permissão para pagar a assinatura desta loja.' })
+  }
+
+  const effectivePlanId = planId || store.getString('subscription_plan_id')
+  if (!effectivePlanId) {
+    return e.json(400, { error: 'Nenhum plano de assinatura selecionado.' })
+  }
+
+  let plan = null
+  try {
+    plan = e.app.findRecordById('subscription_plans', effectivePlanId)
+  } catch (_) {
+    return e.json(404, { error: 'Plano de assinatura não encontrado.' })
+  }
+
+  // 1. Busca chave Pix ativa no banco
+  let pixSetting = null
+  try {
+    const pixList = e.app.findRecordsByFilter('pix_settings', 'is_active = true', '-updated', 1, 0)
+    if (pixList && pixList.length > 0) {
+      pixSetting = pixList[0]
+    }
+  } catch (_) {}
+
+  if (!pixSetting) {
+    return e.json(400, {
+      configured: false,
+      error: 'Nenhuma chave Pix configurada pelo administrador.',
+    })
+  }
+
+  const rawKey = pixSetting.getString('pix_key') || ''
+  const keyType = pixSetting.getString('key_type') || 'aleatoria'
+  let receiverName = (pixSetting.getString('receiver_name') || 'FIDELIZA').trim()
+  let receiverCity = (pixSetting.getString('receiver_city') || 'BRASIL').trim()
+
+  if (!rawKey.trim()) {
+    return e.json(400, {
+      configured: false,
+      error: 'Chave Pix inválida ou não configurada.',
+    })
+  }
+
+  // Sanitização e formatação da chave Pix
+  let formattedPixKey = rawKey.trim()
+  if (keyType === 'cpf' || keyType === 'cnpj') {
+    formattedPixKey = formattedPixKey.replace(/\D/g, '')
+  } else if (keyType === 'telefone') {
+    let phoneDigits = formattedPixKey.replace(/\D/g, '')
+    if (phoneDigits.startsWith('55') && phoneDigits.length >= 12) {
+      formattedPixKey = '+' + phoneDigits
+    } else {
+      formattedPixKey = '+55' + phoneDigits
+    }
+  } else if (keyType === 'email') {
+    formattedPixKey = formattedPixKey.toLowerCase().trim()
+  }
+
+  // Funções inline de sanitização EMV (sem acentos, uppercase, ASCII)
+  const sanitizeEmv = (str, maxLen) => {
+    let s = String(str || '')
+    // Substituição direta de acentos comuns para goja/JS
+    const accMap = {
+      á: 'a',
+      à: 'a',
+      ã: 'a',
+      â: 'a',
+      ä: 'a',
+      é: 'e',
+      è: 'e',
+      ê: 'e',
+      ë: 'e',
+      í: 'i',
+      ì: 'i',
+      î: 'i',
+      ï: 'i',
+      ó: 'o',
+      ò: 'o',
+      õ: 'o',
+      ô: 'o',
+      ö: 'o',
+      ú: 'u',
+      ù: 'u',
+      û: 'u',
+      ü: 'u',
+      ç: 'c',
+      ñ: 'n',
+      Á: 'A',
+      À: 'A',
+      Ã: 'A',
+      Â: 'A',
+      Ä: 'A',
+      É: 'E',
+      È: 'E',
+      Ê: 'E',
+      Ë: 'E',
+      Í: 'I',
+      Ì: 'I',
+      Î: 'I',
+      Ï: 'I',
+      Ó: 'O',
+      Ò: 'O',
+      Õ: 'O',
+      Ô: 'O',
+      Ö: 'O',
+      Ú: 'U',
+      Ù: 'U',
+      Û: 'U',
+      Ü: 'U',
+      Ç: 'C',
+      Ñ: 'N',
+    }
+    for (let k in accMap) {
+      while (s.indexOf(k) !== -1) {
+        s = s.replace(k, accMap[k])
+      }
+    }
+    s = s
+      .toUpperCase()
+      .replace(/[^A-Z0-9 ]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ')
+    if (s.length > maxLen) {
+      s = s.slice(0, maxLen)
+    }
+    return s || 'FIDELIZA'
+  }
+
+  const cleanName = sanitizeEmv(receiverName, 25)
+  const cleanCity = sanitizeEmv(receiverCity, 15)
+
+  // Valor da assinatura
+  const planPrice = plan.getFloat('price') || 49.9
+  const amountStr = planPrice.toFixed(2)
+  const priceInCents = Math.round(planPrice * 100)
+
+  // Geração de txid único para conciliação (FIDELIZA-<loja curta>-<tempo curto>)
+  // Max 25 chars no campo 62.05 [A-Za-z0-9]
+  const shortStore = store.id.slice(0, 6).toUpperCase()
+  const shortTime = Date.now().toString(36).toUpperCase()
+  const txid = ('FDL' + shortStore + shortTime).slice(0, 25)
+
+  // Order NSU para registro em subscription_payments
+  const orderNsu = 'PIX-' + txid
+
+  // Montagem EMV TLV
+  const tlv = (id, val) => {
+    const v = String(val)
+    const lenStr = v.length < 10 ? '0' + v.length : String(v.length)
+    return id + lenStr + v
+  }
+
+  // 26 Merchant Account Info
+  const accountInfo = tlv('00', 'BR.GOV.BCB.PIX') + tlv('01', formattedPixKey)
+
+  // Montagem do payload EMV antes do CRC
+  const payloadBeforeCrc =
+    tlv('00', '01') +
+    tlv('01', '12') + // 12 = dinâmico/específico da transação
+    tlv('26', accountInfo) +
+    tlv('52', '0000') +
+    tlv('53', '986') +
+    tlv('54', amountStr) +
+    tlv('58', 'BR') +
+    tlv('59', cleanName) +
+    tlv('60', cleanCity) +
+    tlv('62', tlv('05', txid)) +
+    '6304'
+
+  // Cálculo CRC16-CCITT (Polinômio 0x1021, valor inicial 0xFFFF, sem reflexão, final 0x0000)
+  const calcCrc16 = (str) => {
+    let crc = 0xffff
+    for (let i = 0; i < str.length; i++) {
+      crc ^= str.charCodeAt(i) << 8
+      for (let bit = 0; bit < 8; bit++) {
+        if ((crc & 0x8000) !== 0) {
+          crc = ((crc << 1) ^ 0x1021) & 0xffff
+        } else {
+          crc = (crc << 1) & 0xffff
+        }
+      }
+    }
+    let hex = crc.toString(16).toUpperCase()
+    while (hex.length < 4) {
+      hex = '0' + hex
+    }
+    return hex
+  }
+
+  const crcValue = calcCrc16(payloadBeforeCrc)
+  const fullPixPayload = payloadBeforeCrc + crcValue
+
+  // Registra a tentativa em subscription_payments com método pix e status pending
+  let paymentRecord = null
+  try {
+    const paymentsCol = e.app.findCollectionByNameOrId('subscription_payments')
+    paymentRecord = new Record(paymentsCol)
+    paymentRecord.set('store', store.id)
+    paymentRecord.set('plan', plan.id)
+    paymentRecord.set('amount', priceInCents)
+    paymentRecord.set('order_nsu', orderNsu)
+    paymentRecord.set('slug', txid)
+    paymentRecord.set('status', 'pending')
+    paymentRecord.set('capture_method', 'pix')
+    paymentRecord.set('checkout_url', '')
+    paymentRecord.set(
+      'metadata',
+      JSON.stringify({
+        txid: txid,
+        receiver_name: cleanName,
+        receiver_city: cleanCity,
+        amount: amountStr,
+        key_type: keyType,
+        source: 'pix_settings',
+      }),
+    )
+    e.app.save(paymentRecord)
+  } catch (err) {
+    console.error('[PixPayload] Erro ao registrar subscription_payments: ' + err.message)
+  }
+
+  // Atualiza status da loja para 'pending' se ainda não estiver ativa ou se vencida
+  try {
+    if (store.getString('subscription_status') !== 'active') {
+      store.set('subscription_status', 'pending')
+      e.app.save(store)
+    }
+  } catch (_) {}
+
+  // A chave Pix bruta NUNCA é enviada ao frontend, apenas dados públicos e o payload montado
+  return e.json(200, {
+    configured: true,
+    pix_payload: fullPixPayload,
+    txid: txid,
+    order_nsu: orderNsu,
+    amount: planPrice,
+    amount_formatted: 'R$ ' + planPrice.toFixed(2),
+    receiver_name: cleanName,
+    receiver_city: cleanCity,
+    plan_name: plan.getString('name') || 'Plano Fideliza',
+    billing_interval_months: plan.getInt('billing_interval_months') || 1,
+    payment_id: paymentRecord ? paymentRecord.id : null,
   })
 })

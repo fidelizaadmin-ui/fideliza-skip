@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T18:37:43.656Z",
+  "generatedAt": "2026-10-26T18:46:10.848Z",
   "collections": [
     {
       "name": "users",
@@ -970,6 +970,65 @@
         "CREATE INDEX idx_notifications_user ON notifications (user)",
         "CREATE INDEX idx_notifications_is_read ON notifications (is_read)"
       ]
+    },
+    {
+      "name": "pix_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "view": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "create": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "update": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "key_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["cpf", "cnpj", "telefone", "email", "aleatoria"]
+        },
+        {
+          "name": "receiver_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "receiver_city",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pix_key_masked",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_pix_settings_active ON pix_settings (is_active)"]
     }
   ]
 }
