@@ -11,6 +11,10 @@ import {
   getCustomersAndCollaborators,
   promoteToCollaborator,
   demoteToCustomer,
+  getPaymentCredentials,
+  createPaymentCredential,
+  updatePaymentCredential,
+  deletePaymentCredential,
 } from '@/services/fidelityService'
 import type {
   StoreRecord,
@@ -19,6 +23,7 @@ import type {
   ApprovalStatus,
   SubscriptionStatus,
   UserRecord,
+  PaymentCredentialRecord,
 } from '@/types'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
@@ -66,6 +71,13 @@ import {
   UserX,
   UserCog,
   Lock,
+  Key,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  ToggleLeft,
+  ToggleRight,
+  Sparkles,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -119,6 +131,23 @@ export default function AdminDashboard() {
   const [subSuspendPublic, setSubSuspendPublic] = useState<boolean>(true)
   const [subSuspendMerchant, setSubSuspendMerchant] = useState<boolean>(true)
 
+  // Payment Credentials state (Exclusive Admin)
+  const [paymentCredentials, setPaymentCredentials] = useState<PaymentCredentialRecord[]>([])
+  const [isCredModalOpen, setIsCredModalOpen] = useState(false)
+  const [editingCred, setEditingCred] = useState<PaymentCredentialRecord | null>(null)
+  const [credToDelete, setCredToDelete] = useState<PaymentCredentialRecord | null>(null)
+  const [isDeletingCred, setIsDeletingCred] = useState(false)
+  const [isSavingCred, setIsSavingCred] = useState(false)
+  const [showApiKey, setShowApiKey] = useState(false)
+
+  // Credential form fields
+  const [credProviderSelect, setCredProviderSelect] = useState('InfinitePay')
+  const [credCustomProvider, setCredCustomProvider] = useState('')
+  const [credName, setCredName] = useState('')
+  const [credApiKey, setCredApiKey] = useState('')
+  const [credExtraConfig, setCredExtraConfig] = useState('')
+  const [credIsActive, setCredIsActive] = useState(true)
+
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || (role !== 'admin' && role !== 'collaborator'))) {
       navigate('/login?tipo=admin')
@@ -133,12 +162,13 @@ export default function AdminDashboard() {
     setIsLoading(true)
     try {
       if (isAdmin) {
-        // Admin carrega tudo: lojas, planos, compras, clientes e colaboradores
-        const [storesData, plansData, purchasesData, usersData] = await Promise.all([
+        // Admin carrega tudo: lojas, planos, compras, clientes, colaboradores e credenciais de pagamento
+        const [storesData, plansData, purchasesData, usersData, credsData] = await Promise.all([
           getAllStores(),
           getSubscriptionPlans(),
           getAllPurchases(),
           getCustomersAndCollaborators(),
+          getPaymentCredentials(),
         ])
 
         setStores(storesData)
@@ -146,6 +176,7 @@ export default function AdminDashboard() {
         setPurchases(purchasesData)
         setCustomersList(usersData.customers)
         setCollaboratorsList(usersData.collaborators)
+        setPaymentCredentials(credsData)
         setCustomersCount(usersData.customers.length)
       } else {
         // Colaborador carrega APENAS lojas e planos de assinatura
@@ -405,6 +436,171 @@ export default function AdminDashboard() {
         description: err.message,
         variant: 'destructive',
       })
+    }
+  }
+
+  // PAYMENT CREDENTIALS HANDLERS (Exclusive Admin)
+  const openCredModal = (cred?: PaymentCredentialRecord) => {
+    if (cred) {
+      setEditingCred(cred)
+      const commonProviders = ['InfinitePay', 'Mercado Pago', 'PagSeguro', 'Asaas', 'Stripe']
+      if (commonProviders.includes(cred.provider)) {
+        setCredProviderSelect(cred.provider)
+        setCredCustomProvider('')
+      } else {
+        setCredProviderSelect('Outro')
+        setCredCustomProvider(cred.provider)
+      }
+      setCredName(cred.name)
+      setCredApiKey('') // Nunca reexibida
+      setShowApiKey(false)
+      setCredExtraConfig(
+        cred.extra_config && Object.keys(cred.extra_config).length > 0
+          ? JSON.stringify(cred.extra_config, null, 2)
+          : '',
+      )
+      setCredIsActive(cred.is_active ?? true)
+    } else {
+      setEditingCred(null)
+      setCredProviderSelect('InfinitePay')
+      setCredCustomProvider('')
+      setCredName('')
+      setCredApiKey('')
+      setShowApiKey(false)
+      setCredExtraConfig('')
+      setCredIsActive(true)
+    }
+    setIsCredModalOpen(true)
+  }
+
+  const handleSaveCredential = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isAdmin) return
+
+    const finalProvider =
+      credProviderSelect === 'Outro' ? credCustomProvider.trim() : credProviderSelect.trim()
+    if (!finalProvider) {
+      toast({
+        title: 'Informe o provedor',
+        description: 'Digite o nome do provedor ou selecione uma das opções.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!editingCred && !credApiKey.trim()) {
+      toast({
+        title: 'API Key obrigatória',
+        description: 'Informe a API Key do provedor de pagamento.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    let parsedExtra: Record<string, any> | undefined = undefined
+    if (credExtraConfig.trim()) {
+      try {
+        parsedExtra = JSON.parse(credExtraConfig.trim())
+      } catch (_) {
+        toast({
+          title: 'JSON de dados extras inválido',
+          description:
+            'Verifique a formatação do JSON de dados extras (ex: {"merchant_id": "123"}).',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
+    setIsSavingCred(true)
+    try {
+      if (editingCred) {
+        const payload: any = {
+          provider: finalProvider,
+          name: credName.trim(),
+          is_active: credIsActive,
+          extra_config: parsedExtra || {},
+        }
+        if (credApiKey.trim()) {
+          payload.api_key = credApiKey.trim()
+        }
+        await updatePaymentCredential(editingCred.id, payload)
+        toast({
+          title: 'Credencial atualizada com sucesso!',
+          description: `Credencial "${credName}" foi salva.`,
+        })
+      } else {
+        await createPaymentCredential({
+          provider: finalProvider,
+          name: credName.trim(),
+          api_key: credApiKey.trim(),
+          extra_config: parsedExtra || {},
+          is_active: credIsActive,
+        })
+        toast({
+          title: 'Credencial cadastrada!',
+          description: `Credencial "${credName}" para ${finalProvider} cadastrada com sucesso.`,
+        })
+      }
+
+      // Recarrega a lista de credenciais
+      const updatedList = await getPaymentCredentials()
+      setPaymentCredentials(updatedList)
+      setIsCredModalOpen(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar credencial',
+        description: err.message || 'Não foi possível salvar a credencial de pagamento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingCred(false)
+    }
+  }
+
+  const handleToggleCredentialActive = async (cred: PaymentCredentialRecord) => {
+    if (!isAdmin) return
+    const nextState = !cred.is_active
+    try {
+      await updatePaymentCredential(cred.id, {
+        is_active: nextState,
+      })
+      const updatedList = await getPaymentCredentials()
+      setPaymentCredentials(updatedList)
+      toast({
+        title: nextState ? 'Credencial ativada!' : 'Credencial desativada',
+        description: nextState
+          ? `A credencial "${cred.name}" foi ativada como principal para ${cred.provider}.`
+          : `A credencial "${cred.name}" foi desativada.`,
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao alterar status',
+        description: err.message || 'Não foi possível alterar a ativação da credencial.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleDeleteCredential = async () => {
+    if (!credToDelete || !isAdmin) return
+    setIsDeletingCred(true)
+    try {
+      await deletePaymentCredential(credToDelete.id)
+      setPaymentCredentials((prev) => prev.filter((c) => c.id !== credToDelete.id))
+      toast({
+        title: 'Credencial excluída',
+        description: `A credencial "${credToDelete.name}" foi removida com sucesso.`,
+      })
+      setCredToDelete(null)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao excluir credencial',
+        description: err.message || 'Não foi possível excluir a credencial.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingCred(false)
     }
   }
 
@@ -755,6 +951,13 @@ export default function AdminDashboard() {
           </TabsTrigger>
 
           {/* Abas exclusivas do Administrador Geral */}
+          {isAdmin && (
+            <TabsTrigger value="credentials" className="gap-2 text-xs sm:text-sm font-semibold">
+              <Key className="w-4 h-4 text-emerald-600" />
+              Credenciais de Pagamento ({paymentCredentials.length})
+            </TabsTrigger>
+          )}
+
           {isAdmin && (
             <TabsTrigger value="collaborators" className="gap-2 text-xs sm:text-sm font-semibold">
               <UserCog className="w-4 h-4 text-purple-600" />
@@ -1115,6 +1318,188 @@ export default function AdminDashboard() {
             })}
           </div>
         </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB: CREDENCIAIS DE PAGAMENTO (APENAS ADMIN)             */}
+        {/* ======================================================== */}
+        {isAdmin && (
+          <TabsContent value="credentials" className="space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
+                    <Key className="w-5 h-5 text-emerald-600" />
+                    Credenciais de Pagamento & API Keys
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Cadastre chaves de API para receber pagamentos de assinaturas de diferentes
+                    bancos e gateways (InfinitePay, Mercado Pago, PagSeguro, Asaas, Stripe ou
+                    personalizado).
+                  </p>
+                </div>
+                <Button
+                  onClick={() => openCredModal()}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nova Credencial de Pagamento
+                </Button>
+              </div>
+
+              {/* Informação sobre Provedor em Uso */}
+              <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-950">
+                      Status do Gateway de Pagamento
+                    </p>
+                    <p className="text-xs text-emerald-800">
+                      {paymentCredentials.some((c) => c.is_active) ? (
+                        <>
+                          Pagamentos de assinaturas sendo processados via{' '}
+                          <strong>
+                            {paymentCredentials.find((c) => c.is_active)?.provider} —{' '}
+                            {paymentCredentials.find((c) => c.is_active)?.name}
+                          </strong>
+                          .
+                        </>
+                      ) : (
+                        <>
+                          Nenhuma credencial ativa cadastrada no painel. O checkout usará a chave de
+                          ambiente (se houver) ou entrará em modo <strong>PIX Demonstrativo</strong>
+                          .
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {paymentCredentials.some((c) => c.is_active) && (
+                  <Badge className="bg-emerald-600 text-white font-bold text-[11px] px-3 py-1">
+                    Gateway Ativo no Sistema
+                  </Badge>
+                )}
+              </div>
+
+              {/* Tabela de Credenciais */}
+              <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                      <th className="py-3 px-4">Provedor / Banco</th>
+                      <th className="py-3 px-4">Identificação / Conta</th>
+                      <th className="py-3 px-4">API Key Mascarada</th>
+                      <th className="py-3 px-4">Configuração Extra</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Última Atualização</th>
+                      <th className="py-3 px-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paymentCredentials.map((cred) => (
+                      <tr key={cred.id} className="hover:bg-slate-50/70">
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center font-black text-xs">
+                              {cred.provider.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-slate-900">{cred.provider}</p>
+                              {cred.provider.toLowerCase().includes('infinitepay') && (
+                                <span className="text-[10px] text-emerald-600 font-semibold">
+                                  Integração ativa no checkout
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-slate-800">{cred.name}</td>
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600">
+                          <Badge
+                            variant="outline"
+                            className="font-mono bg-slate-50 border-slate-200 text-slate-700"
+                          >
+                            {cred.api_key_masked || '****...****'}
+                          </Badge>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500 text-[11px]">
+                          {cred.extra_config && Object.keys(cred.extra_config).length > 0 ? (
+                            <span className="font-mono text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-700">
+                              {Object.keys(cred.extra_config).join(', ')}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Padrão</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCredentialActive(cred)}
+                            className="inline-flex items-center gap-1.5 focus:outline-hidden"
+                            title="Clique para alternar o status da credencial"
+                          >
+                            {cred.is_active ? (
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 gap-1 font-bold cursor-pointer hover:bg-emerald-200">
+                                <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                Ativa (Principal)
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="text-slate-500 border-slate-300 gap-1 cursor-pointer hover:bg-slate-100"
+                              >
+                                Inativa
+                              </Badge>
+                            )}
+                          </button>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap text-[11px]">
+                          {new Date(cred.updated || cred.created).toLocaleDateString('pt-BR')} às{' '}
+                          {new Date(cred.updated || cred.created).toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openCredModal(cred)}
+                              className="text-xs h-8 px-2 text-slate-600 hover:text-slate-900"
+                              title="Editar credencial / substituir API Key"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setCredToDelete(cred)}
+                              className="text-xs h-8 px-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                              title="Excluir credencial"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {paymentCredentials.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-slate-400">
+                          Nenhuma credencial de pagamento cadastrada. Clique em "Nova Credencial de
+                          Pagamento" para registrar sua API Key.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </TabsContent>
+        )}
 
         {/* ======================================================== */}
         {/* TAB 3: COLABORADORES DO ADMINISTRADOR (APENAS ADMIN)     */}
@@ -1638,6 +2023,220 @@ export default function AdminDashboard() {
               className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
             >
               {isUpdatingRole ? 'Revertendo...' : 'Confirmar Reversão'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: CRIAR OU EDITAR CREDENCIAL DE PAGAMENTO (ADMIN) */}
+      <Dialog open={isCredModalOpen} onOpenChange={setIsCredModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-1">
+              <Key className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-lg font-black text-slate-900">
+              {editingCred
+                ? 'Editar Credencial de Pagamento'
+                : 'Cadastrar Nova Credencial de Pagamento'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Cadastre chaves de API e credenciais de bancos ou gateways para processamento de
+              pagamentos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveCredential} className="space-y-4 pt-2">
+            {/* Provedor / Banco */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Provedor / Banco</Label>
+              <Select
+                value={credProviderSelect}
+                onValueChange={(val) => setCredProviderSelect(val)}
+              >
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Selecione o provedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="InfinitePay">InfinitePay (Checkout Integrado)</SelectItem>
+                  <SelectItem value="Mercado Pago">Mercado Pago</SelectItem>
+                  <SelectItem value="PagSeguro">PagSeguro</SelectItem>
+                  <SelectItem value="Asaas">Asaas</SelectItem>
+                  <SelectItem value="Stripe">Stripe</SelectItem>
+                  <SelectItem value="Outro">Outro (Personalizado)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Nome customizado se selecionou Outro */}
+            {credProviderSelect === 'Outro' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">
+                  Nome do Provedor Personalizado
+                </Label>
+                <Input
+                  required
+                  placeholder="Ex: Banco Inter, Nubank, Itaú..."
+                  value={credCustomProvider}
+                  onChange={(e) => setCredCustomProvider(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            )}
+
+            {/* Identificador / Nome da credencial */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">
+                Nome da Conta / Identificador
+              </Label>
+              <Input
+                required
+                placeholder="Ex: Conta PJ Principal, InfinitePay Produção"
+                value={credName}
+                onChange={(e) => setCredName(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+
+            {/* API Key com botão de olho */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-slate-700">
+                  {editingCred
+                    ? 'Nova API Key (deixe em branco para manter a atual)'
+                    : 'API Key do Provedor'}
+                </Label>
+                {editingCred?.api_key_masked && (
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Atual: {editingCred.api_key_masked}
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  required={!editingCred}
+                  placeholder={editingCred ? '••••••••••••••••' : 'Cole sua API Key aqui'}
+                  value={credApiKey}
+                  onChange={(e) => setCredApiKey(e.target.value)}
+                  className="text-xs pr-10 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-hidden"
+                  tabIndex={-1}
+                >
+                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Por motivos de segurança, a API Key completa é armazenada de forma protegida e nunca
+                será exposta novamente na tela.
+              </p>
+            </div>
+
+            {/* Dados extras opcionais (JSON) */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">
+                Dados Extras / Parâmetros Adicionais (Opcional - JSON)
+              </Label>
+              <Textarea
+                rows={2}
+                placeholder='Ex: {"client_secret": "xyz", "merchant_id": "12345"}'
+                value={credExtraConfig}
+                onChange={(e) => setCredExtraConfig(e.target.value)}
+                className="text-xs font-mono resize-none"
+              />
+              <p className="text-[10px] text-slate-400">
+                Chaves adicionais requeridas pelo gateway (ex: merchant id ou token secundário).
+              </p>
+            </div>
+
+            {/* Ativa / Inativa */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-800">Credencial Ativa</p>
+                <p className="text-[11px] text-slate-500">
+                  Ao ativar, outras credenciais deste mesmo provedor serão desativadas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCredIsActive(!credIsActive)}
+                className="focus:outline-hidden"
+              >
+                {credIsActive ? (
+                  <ToggleRight className="w-7 h-7 text-emerald-600 cursor-pointer" />
+                ) : (
+                  <ToggleLeft className="w-7 h-7 text-slate-400 cursor-pointer" />
+                )}
+              </button>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCredModalOpen(false)}
+                disabled={isSavingCred}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                disabled={isSavingCred}
+              >
+                {isSavingCred
+                  ? 'Salvando...'
+                  : editingCred
+                    ? 'Salvar Alterações'
+                    : 'Cadastrar Credencial'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: CONFIRMAR EXCLUSÃO DE CREDENCIAL (ADMIN) */}
+      <Dialog open={!!credToDelete} onOpenChange={(open) => !open && setCredToDelete(null)}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-2">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-lg font-black text-slate-900">
+              Excluir Credencial de Pagamento?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 leading-relaxed">
+              Você está prestes a excluir a credencial <strong>"{credToDelete?.name}"</strong> (
+              {credToDelete?.provider}). Se esta credencial estiver ativa, os pagamentos por este
+              canal não serão mais processados e o sistema recorrerá ao ambiente ou PIX
+              demonstrativo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-4 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isDeletingCred}
+              onClick={() => setCredToDelete(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isDeletingCred}
+              onClick={handleDeleteCredential}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              {isDeletingCred ? 'Excluindo...' : 'Confirmar Exclusão'}
             </Button>
           </DialogFooter>
         </DialogContent>

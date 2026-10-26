@@ -1,9 +1,139 @@
 // pocketbase/hooks/infinitepay.pb.js
-// Integração de Checkout e Assinaturas com InfinitePay (Cloud / PocketBase pb_hooks)
+// Integração de Checkout, Assinaturas e Gestão Segura de Credenciais de Pagamento (Cloud / PocketBase pb_hooks)
 //
 // NOTA IMPORTANTE DE ARQUITETURA JSVM POCKETBASE:
 // Variáveis e funções no escopo de módulo não persistem de forma confiável entre VM pools.
-// Mantenha constantes e lógica de suporte inline dentro de cada handler de rota.
+// Mantenha constantes e lógica de suporte inline dentro de cada handler de rota ou hook.
+
+// 0. Hooks de ciclo de vida em payment_credentials para segurança e integridade
+onRecordCreate((e) => {
+  const rec = e.record
+  const rawKey = rec.getString('api_key')
+  if (rawKey && rawKey.trim()) {
+    const str = String(rawKey).trim()
+    const masked = str.length <= 8 ? '****' + str.slice(-2) : '****...' + str.slice(-4)
+    rec.set('api_key_masked', masked)
+  }
+
+  // Se estiver marcado como ativo, desativa outras credenciais do mesmo provedor
+  if (rec.getBool('is_active')) {
+    const provider = rec.getString('provider')
+    try {
+      const records = e.app.findRecordsByFilter(
+        'payment_credentials',
+        `provider = "${provider}" && is_active = true`,
+      )
+      for (let i = 0; i < records.length; i++) {
+        records[i].set('is_active', false)
+        e.app.save(records[i])
+      }
+    } catch (_) {}
+  }
+  e.next()
+}, 'payment_credentials')
+
+onRecordUpdate((e) => {
+  const rec = e.record
+  const rawKey = rec.getString('api_key')
+  if (rawKey && rawKey.trim()) {
+    const str = String(rawKey).trim()
+    const masked = str.length <= 8 ? '****' + str.slice(-2) : '****...' + str.slice(-4)
+    rec.set('api_key_masked', masked)
+  } else {
+    // Se a chave não foi reenviada (ou enviada vazia no update), preserva a chave anterior
+    try {
+      const original = rec.original()
+      if (original) {
+        rec.set('api_key', original.getString('api_key'))
+        rec.set('api_key_masked', original.getString('api_key_masked'))
+      }
+    } catch (_) {}
+  }
+
+  // Se esta credencial foi ativada, desativa as outras credenciais do mesmo provedor
+  if (rec.getBool('is_active')) {
+    const provider = rec.getString('provider')
+    try {
+      const records = e.app.findRecordsByFilter(
+        'payment_credentials',
+        `provider = "${provider}" && is_active = true && id != "${rec.id}"`,
+      )
+      for (let i = 0; i < records.length; i++) {
+        records[i].set('is_active', false)
+        e.app.save(records[i])
+      }
+    } catch (_) {}
+  }
+  e.next()
+}, 'payment_credentials')
+
+// Rota para consultar o status de configuração do provedor ativo (aberto a usuários autenticados da aplicação)
+// GET /backend/v1/subscriptions/payment-provider-info
+routerAdd('GET', '/backend/v1/subscriptions/payment-provider-info', (e) => {
+  const reqInfo = e.requestInfo()
+  const authRecord = reqInfo ? reqInfo.auth : null
+  if (!authRecord) {
+    return e.json(401, { error: 'Autenticação necessária.' })
+  }
+
+  // 1. Busca credencial ativa no banco (InfinitePay prioritária para checkout atual)
+  let activeCredential = null
+  try {
+    const activeList = e.app.findRecordsByFilter(
+      'payment_credentials',
+      'is_active = true',
+      '-updated',
+      1,
+      0,
+    )
+    if (activeList && activeList.length > 0) {
+      activeCredential = activeList[0]
+    }
+  } catch (_) {}
+
+  // 2. Se houver credencial ativa na tabela
+  if (activeCredential) {
+    const provider = activeCredential.getString('provider')
+    const name = activeCredential.getString('name')
+    const masked = activeCredential.getString('api_key_masked')
+    const updated = activeCredential.getString('updated') || activeCredential.getString('created')
+
+    return e.json(200, {
+      configured: true,
+      provider: provider,
+      provider_name: name,
+      api_key_masked: masked,
+      updated_at: updated,
+      source: 'database',
+      is_simulated: false,
+    })
+  }
+
+  // 3. Fallback para chave de ambiente INFINITEPAY_API_KEY
+  const envKey = ($os.getenv('INFINITEPAY_API_KEY') || '').trim()
+  if (envKey) {
+    const str = envKey
+    const masked = str.length <= 8 ? '****' + str.slice(-2) : '****...' + str.slice(-4)
+    return e.json(200, {
+      configured: true,
+      provider: 'InfinitePay',
+      provider_name: 'Chave de Ambiente (Skip Cloud)',
+      api_key_masked: masked,
+      source: 'env',
+      is_simulated: false,
+    })
+  }
+
+  // 4. Sem credenciais ativas -> PIX simulado
+  return e.json(200, {
+    configured: false,
+    provider: 'none',
+    provider_name: 'PIX Demonstrativo',
+    api_key_masked: '',
+    source: 'none',
+    is_simulated: true,
+  })
+})
 
 // 1. Rota autenticada para criar link de checkout
 // POST /backend/v1/subscriptions/checkout-link
@@ -14,12 +144,40 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
     return e.json(401, { error: 'Autenticação necessária.' })
   }
 
-  const apiKey = $os.getenv('INFINITEPAY_API_KEY') || ''
-  if (!apiKey || apiKey.trim() === '') {
+  // Resolução da API Key na ordem especificada:
+  // (1) Credencial ativa da collection payment_credentials para 'infinitepay'
+  // (2) Fallback para $os.getenv('INFINITEPAY_API_KEY')
+  // (3) Fallback para PIX simulado se nenhuma existir
+  let apiKey = ''
+  let credentialName = ''
+  try {
+    const creds = e.app.findRecordsByFilter(
+      'payment_credentials',
+      'is_active = true && (provider ~ "infinitepay" || provider ~ "InfinitePay")',
+      '-updated',
+      1,
+      0,
+    )
+    if (creds && creds.length > 0) {
+      apiKey = (creds[0].getString('api_key') || '').trim()
+      credentialName = creds[0].getString('name')
+    }
+  } catch (err) {
+    console.warn('[InfinitePay:checkoutLink] Erro ao buscar credenciais ativas: ' + err.message)
+  }
+
+  if (!apiKey) {
+    apiKey = ($os.getenv('INFINITEPAY_API_KEY') || '').trim()
+    if (apiKey) {
+      credentialName = 'Chave de Ambiente'
+    }
+  }
+
+  if (!apiKey) {
     return e.json(200, {
       configured: false,
       message:
-        'A chave de API InfinitePay (INFINITEPAY_API_KEY) ainda não foi configurada nas variáveis de ambiente.',
+        'Nenhuma credencial ativa para InfinitePay foi encontrada nas configurações de pagamento nem nas variáveis de ambiente.',
     })
   }
 
@@ -76,7 +234,6 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
     $security.randomString(6).toUpperCase()
 
   // Monta redirect_url e webhook_url
-  // Frontend URL: usa SITE_URL do ambiente ou fallback conhecido
   const siteUrl = (
     $os.getenv('SITE_URL') || 'https://fideliza-programa-de-fidelidade-4940d.goskip.app'
   ).replace(/\/+$/, '')
@@ -122,7 +279,12 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
     },
   }
 
-  console.log('[InfinitePay:checkoutLink] Criando link para order_nsu: ' + orderNsu)
+  console.log(
+    '[InfinitePay:checkoutLink] Criando link para order_nsu: ' +
+      orderNsu +
+      ' com credencial: ' +
+      credentialName,
+  )
 
   let res = null
   try {
@@ -173,7 +335,6 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
     return e.json(500, { error: 'Resposta inválida recebida da InfinitePay.' })
   }
 
-  // A InfinitePay pode retornar o link nos campos url, checkout_url ou link
   const checkoutUrl =
     responseData.url ||
     responseData.checkout_url ||
@@ -204,11 +365,12 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
     console.error(
       '[InfinitePay:checkoutLink] Erro ao salvar registro de pagamento: ' + dbErr.message,
     )
-    // Prossegue se o link já foi criado, para não bloquear o lojista
   }
 
   return e.json(200, {
     configured: true,
+    provider: 'InfinitePay',
+    credential_name: credentialName,
     checkout_url: checkoutUrl,
     order_nsu: orderNsu,
     slug: slug,
@@ -229,8 +391,6 @@ routerAdd('POST', '/webhook-infinitepay', (e) => {
 
   console.log('[InfinitePay:webhook] Recebido payload: ' + JSON.stringify(body))
 
-  // Eventos esperados: created, paid, settled, canceled, refunded, payment_failed
-  // Estruturas possíveis da InfinitePay: { event: "paid", data: { order_nsu, ... } } ou direto { event: "paid", order_nsu, ... }
   const event = (body.event || (body.data && body.data.event) || '').toLowerCase()
   const orderNsu = (
     body.order_nsu ||
@@ -265,7 +425,6 @@ routerAdd('POST', '/webhook-infinitepay', (e) => {
     } catch (_) {}
   }
 
-  // Se não encontrar o registro por NSU ou slug, responde 200 para evitar retries desnecessários
   if (!paymentRecord) {
     console.warn(
       '[InfinitePay:webhook] Registro de pagamento não encontrado para order_nsu="' +
@@ -277,7 +436,6 @@ routerAdd('POST', '/webhook-infinitepay', (e) => {
     return e.json(200, { received: true, matched: false })
   }
 
-  // Atualiza dados comuns no registro de pagamento
   if (transactionNsu) {
     paymentRecord.set('transaction_nsu', transactionNsu)
   }
@@ -291,9 +449,6 @@ routerAdd('POST', '/webhook-infinitepay', (e) => {
     paymentRecord.set('status', 'paid')
     paymentRecord.set('paid_at', nowIso)
 
-    // Aplica a lógica idêntica à aprovação manual do Admin:
-    // Avança o vencimento da loja conforme os meses do plano,
-    // define status como 'active' e desativa suspend_public e suspend_merchant
     try {
       const storeId = paymentRecord.getString('store')
       const planId = paymentRecord.getString('plan')
@@ -309,7 +464,6 @@ routerAdd('POST', '/webhook-infinitepay', (e) => {
           } catch (_) {}
         }
 
-        // Calcula a nova data de vencimento
         const currentExpiry = store.getString('subscription_expires_at')
         let baseDate = new Date()
         if (currentExpiry) {
@@ -372,7 +526,24 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
     return e.json(401, { error: 'Autenticação necessária.' })
   }
 
-  const apiKey = $os.getenv('INFINITEPAY_API_KEY') || ''
+  let apiKey = ''
+  try {
+    const creds = e.app.findRecordsByFilter(
+      'payment_credentials',
+      'is_active = true && (provider ~ "infinitepay" || provider ~ "InfinitePay")',
+      '-updated',
+      1,
+      0,
+    )
+    if (creds && creds.length > 0) {
+      apiKey = (creds[0].getString('api_key') || '').trim()
+    }
+  } catch (_) {}
+
+  if (!apiKey) {
+    apiKey = ($os.getenv('INFINITEPAY_API_KEY') || '').trim()
+  }
+
   const body = (reqInfo && reqInfo.body) || {}
   const orderNsu = (body.order_nsu || '').trim()
   const slug = (body.slug || '').trim()
@@ -409,7 +580,7 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
   }
 
   // Se não temos API Key configurada, responde o status do banco local
-  if (!apiKey || apiKey.trim() === '') {
+  if (!apiKey) {
     return e.json(200, {
       configured: false,
       paid: paymentRecord ? paymentRecord.getString('status') === 'paid' : false,
@@ -418,8 +589,6 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
     })
   }
 
-  // Chama a API da InfinitePay para conferir o status remoto:
-  // POST https://api.checkout.infinitepay.io/payment_check com body {handle, order_nsu, transaction_nsu, slug}
   const checkPayload = {}
   if (orderNsu) checkPayload.order_nsu = orderNsu
   if (slug) checkPayload.slug = slug
@@ -457,7 +626,6 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
   const captureMethod = resultData.capture_method || ''
   const transNsu = resultData.transaction_nsu || ''
 
-  // Se a InfinitePay confirmou que está pago e o registro local ainda não refletiu:
   if (isPaid && paymentRecord && paymentRecord.getString('status') !== 'paid') {
     paymentRecord.set('status', 'paid')
     paymentRecord.set('paid_at', new Date().toISOString())
@@ -467,7 +635,6 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
       e.app.save(paymentRecord)
     } catch (_) {}
 
-    // Ativa a loja
     try {
       const storeId = paymentRecord.getString('store')
       const planId = paymentRecord.getString('plan')

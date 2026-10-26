@@ -158,6 +158,8 @@ export interface CheckoutLinkResponse {
   amount?: number
   message?: string
   error?: string
+  provider?: string
+  credential_name?: string
 }
 
 export interface PaymentCheckResponse {
@@ -170,4 +172,26 @@ export interface PaymentCheckResponse {
   slug?: string
   details?: any
   error?: string
+}
+
+export interface PaymentCredentialRecord {
+  id: string
+  provider: string
+  name: string
+  api_key?: string
+  api_key_masked?: string
+  extra_config?: Record<string, any>
+  is_active: boolean
+  created: string
+  updated: string
+}
+
+export interface PaymentProviderInfoResponse {
+  configured: boolean
+  provider: string
+  provider_name: string
+  api_key_masked?: string
+  updated_at?: string
+  source: 'database' | 'env' | 'none'
+  is_simulated: boolean
 }

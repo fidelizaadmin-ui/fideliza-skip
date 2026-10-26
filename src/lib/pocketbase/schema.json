@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T12:46:47.135Z",
+  "generatedAt": "2026-10-26T14:29:23.201Z",
   "collections": [
     {
       "name": "users",
@@ -666,6 +666,67 @@
         "CREATE INDEX idx_sub_payments_store ON subscription_payments (store)",
         "CREATE INDEX idx_sub_payments_slug ON subscription_payments (slug)",
         "CREATE INDEX idx_sub_payments_status ON subscription_payments (status)"
+      ]
+    },
+    {
+      "name": "payment_credentials",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "view": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "create": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "update": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "provider",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "api_key_masked",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "extra_config",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_payment_credentials_provider ON payment_credentials (provider)",
+        "CREATE INDEX idx_payment_credentials_active ON payment_credentials (is_active)"
       ]
     }
   ]

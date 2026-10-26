@@ -9,6 +9,8 @@ import type {
   SubscriptionPaymentRecord,
   CheckoutLinkResponse,
   PaymentCheckResponse,
+  PaymentCredentialRecord,
+  PaymentProviderInfoResponse,
 } from '@/types'
 
 // ==========================================
@@ -536,4 +538,82 @@ export async function getStoreSubscriptionPayments(
     console.error('Error fetching subscription payments:', error)
     return []
   }
+}
+
+// ==========================================
+// PAYMENT CREDENTIALS & PROVIDER INFO (ADMIN & LOJISTA)
+// ==========================================
+
+/**
+ * Consulta informações do provedor de pagamento ativo (aberto a usuários autenticados).
+ */
+export async function getPaymentProviderInfo(): Promise<PaymentProviderInfoResponse> {
+  try {
+    const response = await pb.send<PaymentProviderInfoResponse>(
+      '/backend/v1/subscriptions/payment-provider-info',
+      {
+        method: 'GET',
+      },
+    )
+    return response
+  } catch (error) {
+    console.error('Error fetching payment provider info:', error)
+    return {
+      configured: false,
+      provider: 'none',
+      provider_name: 'PIX Demonstrativo',
+      source: 'none',
+      is_simulated: true,
+    }
+  }
+}
+
+/**
+ * Lista todas as credenciais de pagamento cadastradas (Exclusivo Admin).
+ */
+export async function getPaymentCredentials(): Promise<PaymentCredentialRecord[]> {
+  try {
+    return await pb.collection('payment_credentials').getFullList<PaymentCredentialRecord>({
+      sort: '-created',
+    })
+  } catch (error) {
+    console.error('Error fetching payment credentials:', error)
+    return []
+  }
+}
+
+/**
+ * Cria uma nova credencial de pagamento (Exclusivo Admin).
+ */
+export async function createPaymentCredential(data: {
+  provider: string
+  name: string
+  api_key: string
+  extra_config?: Record<string, any>
+  is_active?: boolean
+}): Promise<PaymentCredentialRecord> {
+  return await pb.collection('payment_credentials').create<PaymentCredentialRecord>(data)
+}
+
+/**
+ * Atualiza uma credencial de pagamento existente (Exclusivo Admin).
+ */
+export async function updatePaymentCredential(
+  id: string,
+  data: {
+    provider?: string
+    name?: string
+    api_key?: string
+    extra_config?: Record<string, any>
+    is_active?: boolean
+  },
+): Promise<PaymentCredentialRecord> {
+  return await pb.collection('payment_credentials').update<PaymentCredentialRecord>(id, data)
+}
+
+/**
+ * Exclui uma credencial de pagamento (Exclusivo Admin).
+ */
+export async function deletePaymentCredential(id: string): Promise<boolean> {
+  return await pb.collection('payment_credentials').delete(id)
 }

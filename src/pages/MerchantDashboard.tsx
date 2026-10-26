@@ -15,6 +15,7 @@ import {
   redeemReward,
   createInfinitePayCheckoutLink,
   getStoreSubscriptionPayments,
+  getPaymentProviderInfo,
 } from '@/services/fidelityService'
 import type {
   StoreRecord,
@@ -26,6 +27,7 @@ import type {
   StoreCategory,
   FidelityType,
   SubscriptionPaymentRecord,
+  PaymentProviderInfoResponse,
 } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -130,6 +132,8 @@ export default function MerchantDashboard() {
   const [showPixFallback, setShowPixFallback] = useState(false)
   const [subPaymentsHistory, setSubPaymentsHistory] = useState<SubscriptionPaymentRecord[]>([])
   const [activeTab, setActiveTab] = useState<string>('pos')
+  const [paymentProviderInfo, setPaymentProviderInfo] =
+    useState<PaymentProviderInfoResponse | null>(null)
 
   // Loyalty plan form state
   const [planType, setPlanType] = useState<FidelityType>('stamps')
@@ -170,8 +174,18 @@ export default function MerchantDashboard() {
     }
     if (isAuthenticated && user) {
       loadMerchantData()
+      loadProviderInfo()
     }
   }, [isAuthenticated, user, authLoading])
+
+  const loadProviderInfo = async () => {
+    try {
+      const info = await getPaymentProviderInfo()
+      setPaymentProviderInfo(info)
+    } catch {
+      /* intentionally ignored */
+    }
+  }
 
   const loadMerchantData = async () => {
     if (!user) return
@@ -2359,8 +2373,47 @@ export default function MerchantDashboard() {
                 </p>
               </div>
               <Badge className="bg-emerald-600 text-white font-bold text-xs py-1 px-3">
-                {showPixFallback ? 'PIX Demonstrativo' : 'InfinitePay'}
+                {showPixFallback
+                  ? 'PIX Demonstrativo'
+                  : paymentProviderInfo?.provider_name
+                    ? `${paymentProviderInfo.provider} (${paymentProviderInfo.provider_name})`
+                    : 'InfinitePay'}
               </Badge>
+            </div>
+
+            {/* Indicação clara do Gateway Ativo */}
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800">Canal de Pagamento:</span>
+                {paymentProviderInfo?.configured ? (
+                  <Badge
+                    variant="outline"
+                    className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold"
+                  >
+                    Gateway Ativo ({paymentProviderInfo.provider})
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
+                  >
+                    Modo Demonstrativo
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-600">
+                {paymentProviderInfo?.configured ? (
+                  <>
+                    Pagamentos processados via <strong>{paymentProviderInfo.provider}</strong> —{' '}
+                    {paymentProviderInfo.provider_name}
+                    {paymentProviderInfo.api_key_masked &&
+                      ` (${paymentProviderInfo.api_key_masked})`}
+                    .
+                  </>
+                ) : (
+                  <>PIX de demonstração — nenhuma credencial ativa cadastrada.</>
+                )}
+              </p>
             </div>
 
             {/* SE ESTIVER NO MODO CHECKOUT REAL (PADRÃO) */}
@@ -2373,16 +2426,16 @@ export default function MerchantDashboard() {
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
                     Você será redirecionado para o ambiente seguro de pagamento da{' '}
-                    <strong>InfinitePay</strong> com suporte a <strong>PIX</strong> e{' '}
-                    <strong>Cartão de Crédito</strong>. Assim que aprovado, sua loja é ativada
-                    automaticamente.
+                    <strong>{paymentProviderInfo?.provider || 'InfinitePay'}</strong> com suporte a{' '}
+                    <strong>PIX</strong> e <strong>Cartão de Crédito</strong>. Assim que aprovado,
+                    sua loja é ativada automaticamente.
                   </p>
                 </div>
 
-                {infinitePayConfigured === false && (
+                {infinitePayConfigured === false && !paymentProviderInfo?.configured && (
                   <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
-                    ℹ️ O checkout online da InfinitePay está em fase de ativação. Você pode utilizar
-                    a opção alternativa de confirmação via PIX abaixo.
+                    ℹ️ O checkout online está em fase de ativação. Você pode utilizar a opção
+                    alternativa de confirmação via PIX demonstrativo abaixo.
                   </div>
                 )}
 
