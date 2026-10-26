@@ -307,44 +307,41 @@ export default function Index() {
                   className="group overflow-hidden rounded-2xl border-slate-200 bg-white hover:shadow-xl hover:border-rose-200 transition-all duration-300 cursor-pointer flex flex-col"
                   onClick={() => handleOpenStore(store)}
                 >
-                  {/* Store Visual Header (Banner & Logo aligned horizontally) */}
-                  <div className="p-3 pb-0">
-                    <div className="flex items-center gap-3">
-                      {/* Banner Image */}
-                      <div className="relative flex-1 h-28 rounded-xl overflow-hidden bg-slate-100 border border-slate-100">
-                        {store.banner_url ? (
-                          <img
-                            src={store.banner_url}
-                            alt={store.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-tr from-slate-200 to-slate-100 flex items-center justify-center">
-                            <Store className="w-8 h-8 text-slate-300" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-
-                        {/* Category pill over banner */}
-                        <Badge className="absolute bottom-2 left-2 bg-black/60 text-white backdrop-blur-md border-0 text-[10px] font-medium px-2 py-0.5">
-                          {store.category}
-                        </Badge>
+                  {/* Banner Header */}
+                  <div className="relative h-36 w-full bg-slate-100 overflow-hidden">
+                    {store.banner_url ? (
+                      <img
+                        src={store.banner_url}
+                        alt={store.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-tr from-slate-200 to-slate-100 flex items-center justify-center">
+                        <Store className="w-10 h-10 text-slate-300" />
                       </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-                      {/* Logo avatar aligned horizontally to banner */}
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden bg-white shrink-0 p-1 flex items-center justify-center">
-                        {store.logo_url ? (
-                          <img
-                            src={store.logo_url}
-                            alt={`Logo de ${store.name}`}
-                            className="w-full h-full object-cover rounded-xl"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-rose-600 text-white font-bold flex items-center justify-center text-xl rounded-xl">
-                            {store.name.charAt(0)}
-                          </div>
-                        )}
-                      </div>
+                    {/* Category pill */}
+                    <Badge className="absolute top-3 right-3 bg-white/90 text-slate-800 backdrop-blur-md border-0 text-xs font-semibold shadow-xs">
+                      {store.category}
+                    </Badge>
+                  </div>
+
+                  {/* Logo avatar positioned overlapping the banner */}
+                  <div className="px-5 -mt-8 relative z-10 flex items-end justify-between">
+                    <div className="w-16 h-16 rounded-2xl border-2 border-white shadow-md overflow-hidden bg-white p-0.5">
+                      {store.logo_url ? (
+                        <img
+                          src={store.logo_url}
+                          alt={`Logo de ${store.name}`}
+                          className="w-full h-full object-cover rounded-xl"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-rose-600 text-white font-bold flex items-center justify-center text-xl rounded-xl">
+                          {store.name.charAt(0)}
+                        </div>
+                      )}
                     </div>
                   </div>
 
