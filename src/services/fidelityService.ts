@@ -16,9 +16,11 @@ export async function getApprovedStores(
   category?: string,
 ): Promise<StoreRecord[]> {
   try {
+    // A loja aprovada só é ocultada do portal público se suspend_public for true
+    // ou se o status for cancelled (ou overdue com suspend_public != false)
     const filters: string[] = [
       'approval_status = "approved"',
-      'subscription_status != "overdue"',
+      'suspend_public != true',
       'subscription_status != "cancelled"',
     ]
 

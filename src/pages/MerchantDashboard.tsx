@@ -616,8 +616,21 @@ export default function MerchantDashboard() {
   }
 
   // Global Sales metrics (for top cards)
-  const isSuspended =
+  // hasOverdueSub: indica se a assinatura está com pendência de pagamento (Em Atraso ou Cancelado)
+  const hasOverdueSub =
     store && (store.subscription_status === 'overdue' || store.subscription_status === 'cancelled')
+
+  // isMerchantSuspended: se a restrição de funcionalidades no perfil do lojista está ativada
+  // Por retrocompatibilidade, se suspend_merchant for true ou se for indefinido em loja com atraso, suspende
+  const isMerchantSuspended = Boolean(
+    hasOverdueSub && (store.suspend_merchant !== undefined ? store.suspend_merchant : true),
+  )
+
+  // isPublicSuspended: se a restrição no portal público está ativada
+  const isPublicSuspended = Boolean(
+    store?.subscription_status === 'cancelled' ||
+    (hasOverdueSub && (store?.suspend_public !== undefined ? store.suspend_public : true)),
+  )
 
   const totalStoreSales = purchases
     .filter((p) => p.type === 'purchase')
@@ -628,30 +641,89 @@ export default function MerchantDashboard() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
       {/* SUSPENSION WARNING BANNER (When store is overdue or cancelled) */}
-      {isSuspended && (
-        <div className="mb-6 p-5 rounded-3xl bg-rose-50 border-2 border-rose-300 text-rose-950 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+      {hasOverdueSub && (
+        <div
+          className={`mb-6 p-5 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm border-2 ${
+            isMerchantSuspended
+              ? 'bg-rose-50 border-rose-300 text-rose-950'
+              : 'bg-amber-50 border-amber-300 text-amber-950'
+          }`}
+        >
           <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+            <div
+              className={`w-10 h-10 rounded-2xl text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm ${
+                isMerchantSuspended ? 'bg-rose-500' : 'bg-amber-500'
+              }`}
+            >
               <AlertCircle className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-black text-rose-900 flex items-center gap-2">
-                Acesso e Loja Suspensos por Pendência na Assinatura
-                <Badge className="bg-rose-600 text-white border-0 text-[10px]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3
+                  className={`text-base font-black flex items-center gap-2 ${
+                    isMerchantSuspended ? 'text-rose-900' : 'text-amber-900'
+                  }`}
+                >
+                  {isMerchantSuspended
+                    ? 'Acesso e Operações Suspensos por Pendência na Assinatura'
+                    : isPublicSuspended
+                      ? 'Loja Ocultada do Portal Público por Pendência na Assinatura'
+                      : 'Aviso de Pendência na Assinatura'}
+                </h3>
+                <Badge
+                  className={`border-0 text-[10px] ${
+                    store.subscription_status === 'overdue'
+                      ? 'bg-rose-600 text-white'
+                      : 'bg-slate-700 text-white'
+                  }`}
+                >
                   {store.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelado'}
                 </Badge>
-              </h3>
-              <p className="text-xs text-rose-800 leading-relaxed mt-1 max-w-2xl">
-                Sua loja foi temporariamente suspensa do portal público e os recursos operacionais
-                (PDV Caixa e Programa de Fidelidade) estão bloqueados. Regularize sua assinatura via
-                PIX para reativar todos os benefícios e o acesso dos clientes.
+              </div>
+
+              <p
+                className={`text-xs leading-relaxed mt-1 max-w-2xl ${
+                  isMerchantSuspended ? 'text-rose-800' : 'text-amber-800'
+                }`}
+              >
+                {isMerchantSuspended && isPublicSuspended && (
+                  <>
+                    Sua loja está suspensa no portal público e as funcionalidades operacionais (PDV
+                    Caixa e Edição de Fidelidade) estão bloqueadas. Efetue o pagamento para
+                    reativar.
+                  </>
+                )}
+                {isMerchantSuspended && !isPublicSuspended && (
+                  <>
+                    As funcionalidades do seu perfil (PDV Caixa e Edição de Fidelidade) foram
+                    bloqueadas pelo administrador. Sua loja ainda está visível no portal público.
+                    Efetue o pagamento para liberar suas ferramentas.
+                  </>
+                )}
+                {!isMerchantSuspended && isPublicSuspended && (
+                  <>
+                    Sua loja foi suspensa do portal público e não aparece nas buscas de clientes.
+                    Suas ferramentas internas continuam liberadas para operação. Regularize para
+                    voltar a ser exibida publicamente.
+                  </>
+                )}
+                {!isMerchantSuspended && !isPublicSuspended && (
+                  <>
+                    Sua assinatura está com pagamento pendente. Efetue a renovação via PIX para
+                    evitar a suspensão de serviços e manter tudo em dia.
+                  </>
+                )}
               </p>
             </div>
           </div>
           <Button
             type="button"
             onClick={() => setIsPayModalOpen(true)}
-            className="w-full md:w-auto shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs py-5 px-5 rounded-2xl shadow-md gap-2"
+            className={`w-full md:w-auto shrink-0 text-white font-black text-xs py-5 px-5 rounded-2xl shadow-md gap-2 ${
+              isMerchantSuspended
+                ? 'bg-rose-600 hover:bg-rose-700'
+                : 'bg-amber-600 hover:bg-amber-700'
+            }`}
           >
             <CreditCard className="w-4 h-4" />
             Regularizar / Pagar Assinatura
@@ -668,15 +740,21 @@ export default function MerchantDashboard() {
               Painel do Lojista
             </Badge>
 
-            {store && !isSuspended && store.approval_status === 'approved' && (
+            {store && !isPublicSuspended && store.approval_status === 'approved' && (
               <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Loja Ativa no Portal
               </Badge>
             )}
 
-            {store && isSuspended && (
+            {store && isPublicSuspended && (
               <Badge className="bg-rose-600 text-white font-bold gap-1">
-                <AlertCircle className="w-3 h-3" /> Loja Suspensa
+                <AlertCircle className="w-3 h-3" /> Suspensa do Portal Público
+              </Badge>
+            )}
+
+            {store && isMerchantSuspended && (
+              <Badge className="bg-amber-600 text-white font-bold gap-1">
+                <AlertCircle className="w-3 h-3" /> Operações Bloqueadas
               </Badge>
             )}
 
@@ -729,7 +807,7 @@ export default function MerchantDashboard() {
             </Button>
           )}
 
-          {store && plan && !isSuspended && (
+          {store && plan && !isMerchantSuspended && (
             <Button
               onClick={() => {
                 setActiveTab('pos')
@@ -837,7 +915,7 @@ export default function MerchantDashboard() {
         <TabsList className="bg-slate-200/70 p-1 rounded-xl flex-wrap h-auto">
           <TabsTrigger
             value="pos"
-            disabled={isSuspended}
+            disabled={isMerchantSuspended}
             className="gap-2 text-xs sm:text-sm font-semibold"
             id="registrar-compra-section"
           >
@@ -846,7 +924,7 @@ export default function MerchantDashboard() {
           </TabsTrigger>
           <TabsTrigger
             value="program"
-            disabled={isSuspended}
+            disabled={isMerchantSuspended}
             className="gap-2 text-xs sm:text-sm font-semibold"
           >
             <Award className="w-4 h-4" />
@@ -870,19 +948,20 @@ export default function MerchantDashboard() {
         {/* TAB 1: PDV - REGISTRAR COMPRA PELO CÓDIGO DO CLIENTE */}
         {/* ======================================================== */}
         <TabsContent value="pos" className="space-y-6">
-          {isSuspended ? (
+          {isMerchantSuspended ? (
             <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto border-rose-200 bg-rose-50/50">
               <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
               <h3 className="text-lg font-bold text-slate-900 mb-1">
-                PDV Bloqueado por Pendência na Assinatura
+                PDV Bloqueado por Suspensão de Funcionalidades
               </h3>
               <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                Sua assinatura está com status{' '}
+                O administrador ativou a{' '}
+                <strong>Suspensão nas funcionalidades do perfil do lojista</strong> devido ao status{' '}
                 <strong>
                   {store?.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelado'}
-                </strong>
-                . Efetue o pagamento da assinatura para reativar o registro de compras e créditos
-                aos clientes.
+                </strong>{' '}
+                da assinatura. Efetue o pagamento para reativar o registro de compras e créditos aos
+                clientes.
               </p>
               <Button
                 onClick={() => setIsPayModalOpen(true)}
@@ -1195,15 +1274,16 @@ export default function MerchantDashboard() {
         {/* TAB 2: MEU PLANO DE FIDELIDADE (SELOS / PONTOS / CASHBACK) */}
         {/* ======================================================== */}
         <TabsContent value="program" className="space-y-6">
-          {isSuspended ? (
+          {isMerchantSuspended ? (
             <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto border-rose-200 bg-rose-50/50">
               <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
               <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Configuração Bloqueada por Pendência na Assinatura
+                Configuração Bloqueada por Suspensão de Funcionalidades
               </h3>
               <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                Regularize sua assinatura para alterar ou gerenciar as regras do seu plano de
-                fidelidade.
+                As funcionalidades do seu perfil foram suspensas pelo administrador devido à
+                pendência na assinatura. Regularize para alterar ou gerenciar as regras do seu plano
+                de fidelidade.
               </p>
               <Button
                 onClick={() => setIsPayModalOpen(true)}
@@ -1786,15 +1866,49 @@ export default function MerchantDashboard() {
                     o recebimento e reativar sua assinatura em instantes.
                   </p>
                 </div>
-              ) : isSuspended ? (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 space-y-1">
+              ) : hasOverdueSub ? (
+                <div
+                  className={`p-4 rounded-2xl space-y-1 border ${
+                    isMerchantSuspended
+                      ? 'bg-rose-50 border-rose-200 text-rose-900'
+                      : 'bg-amber-50 border-amber-200 text-amber-900'
+                  }`}
+                >
                   <p className="font-bold text-xs flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4 text-rose-600" />
-                    Assinatura Pendente ou Suspensa
+                    <AlertCircle
+                      className={`w-4 h-4 ${
+                        isMerchantSuspended ? 'text-rose-600' : 'text-amber-600'
+                      }`}
+                    />
+                    Assinatura com Pagamento Pendente (
+                    {store?.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelada'})
                   </p>
-                  <p className="text-[11px] text-rose-800 leading-relaxed">
-                    Sua loja não está visível no portal público e as funcionalidades estão
-                    bloqueadas. Clique no botão abaixo para pagar e regularizar.
+                  <p className="text-[11px] leading-relaxed">
+                    {isMerchantSuspended && isPublicSuspended && (
+                      <>
+                        Sua loja está suspensa no portal público e as ferramentas do painel estão
+                        bloqueadas.
+                      </>
+                    )}
+                    {isMerchantSuspended && !isPublicSuspended && (
+                      <>
+                        As ferramentas do painel (PDV e Fidelidade) estão bloqueadas, mas a loja
+                        continua listada no portal.
+                      </>
+                    )}
+                    {!isMerchantSuspended && isPublicSuspended && (
+                      <>
+                        Sua loja foi ocultada do portal público, mas suas ferramentas de operação
+                        continuam ativas.
+                      </>
+                    )}
+                    {!isMerchantSuspended && !isPublicSuspended && (
+                      <>
+                        Suas ferramentas continuam liberadas, mas há pendência financeira na
+                        assinatura.
+                      </>
+                    )}{' '}
+                    Clique no botão abaixo para pagar e regularizar.
                   </p>
                 </div>
               ) : (
@@ -1861,7 +1975,7 @@ export default function MerchantDashboard() {
                   <CreditCard className="w-4 h-4 mr-2" />
                   {store?.subscription_status === 'pending'
                     ? 'Ver Dados do PIX / Pagar Novamente'
-                    : isSuspended
+                    : hasOverdueSub
                       ? 'Pagar Assinatura e Regularizar Loja'
                       : 'Renovar / Pagar Assinatura'}
                 </Button>

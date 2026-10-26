@@ -52,6 +52,7 @@ import {
   Check,
   X,
   Clock,
+  AlertCircle,
   AlertTriangle,
   Trash2,
   Plus,
@@ -115,6 +116,8 @@ export default function AdminDashboard() {
   const [subStatusChoice, setSubStatusChoice] = useState<SubscriptionStatus>('active')
   const [subPlanChoice, setSubPlanChoice] = useState<string>('')
   const [subExpiryDate, setSubExpiryDate] = useState<string>('')
+  const [subSuspendPublic, setSubSuspendPublic] = useState<boolean>(true)
+  const [subSuspendMerchant, setSubSuspendMerchant] = useState<boolean>(true)
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || (role !== 'admin' && role !== 'collaborator'))) {
@@ -315,9 +318,38 @@ export default function AdminDashboard() {
 
   const openSubscriptionModal = (store: StoreRecord) => {
     setStoreToEditSub(store)
-    setSubStatusChoice(store.subscription_status || 'trial')
+    const currentStatus = store.subscription_status || 'trial'
+    setSubStatusChoice(currentStatus)
     setSubPlanChoice(store.subscription_plan_id || plans[0]?.id || '')
     setSubExpiryDate(store.subscription_expires_at || '')
+
+    // Se a loja já tiver flags salvas, respeitar; senão, se for inadimplente (overdue/cancelled), default true
+    if (store.suspend_public !== undefined) {
+      setSubSuspendPublic(store.suspend_public)
+    } else {
+      setSubSuspendPublic(currentStatus === 'overdue' || currentStatus === 'cancelled')
+    }
+
+    if (store.suspend_merchant !== undefined) {
+      setSubSuspendMerchant(store.suspend_merchant)
+    } else {
+      setSubSuspendMerchant(currentStatus === 'overdue' || currentStatus === 'cancelled')
+    }
+  }
+
+  const handleStatusChoiceChange = (newStatus: SubscriptionStatus) => {
+    setSubStatusChoice(newStatus)
+    // Se o admin selecionar Em Atraso ou Cancelado e nenhuma opção estiver marcada, sugere marcar ambas
+    if (newStatus === 'overdue' || newStatus === 'cancelled') {
+      if (!subSuspendPublic && !subSuspendMerchant) {
+        setSubSuspendPublic(true)
+        setSubSuspendMerchant(true)
+      }
+    } else if (newStatus === 'active' || newStatus === 'trial') {
+      // Regularização: limpa as suspensões
+      setSubSuspendPublic(false)
+      setSubSuspendMerchant(false)
+    }
   }
 
   const handleApproveSubscriptionPayment = async () => {
@@ -331,12 +363,14 @@ export default function AdminDashboard() {
         subscription_status: 'active',
         subscription_plan_id: subPlanChoice || storeToEditSub.subscription_plan_id || undefined,
         subscription_expires_at: nextExpiry,
+        suspend_public: false,
+        suspend_merchant: false,
       })
       setStores((prev) => prev.map((s) => (s.id === storeToEditSub.id ? updated : s)))
       setStoreToEditSub(null)
       toast({
         title: 'Pagamento confirmado e assinatura ativada!',
-        description: `Loja "${storeToEditSub.name}" ativada até ${nextExpiry} (+${intervalMonths} mês/meses).`,
+        description: `Loja "${storeToEditSub.name}" ativada até ${nextExpiry} (+${intervalMonths} mês/meses). Suspensões removidas.`,
       })
     } catch (err: any) {
       toast({
@@ -350,16 +384,20 @@ export default function AdminDashboard() {
   const handleSaveStoreSubscription = async () => {
     if (!storeToEditSub) return
     try {
+      const isOverdueOrCancelled = subStatusChoice === 'overdue' || subStatusChoice === 'cancelled'
       const updated = await updateStore(storeToEditSub.id, {
         subscription_status: subStatusChoice,
         subscription_plan_id: subPlanChoice || undefined,
         subscription_expires_at: subExpiryDate || undefined,
+        // Limpar suspensões se status foi regularizado para ativo ou trial
+        suspend_public: isOverdueOrCancelled ? subSuspendPublic : false,
+        suspend_merchant: isOverdueOrCancelled ? subSuspendMerchant : false,
       })
       setStores((prev) => prev.map((s) => (s.id === storeToEditSub.id ? updated : s)))
       setStoreToEditSub(null)
       toast({
         title: 'Assinatura atualizada',
-        description: `Status de pagamento e plano da loja atualizados com sucesso.`,
+        description: `Status de pagamento, plano e tipos de suspensão atualizados com sucesso.`,
       })
     } catch (err: any) {
       toast({
@@ -859,10 +897,41 @@ export default function AdminDashboard() {
                                   : st.subscription_status === 'pending'
                                     ? 'Aguardando Confirmação'
                                     : st.subscription_status === 'overdue'
-                                      ? 'Em Atraso (Suspensa)'
-                                      : 'Cancelado (Suspensa)'}
+                                      ? 'Em Atraso'
+                                      : 'Cancelado'}
                             </span>
                           </div>
+
+                          {/* Indicadores do tipo de suspensão ativa */}
+                          {(st.subscription_status === 'overdue' ||
+                            st.subscription_status === 'cancelled') && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {st.suspend_public && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] py-0 px-1.5 border-rose-300 text-rose-700 bg-rose-50"
+                                >
+                                  Susp. Portal Público
+                                </Badge>
+                              )}
+                              {st.suspend_merchant && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] py-0 px-1.5 border-amber-300 text-amber-700 bg-amber-50"
+                                >
+                                  Susp. Painel Lojista
+                                </Badge>
+                              )}
+                              {!st.suspend_public && !st.suspend_merchant && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] py-0 px-1.5 border-slate-200 text-slate-500"
+                                >
+                                  Sem bloqueio ativo
+                                </Badge>
+                              )}
+                            </div>
+                          )}
 
                           <p className="text-[11px] text-slate-500">
                             {st.expand?.subscription_plan_id?.name || 'Plano Padrão'}
@@ -1609,7 +1678,7 @@ export default function AdminDashboard() {
               </Label>
               <Select
                 value={subStatusChoice}
-                onValueChange={(val) => setSubStatusChoice(val as SubscriptionStatus)}
+                onValueChange={(val) => handleStatusChoiceChange(val as SubscriptionStatus)}
               >
                 <SelectTrigger className="text-xs">
                   <SelectValue placeholder="Selecione o status" />
@@ -1618,11 +1687,71 @@ export default function AdminDashboard() {
                   <SelectItem value="trial">Em Período de Teste (Trial)</SelectItem>
                   <SelectItem value="pending">Aguardando Confirmação (PIX enviado)</SelectItem>
                   <SelectItem value="active">Pago / Assinatura Ativa</SelectItem>
-                  <SelectItem value="overdue">Em Atraso (Suspensa)</SelectItem>
-                  <SelectItem value="cancelled">Cancelado (Suspensa)</SelectItem>
+                  <SelectItem value="overdue">Em Atraso</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* SELEÇÃO DO TIPO DE SUSPENSÃO (Em caso de inadimplência da loja) */}
+            {(subStatusChoice === 'overdue' || subStatusChoice === 'cancelled') && (
+              <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-slate-800 space-y-3">
+                <div>
+                  <Label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    Tipo de Suspensão por Inadimplência
+                  </Label>
+                  <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
+                    Selecione as restrições que serão aplicadas à loja enquanto estiver
+                    inadimplente:
+                  </p>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={subSuspendPublic}
+                      onChange={(e) => setSubSuspendPublic(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-amber-300 text-rose-600 focus:ring-rose-500"
+                    />
+                    <div className="text-xs">
+                      <span className="font-bold text-slate-900 block">
+                        Suspensão no Portal Público
+                      </span>
+                      <span className="text-[11px] text-slate-600">
+                        Oculta a loja da listagem e da busca pública para clientes no site.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={subSuspendMerchant}
+                      onChange={(e) => setSubSuspendMerchant(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-amber-300 text-rose-600 focus:ring-rose-500"
+                    />
+                    <div className="text-xs">
+                      <span className="font-bold text-slate-900 block">
+                        Suspensão nas funcionalidades do perfil do lojista
+                      </span>
+                      <span className="text-[11px] text-slate-600">
+                        Bloqueia o PDV Caixa (registro de compras) e a alteração do plano de
+                        fidelidade. O lojista ainda poderá acessar para pagar.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {!subSuspendPublic && !subSuspendMerchant && (
+                  <p className="text-[10px] text-amber-700 italic">
+                    Nenhuma suspensão selecionada: a loja continuará visível e operando, mas com
+                    status de aviso de atraso.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-700">

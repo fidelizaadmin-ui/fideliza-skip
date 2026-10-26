@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T10:36:38.606Z",
+  "generatedAt": "2026-10-26T12:35:34.578Z",
   "collections": [
     {
       "name": "users",
@@ -277,6 +277,18 @@
         {
           "name": "banner_file",
           "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suspend_public",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suspend_merchant",
+          "type": "bool",
           "required": false,
           "system": false
         }

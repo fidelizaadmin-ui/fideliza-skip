@@ -60,6 +60,8 @@ export interface StoreRecord {
   subscription_plan_id?: string
   subscription_status?: SubscriptionStatus
   subscription_expires_at?: string
+  suspend_public?: boolean
+  suspend_merchant?: boolean
   created: string
   updated: string
   expand?: {
