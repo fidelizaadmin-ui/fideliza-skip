@@ -84,7 +84,12 @@ import {
   ToggleLeft,
   ToggleRight,
   Sparkles,
+  Phone,
+  FileText,
+  User,
+  Info,
 } from 'lucide-react'
+import { formatPhoneNumber, formatDocumentWithLabel } from '@/lib/documentValidation'
 import { useToast } from '@/hooks/use-toast'
 
 export default function AdminDashboard() {
@@ -128,6 +133,9 @@ export default function AdminDashboard() {
   // Delete Store Modal state
   const [storeToDelete, setStoreToDelete] = useState<StoreRecord | null>(null)
   const [isDeletingStore, setIsDeletingStore] = useState(false)
+
+  // Store Details Modal state
+  const [storeToViewDetails, setStoreToViewDetails] = useState<StoreRecord | null>(null)
 
   // Edit Store Subscription Status Modal
   const [storeToEditSub, setStoreToEditSub] = useState<StoreRecord | null>(null)
@@ -861,11 +869,20 @@ export default function AdminDashboard() {
 
   const filteredStores = stores.filter((s) => {
     const matchesStatus = storeStatusFilter === 'all' || s.approval_status === storeStatusFilter
+    const term = searchStoreTerm.toLowerCase().trim()
+    if (!term) return matchesStatus
+    const ownerName = s.expand?.owner_id?.name?.toLowerCase() || ''
+    const ownerEmail = s.expand?.owner_id?.email?.toLowerCase() || ''
+    const ownerPhone = s.expand?.owner_id?.phone?.toLowerCase() || ''
+    const ownerDoc = s.expand?.owner_id?.document?.toLowerCase() || ''
     const matchesSearch =
-      searchStoreTerm.trim() === '' ||
-      s.name.toLowerCase().includes(searchStoreTerm.toLowerCase()) ||
-      s.category.toLowerCase().includes(searchStoreTerm.toLowerCase()) ||
-      (s.address && s.address.toLowerCase().includes(searchStoreTerm.toLowerCase()))
+      s.name.toLowerCase().includes(term) ||
+      s.category.toLowerCase().includes(term) ||
+      (s.address && s.address.toLowerCase().includes(term)) ||
+      ownerName.includes(term) ||
+      ownerEmail.includes(term) ||
+      ownerPhone.includes(term) ||
+      ownerDoc.includes(term)
     return matchesStatus && matchesSearch
   })
 
@@ -1188,14 +1205,15 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
                     <th className="py-3.5 px-4">Loja / Categoria</th>
+                    {isAdmin && <th className="py-3.5 px-4">Lojista Proprietário</th>}
                     {!isCollaborator && <th className="py-3.5 px-4">Status de Aprovação</th>}
                     <th className="py-3.5 px-4">Plano & Pagamento</th>
-                    <th className="py-3.5 px-4">Cidade / Contato</th>
+                    <th className="py-3.5 px-4">Cidade / Contato da Loja</th>
                     <th className="py-3.5 px-4 text-right">
                       {isCollaborator ? 'Gestão da Assinatura' : 'Ações do Administrador'}
                     </th>
                   </tr>
-                </thead>
+                </thead>{' '}
                 <tbody className="divide-y divide-slate-100">
                   {filteredStores.map((st) => (
                     <tr key={st.id} className="hover:bg-slate-50/70 transition-colors">
@@ -1225,9 +1243,42 @@ export default function AdminDashboard() {
                         </div>
                       </td>
 
+                      {/* Lojista Proprietário (Exclusivo Administrador) */}
+                      {isAdmin && (
+                        <td className="py-4 px-4">
+                          <div className="space-y-1 max-w-[220px]">
+                            <p className="font-bold text-slate-900 truncate">
+                              {st.expand?.owner_id?.name || 'Lojista não informado'}
+                            </p>
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                              <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>
+                                {st.expand?.owner_id?.phone
+                                  ? formatPhoneNumber(st.expand.owner_id.phone)
+                                  : 'Tel: não cadastrado'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                              <FileText className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="font-mono text-[10px]">
+                                {st.expand?.owner_id?.document
+                                  ? formatDocumentWithLabel(st.expand.owner_id.document)
+                                  : 'Doc: não cadastrado'}
+                              </span>
+                            </div>
+                            {st.expand?.owner_id?.email && (
+                              <p className="text-[10px] text-slate-400 truncate">
+                                {st.expand.owner_id.email}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                      )}
+
                       {/* Approval Status (Oculto para colaboradores, apenas admin) */}
                       {!isCollaborator && (
                         <td className="py-4 px-4">
+                          {' '}
                           {st.approval_status === 'approved' && (
                             <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 gap-1 font-semibold">
                               <Check className="w-3 h-3" /> Aprovada
@@ -1348,6 +1399,20 @@ export default function AdminDashboard() {
                             </>
                           )}
 
+                          {/* Ver Detalhes Completos da Loja e Lojista (Admin) */}
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setStoreToViewDetails(st)}
+                              className="text-xs h-8 px-2.5 gap-1 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold"
+                              title="Ver Detalhes da Loja e Lojista"
+                            >
+                              <Info className="w-3.5 h-3.5 text-slate-500" />
+                              Detalhes
+                            </Button>
+                          )}
+
                           <Button
                             size="sm"
                             variant="secondary"
@@ -1357,7 +1422,6 @@ export default function AdminDashboard() {
                             <CreditCard className="w-3.5 h-3.5" />
                             Gerenciar Assinatura
                           </Button>
-
                           {/* Excluir loja: Apenas Admin Geral! Colaboradores NÃO veem este botão */}
                           {isAdmin && (
                             <Button
@@ -1377,13 +1441,13 @@ export default function AdminDashboard() {
                   {filteredStores.length === 0 && (
                     <tr>
                       <td
-                        colSpan={isCollaborator ? 4 : 5}
+                        colSpan={isCollaborator ? 4 : 6}
                         className="py-8 text-center text-slate-400"
                       >
                         Nenhuma loja encontrada com os filtros selecionados.
                       </td>
                     </tr>
-                  )}
+                  )}{' '}
                 </tbody>
               </table>
             </div>
@@ -2778,6 +2842,163 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* MODAL: DETALHES COMPLETOS DA LOJA E LOJISTA (EXCLUSIVO ADMIN) */}
+      <Dialog
+        open={!!storeToViewDetails}
+        onOpenChange={(open) => !open && setStoreToViewDetails(null)}
+      >
+        <DialogContent className="max-w-lg rounded-2xl p-6">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                <Store className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-black text-slate-900">
+                  {storeToViewDetails?.name}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Categoria: {storeToViewDetails?.category} • Status:{' '}
+                  {storeToViewDetails?.approval_status === 'approved'
+                    ? 'Aprovada'
+                    : storeToViewDetails?.approval_status === 'pending'
+                      ? 'Pendente'
+                      : 'Recusada'}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2 text-xs">
+            {/* Bloco: Dados do Lojista Proprietário */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                <User className="w-4 h-4 text-purple-600" />
+                <span>Dados do Lojista Proprietário (users)</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 block">Nome</span>
+                  <span className="font-bold text-slate-900">
+                    {storeToViewDetails?.expand?.owner_id?.name || 'Não informado'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 block">E-mail</span>
+                  <span className="font-mono text-slate-800 break-all">
+                    {storeToViewDetails?.expand?.owner_id?.email || 'Não informado'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 block flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-slate-400" /> Telefone do Lojista
+                  </span>
+                  <span className="font-bold text-slate-900">
+                    {storeToViewDetails?.expand?.owner_id?.phone
+                      ? formatPhoneNumber(storeToViewDetails.expand.owner_id.phone)
+                      : 'Não cadastrado'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 block flex items-center gap-1">
+                    <FileText className="w-3 h-3 text-slate-400" /> Documento (CPF / CNPJ)
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {storeToViewDetails?.expand?.owner_id?.document
+                      ? formatDocumentWithLabel(storeToViewDetails.expand.owner_id.document)
+                      : 'Não cadastrado'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco: Dados da Loja Física */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                <Store className="w-4 h-4 text-emerald-600" />
+                <span>Dados de Contato da Loja</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 block">
+                    Telefone da Loja
+                  </span>
+                  <span className="text-slate-800">
+                    {storeToViewDetails?.phone ? formatPhoneNumber(storeToViewDetails.phone) : '-'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 block">
+                    WhatsApp da Loja
+                  </span>
+                  <span className="text-slate-800">{storeToViewDetails?.whatsapp || '-'}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-[11px] font-semibold text-slate-500 block">
+                    Endereço & Cidade
+                  </span>
+                  <span className="text-slate-800">
+                    {storeToViewDetails?.address ? `${storeToViewDetails.address}, ` : ''}
+                    {storeToViewDetails?.city || 'São Paulo - SP'}
+                  </span>
+                </div>
+                {storeToViewDetails?.description && (
+                  <div className="sm:col-span-2">
+                    <span className="text-[11px] font-semibold text-slate-500 block">
+                      Descrição da Loja
+                    </span>
+                    <p className="text-slate-700 leading-relaxed bg-white p-2.5 rounded-lg border border-slate-200">
+                      {storeToViewDetails.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bloco: Assinatura */}
+            <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-purple-900 block">
+                  Plano Atual: {storeToViewDetails?.expand?.subscription_plan_id?.name || 'Padrão'}
+                </span>
+                <span className="text-[11px] text-purple-700">
+                  Status: <strong>{storeToViewDetails?.subscription_status}</strong>
+                  {storeToViewDetails?.subscription_expires_at &&
+                    ` • Vence em: ${storeToViewDetails.subscription_expires_at}`}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (storeToViewDetails) {
+                    const st = storeToViewDetails
+                    setStoreToViewDetails(null)
+                    openSubscriptionModal(st)
+                  }
+                }}
+                className="text-xs h-7 border-purple-300 text-purple-700 hover:bg-purple-100 font-semibold"
+              >
+                Gerenciar Assinatura
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setStoreToViewDetails(null)}
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* MODAL: EDIT STORE SUBSCRIPTION STATUS */}
       <Dialog open={!!storeToEditSub} onOpenChange={(open) => !open && setStoreToEditSub(null)}>
         <DialogContent className="max-w-md rounded-2xl p-6">
@@ -2789,6 +3010,34 @@ export default function AdminDashboard() {
               Loja: <strong>{storeToEditSub?.name}</strong>
             </DialogDescription>
           </DialogHeader>
+
+          {/* Dados do lojista proprietário exibidos no topo do modal para conferência do admin */}
+          {isAdmin && storeToEditSub?.expand?.owner_id && (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+              <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-purple-600" />
+                Lojista: {storeToEditSub.expand.owner_id.name || 'Nome não informado'}
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-0.5">
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Telefone</span>
+                  <span className="font-semibold text-slate-800">
+                    {storeToEditSub.expand.owner_id.phone
+                      ? formatPhoneNumber(storeToEditSub.expand.owner_id.phone)
+                      : 'Não cadastrado'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">CPF / CNPJ</span>
+                  <span className="font-mono font-semibold text-slate-800">
+                    {storeToEditSub.expand.owner_id.document
+                      ? formatDocumentWithLabel(storeToEditSub.expand.owner_id.document)
+                      : 'Não cadastrado'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">

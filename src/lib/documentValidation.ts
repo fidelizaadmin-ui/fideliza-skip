@@ -38,6 +38,53 @@ export function formatDocument(value: string, role?: 'customer' | 'merchant' | '
   return formatCPF(clean)
 }
 
+/**
+ * Retorna o documento formatado com prefixo CPF ou CNPJ.
+ */
+export function formatDocumentWithLabel(value?: string): string {
+  if (!value) return '-'
+  const clean = cleanDocument(value)
+  if (!clean) return '-'
+  if (clean.length === 11) {
+    return `CPF: ${formatCPF(clean)}`
+  }
+  if (clean.length === 14) {
+    return `CNPJ: ${formatCNPJ(clean)}`
+  }
+  if (clean.length > 11) {
+    return `CNPJ: ${formatCNPJ(clean)}`
+  }
+  return `CPF: ${formatCPF(clean)}`
+}
+
+/**
+ * Formata telefone brasileiro com máscara padrão (00) 00000-0000 ou (00) 0000-0000.
+ */
+export function formatPhoneNumber(phone?: string): string {
+  if (!phone) return '-'
+  const digits = phone.replace(/\D/g, '')
+  if (!digits) return '-'
+  // Remove código de país 55 se vier com 12 ou 13 dígitos
+  const cleanDigits =
+    (digits.length === 12 || digits.length === 13) && digits.startsWith('55')
+      ? digits.slice(2)
+      : digits
+
+  if (cleanDigits.length === 11) {
+    return `(${cleanDigits.slice(0, 2)}) ${cleanDigits.slice(2, 7)}-${cleanDigits.slice(7)}`
+  }
+  if (cleanDigits.length === 10) {
+    return `(${cleanDigits.slice(0, 2)}) ${cleanDigits.slice(2, 6)}-${cleanDigits.slice(6)}`
+  }
+  if (cleanDigits.length === 9) {
+    return `${cleanDigits.slice(0, 5)}-${cleanDigits.slice(5)}`
+  }
+  if (cleanDigits.length === 8) {
+    return `${cleanDigits.slice(0, 4)}-${cleanDigits.slice(4)}`
+  }
+  return phone
+}
+
 export function validateCPF(cpf: string): boolean {
   const clean = cleanDocument(cpf)
   if (clean.length !== 11) return false
