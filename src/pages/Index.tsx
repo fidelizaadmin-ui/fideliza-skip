@@ -42,6 +42,8 @@ import {
 
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 import { HeroPhotoWatermark } from '@/components/HeroPhotoWatermark'
+import { AppointmentBooking } from '@/components/AppointmentBooking'
+import { Calendar as CalendarIcon } from 'lucide-react'
 
 const CATEGORIES: ('Todas' | StoreCategory)[] = [
   'Todas',
@@ -72,6 +74,7 @@ export default function Index() {
   const [isEnrolledInActiveStore, setIsEnrolledInActiveStore] = useState(false)
   const [isEnrolling, setIsEnrolling] = useState(false)
   const [isLoadingModal, setIsLoadingModal] = useState(false)
+  const [isBookingOpen, setIsBookingOpen] = useState(false)
 
   useEffect(() => {
     loadStores()
@@ -109,6 +112,7 @@ export default function Index() {
 
   const handleOpenStore = async (store: StoreRecord) => {
     setActiveStore(store)
+    setIsBookingOpen(false)
     setIsLoadingModal(true)
     try {
       const plan = await getStoreFidelityPlan(store.id)
@@ -777,6 +781,70 @@ export default function Index() {
                           ? 'Cancelar Fidelização'
                           : 'Fidelizar-se a esta Loja'}
                     </Button>
+                  </div>
+                )}
+
+                {/* SEÇÃO DE AGENDAMENTO DE SERVIÇOS (quando appointments_enabled) */}
+                {activeStore.appointments_enabled && (
+                  <div className="p-4 rounded-2xl border border-blue-200 bg-blue-50/50 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                          <CalendarIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-black text-slate-900 text-xs sm:text-sm">
+                            Agendamento de Serviços Online
+                          </p>
+                          <p className="text-[11px] text-slate-600">
+                            Reserve seu horário diretamente com esta loja em poucos cliques.
+                          </p>
+                        </div>
+                      </div>
+
+                      {role === 'customer' ? (
+                        <Button
+                          size="sm"
+                          onClick={() => setIsBookingOpen(!isBookingOpen)}
+                          className={
+                            isBookingOpen
+                              ? 'bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl shrink-0'
+                              : 'bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0'
+                          }
+                        >
+                          <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
+                          {isBookingOpen ? 'Recolher Agendamento' : 'Agendar Serviço'}
+                        </Button>
+                      ) : !isAuthenticated ? (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setActiveStore(null)
+                            navigate('/login')
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0"
+                        >
+                          <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
+                          Entrar para Agendar
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    {isBookingOpen && role === 'customer' && (
+                      <div className="pt-3 border-t border-blue-200/60">
+                        <AppointmentBooking
+                          store={activeStore}
+                          onSuccess={() => {
+                            setTimeout(() => {
+                              setIsBookingOpen(false)
+                              setActiveStore(null)
+                              navigate('/cliente?tab=appointments')
+                            }, 1500)
+                          }}
+                          onCancel={() => setIsBookingOpen(false)}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 

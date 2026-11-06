@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { MyAppointments } from '@/components/MyAppointments'
+import { Calendar as CalendarIcon } from 'lucide-react'
 import {
   getCustomerCards,
   getCustomerPurchases,
@@ -59,7 +61,11 @@ import { EditCustomerProfileDialog } from '@/components/EditCustomerProfileDialo
 export default function CustomerDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToast()
+
+  const initialTab = searchParams.get('tab') || 'cards'
+  const [activeTab, setActiveTab] = useState(initialTab)
 
   const [cards, setCards] = useState<CustomerCardRecord[]>([])
   const [plansMap, setPlansMap] = useState<Record<string, FidelityPlanRecord | null>>({})
@@ -379,12 +385,23 @@ export default function CustomerDashboard() {
         </div>
       )}
 
-      {/* TABS: MEUS CARTÕES / SORTEIOS / HISTÓRICO / DADOS */}
-      <Tabs defaultValue="cards" className="space-y-6">
+      {/* TABS: MEUS CARTÕES / AGENDAMENTOS / SORTEIOS / HISTÓRICO / DADOS */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => {
+          setActiveTab(val)
+          setSearchParams({ tab: val })
+        }}
+        className="space-y-6"
+      >
         <TabsList className="bg-slate-200/70 p-1 rounded-xl flex-wrap h-auto">
           <TabsTrigger value="cards" className="gap-2 text-xs sm:text-sm font-semibold">
             <CreditCard className="w-4 h-4" />
             Meus Cartões de Fidelidade ({cards.length})
+          </TabsTrigger>
+          <TabsTrigger value="appointments" className="gap-2 text-xs sm:text-sm font-semibold">
+            <CalendarIcon className="w-4 h-4 text-blue-600" />
+            Meus Agendamentos
           </TabsTrigger>
           <TabsTrigger value="giveaways" className="gap-2 text-xs sm:text-sm font-semibold">
             <Gift className="w-4 h-4" />
@@ -929,9 +946,17 @@ export default function CustomerDashboard() {
         </TabsContent>
 
         {/* ======================================================== */}
-        {/* TAB 3: MEUS DADOS CADASTRAIS (VISUALIZAÇÃO E EDIÇÃO) */}
+        {/* TAB: MEUS AGENDAMENTOS */}
+        {/* ======================================================== */}
+        <TabsContent value="appointments" className="space-y-6">
+          <MyAppointments />
+        </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB 5: MEUS DADOS E CONFIGURAÇÕES */}
         {/* ======================================================== */}
         <TabsContent value="profile" className="space-y-6">
+          {' '}
           <Card className="rounded-3xl border-slate-200 shadow-xs overflow-hidden bg-white">
             <CardHeader className="bg-slate-50/60 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>

@@ -62,6 +62,7 @@ export interface StoreRecord {
   subscription_expires_at?: string
   suspend_public?: boolean
   suspend_merchant?: boolean
+  appointments_enabled?: boolean
   created: string
   updated: string
   expand?: {

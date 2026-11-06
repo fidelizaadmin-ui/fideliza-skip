@@ -91,6 +91,8 @@ import {
   Image as ImageIcon,
 } from 'lucide-react'
 import { getStoreImageUrl } from '@/services/fidelityService'
+import { AppointmentsManager } from '@/components/AppointmentsManager'
+import { Calendar as CalendarIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
@@ -1225,6 +1227,10 @@ export default function MerchantDashboard() {
           <TabsTrigger value="customers" className="gap-2 text-xs sm:text-sm font-semibold">
             <UserCheck className="w-4 h-4 text-emerald-600" />
             Base de Clientes ({fidelityCustomers.length})
+          </TabsTrigger>
+          <TabsTrigger value="appointments" className="gap-2 text-xs sm:text-sm font-semibold">
+            <CalendarIcon className="w-4 h-4 text-blue-600" />
+            Agendamentos
           </TabsTrigger>
           <TabsTrigger value="sales" className="gap-2 text-xs sm:text-sm font-semibold">
             <TrendingUp className="w-4 h-4" />
@@ -2834,9 +2840,31 @@ export default function MerchantDashboard() {
         </TabsContent>
 
         {/* ======================================================== */}
-        {/* TAB: BASE DE CLIENTES FIDELIZADOS */}
+        {/* TAB: AGENDAMENTOS */}
+        {/* ======================================================== */}
+        <TabsContent value="appointments" className="space-y-6">
+          {store ? (
+            <AppointmentsManager
+              store={store}
+              onStoreUpdated={(updatedStore) => setStore(updatedStore)}
+            />
+          ) : (
+            <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
+              <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-slate-900 mb-1">Cadastre sua loja primeiro</h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Preencha os dados da sua loja na aba "Dados da Loja" para habilitar a gestão de
+                agendamentos.
+              </p>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ======================================================== */}
+        {/* TAB 6: BASE DE CLIENTES FIDELIZADOS */}
         {/* ======================================================== */}
         <TabsContent value="customers" className="space-y-6">
+          {' '}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
@@ -2858,7 +2886,6 @@ export default function MerchantDashboard() {
               />
             </div>
           </div>
-
           <Card className="rounded-3xl border-slate-200 shadow-xs">
             <CardContent className="p-0">
               <div className="overflow-x-auto">

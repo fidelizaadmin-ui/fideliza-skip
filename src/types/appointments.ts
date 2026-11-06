@@ -32,12 +32,23 @@ export interface AppointmentRecord {
   date: string
   start_time: string
   end_time: string
+  price?: number
   status: AppointmentStatus
   notes?: string
   cancel_reason?: string
   created: string
   updated: string
-  expand?: { store?: { name?: string } }
+  expand?: {
+    store?: { name?: string; phone?: string; address?: string }
+    customer?: {
+      id?: string
+      name?: string
+      email?: string
+      phone?: string
+      customer_code?: string
+    }
+    service?: ServiceOfferingRecord
+  }
 }
 
 // Intervalo ocupado (sem dados pessoais), vindo da rota de disponibilidade
