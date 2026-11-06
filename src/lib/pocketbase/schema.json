@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T18:14:50.259Z",
+  "generatedAt": "2026-11-06T18:34:56.778Z",
   "collections": [
     {
       "name": "users",
@@ -288,6 +288,12 @@
         },
         {
           "name": "suspend_merchant",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "appointments_enabled",
           "type": "bool",
           "required": false,
           "system": false
@@ -1029,6 +1035,237 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_pix_settings_active ON pix_settings (is_active)"]
+    },
+    {
+      "name": "service_offerings",
+      "type": "base",
+      "apiRules": {
+        "list": "(active = true && store.approval_status = \"approved\" && store.suspend_public != true && store.subscription_status != \"cancelled\" && store.appointments_enabled = true) || (@request.auth.id != '' && (@request.auth.role = 'admin' || store.owner_id = @request.auth.id))",
+        "view": "(active = true && store.approval_status = \"approved\" && store.suspend_public != true && store.subscription_status != \"cancelled\" && store.appointments_enabled = true) || (@request.auth.id != '' && (@request.auth.role = 'admin' || store.owner_id = @request.auth.id))",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'admin' || (@collection.stores:st.id = @request.body.store && @collection.stores:st.owner_id = @request.auth.id && @collection.stores:st.suspend_merchant != true))",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || (store.owner_id = @request.auth.id && store.suspend_merchant != true))",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'admin' || (store.owner_id = @request.auth.id && store.suspend_merchant != true))"
+      },
+      "fields": [
+        {
+          "name": "store",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stores"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "duration_minutes",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "business_hours",
+      "type": "base",
+      "apiRules": {
+        "list": "(active = true && store.approval_status = \"approved\" && store.suspend_public != true && store.subscription_status != \"cancelled\" && store.appointments_enabled = true) || (@request.auth.id != '' && (@request.auth.role = 'admin' || store.owner_id = @request.auth.id))",
+        "view": "(active = true && store.approval_status = \"approved\" && store.suspend_public != true && store.subscription_status != \"cancelled\" && store.appointments_enabled = true) || (@request.auth.id != '' && (@request.auth.role = 'admin' || store.owner_id = @request.auth.id))",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'admin' || (@collection.stores:st.id = @request.body.store && @collection.stores:st.owner_id = @request.auth.id && @collection.stores:st.suspend_merchant != true))",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || (store.owner_id = @request.auth.id && store.suspend_merchant != true))",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'admin' || (store.owner_id = @request.auth.id && store.suspend_merchant != true))"
+      },
+      "fields": [
+        {
+          "name": "store",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stores"
+        },
+        {
+          "name": "weekday",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "start_time",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "end_time",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "appointments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (customer = @request.auth.id || store.owner_id = @request.auth.id || @request.auth.role = 'admin')",
+        "view": "@request.auth.id != '' && (customer = @request.auth.id || store.owner_id = @request.auth.id || @request.auth.role = 'admin')",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "store",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stores"
+        },
+        {
+          "name": "customer",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "service",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "service_offerings"
+        },
+        {
+          "name": "service_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "start_time",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "end_time",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pending", "confirmed", "completed", "cancelled"]
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cancel_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_appointments_store_date ON appointments (store, date)",
+        "CREATE INDEX idx_appointments_customer ON appointments (customer)"
+      ]
     }
   ]
 }
