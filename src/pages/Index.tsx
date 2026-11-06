@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   getApprovedStores,
+  getStoreImageUrl,
   getStoreFidelityPlan,
   getCustomerCardForStore,
   isCustomerFidelityEnrolled,
@@ -373,9 +374,9 @@ export default function Index() {
                   {/* Logo avatar positioned overlapping the banner */}
                   <div className="px-5 -mt-8 relative z-10 flex items-end justify-between">
                     <div className="w-16 h-16 rounded-2xl border-2 border-white shadow-md overflow-hidden bg-white p-0.5">
-                      {store.logo_url ? (
+                      {getStoreImageUrl(store, 'logo') ? (
                         <img
-                          src={store.logo_url}
+                          src={getStoreImageUrl(store, 'logo')}
                           alt={`Logo de ${store.name}`}
                           className="w-full h-full object-cover rounded-xl"
                         />
@@ -530,9 +531,9 @@ export default function Index() {
 
                 <div className="absolute bottom-4 left-4 right-4 flex items-end gap-3">
                   <div className="w-16 h-16 rounded-2xl bg-white p-0.5 shadow-xl shrink-0 overflow-hidden">
-                    {activeStore.logo_url ? (
+                    {getStoreImageUrl(activeStore, 'logo') ? (
                       <img
-                        src={activeStore.logo_url}
+                        src={getStoreImageUrl(activeStore, 'logo')}
                         alt=""
                         className="w-full h-full object-cover rounded-xl"
                       />
