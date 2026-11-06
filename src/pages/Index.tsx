@@ -110,30 +110,10 @@ export default function Index() {
     loadStores(searchTerm)
   }
 
-  const handleOpenStore = async (store: StoreRecord) => {
-    setActiveStore(store)
-    setIsBookingOpen(false)
-    setIsLoadingModal(true)
-    try {
-      const plan = await getStoreFidelityPlan(store.id)
-      setActivePlan(plan)
-
-      if (user && role === 'customer') {
-        const [card, enrolled] = await Promise.all([
-          getCustomerCardForStore(user.id, store.id),
-          isCustomerFidelityEnrolled(user.id, store.id),
-        ])
-        setActiveCustomerCard(card)
-        setIsEnrolledInActiveStore(enrolled)
-      } else {
-        setActiveCustomerCard(null)
-        setIsEnrolledInActiveStore(false)
-      }
-    } catch (err) {
-      console.error('Error fetching details for store:', err)
-    } finally {
-      setIsLoadingModal(false)
-    }
+  const handleOpenStore = (store: StoreRecord) => {
+    // Navega diretamente para a página individual da loja (/loja/:slug)
+    const targetSlug = store.slug || store.id
+    navigate(`/loja/${targetSlug}`)
   }
 
   const handleToggleFidelity = async () => {
@@ -439,7 +419,7 @@ export default function Index() {
                           </a>
                         )}
                         <span className="text-xs font-bold text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
-                          Ver detalhes <ArrowRight className="w-3 h-3" />
+                          Ver loja <ArrowRight className="w-3 h-3" />
                         </span>
                       </div>
                     </div>

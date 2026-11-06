@@ -89,8 +89,16 @@ import {
   AlertCircle,
   Upload,
   Image as ImageIcon,
+  ExternalLink,
+  Share2,
+  Check,
 } from 'lucide-react'
-import { getStoreImageUrl } from '@/services/fidelityService'
+import {
+  getStoreImageUrl,
+  sanitizeStoreSlug,
+  isStoreSlugAvailable,
+  generateUniqueStoreSlug,
+} from '@/services/fidelityService'
 import { AppointmentsManager } from '@/components/AppointmentsManager'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -128,6 +136,11 @@ export default function MerchantDashboard() {
   const [storeCity, setStoreCity] = useState('')
   const [storePhone, setStorePhone] = useState('')
   const [storeWhatsapp, setStoreWhatsapp] = useState('')
+  const [storeSlug, setStoreSlug] = useState('')
+  const [slugChecking, setSlugChecking] = useState(false)
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
+  const [slugError, setSlugError] = useState<string | null>(null)
+  const [copiedStoreLink, setCopiedStoreLink] = useState(false)
   const [storeLogo, setStoreLogo] = useState('')
   const [storeBanner, setStoreBanner] = useState('')
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -237,6 +250,7 @@ export default function MerchantDashboard() {
         setStoreCity(storeData.city || '')
         setStorePhone(storeData.phone || '')
         setStoreWhatsapp(storeData.whatsapp || '')
+        setStoreSlug(storeData.slug || sanitizeStoreSlug(storeData.name))
         setStoreLogo(storeData.logo_url || '')
         setStoreBanner(storeData.banner_url || '')
         setSelectedSubPlanId(storeData.subscription_plan_id || plansList[0]?.id || '')
@@ -304,10 +318,102 @@ export default function MerchantDashboard() {
     }
   }
 
+  // SLUG VALIDATION & COPY HANDLERS
+  const handleSlugChange = (val: string) => {
+    const sanitized = sanitizeStoreSlug(val)
+    setStoreSlug(sanitized)
+    setSlugAvailable(null)
+    setSlugError(null)
+  }
+
+  const handleVerifySlugAvailability = async () => {
+    const clean = sanitizeStoreSlug(storeSlug)
+    if (!clean || clean.length < 2) {
+      setSlugError('O link deve conter pelo menos 2 caracteres alfanuméricos.')
+      setSlugAvailable(false)
+      return
+    }
+    setSlugChecking(true)
+    setSlugError(null)
+    try {
+      const avail = await isStoreSlugAvailable(clean, store?.id)
+      setSlugAvailable(avail)
+      if (!avail) {
+        setSlugError('Este link já está em uso por outro estabelecimento. Escolha outro.')
+      }
+    } catch {
+      setSlugError('Não foi possível verificar a disponibilidade no momento.')
+    } finally {
+      setSlugChecking(false)
+    }
+  }
+
+  const handleGenerateSlugFromName = async () => {
+    if (!storeName.trim()) {
+      toast({
+        title: 'Nome não preenchido',
+        description: 'Digite o nome do estabelecimento primeiro.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setSlugChecking(true)
+    try {
+      const generated = await generateUniqueStoreSlug(storeName, store?.id)
+      setStoreSlug(generated)
+      setSlugAvailable(true)
+      setSlugError(null)
+    } finally {
+      setSlugChecking(false)
+    }
+  }
+
+  const fullStorePublicUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/loja/${storeSlug || store?.slug || 'loja'}`
+      : `/loja/${storeSlug || store?.slug || 'loja'}`
+
+  const handleCopyStoreLink = async () => {
+    try {
+      await navigator.clipboard.writeText(fullStorePublicUrl)
+      setCopiedStoreLink(true)
+      toast({
+        title: 'Link copiado com sucesso!',
+        description: 'Compartilhe com seus clientes via WhatsApp, redes sociais ou cartões.',
+      })
+      setTimeout(() => setCopiedStoreLink(false), 2500)
+    } catch {
+      toast({
+        title: 'Erro ao copiar',
+        description: 'Copie manualmente o link destacado.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   // STORE SAVE HANDLER
   const handleSaveStore = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
+
+    // Validar e garantir slug único
+    let finalSlug = sanitizeStoreSlug(storeSlug)
+    if (!finalSlug) {
+      finalSlug = await generateUniqueStoreSlug(storeName, store?.id)
+      setStoreSlug(finalSlug)
+    } else {
+      const isAvail = await isStoreSlugAvailable(finalSlug, store?.id)
+      if (!isAvail) {
+        toast({
+          title: 'Link individual em uso',
+          description:
+            'O link personalizado informado já está em uso. Escolha outro antes de salvar.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
     setIsSavingStore(true)
     try {
       if (store) {
@@ -315,6 +421,7 @@ export default function MerchantDashboard() {
         if (logoFile || bannerFile) {
           const formData = new FormData()
           formData.append('name', storeName)
+          formData.append('slug', finalSlug)
           formData.append('category', storeCat)
           formData.append('description', storeDesc)
           formData.append('address', storeAddr)
@@ -329,9 +436,11 @@ export default function MerchantDashboard() {
 
           const updated = await updateStore(store.id, formData as any)
           setStore(updated)
+          setStoreSlug(updated.slug || finalSlug)
         } else {
           const updated = await updateStore(store.id, {
             name: storeName,
+            slug: finalSlug,
             category: storeCat,
             description: storeDesc,
             address: storeAddr,
@@ -346,15 +455,17 @@ export default function MerchantDashboard() {
             subscription_plan_id: selectedSubPlanId || undefined,
           })
           setStore(updated)
+          setStoreSlug(updated.slug || finalSlug)
         }
         toast({
           title: 'Loja atualizada!',
-          description: 'Os dados e imagens da sua loja foram salvos com sucesso.',
+          description: 'Os dados, imagens e link da sua loja foram salvos com sucesso.',
         })
       } else {
         const created = await createStore({
           owner_id: user.id,
           name: storeName,
+          slug: finalSlug,
           category: storeCat,
           description: storeDesc,
           address: storeAddr,
@@ -376,8 +487,10 @@ export default function MerchantDashboard() {
           if (bannerFile) formData.append('banner_file', bannerFile)
           const withFiles = await updateStore(created.id, formData as any)
           setStore(withFiles)
+          setStoreSlug(withFiles.slug || finalSlug)
         } else {
           setStore(created)
+          setStoreSlug(created.slug || finalSlug)
         }
         toast({
           title: 'Loja cadastrada com sucesso!',
@@ -1881,6 +1994,65 @@ export default function MerchantDashboard() {
             </CardHeader>
 
             <CardContent>
+              {/* DESTAQUE DE MARKETING: LINK PRÓPRIO / INDIVIDUAL DA LOJA */}
+              <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-rose-500/10 border-2 border-indigo-200/80 shadow-xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                      <Share2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                        Seu Link Individual de Divulgação
+                        <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] uppercase font-bold">
+                          Marketing
+                        </Badge>
+                      </h4>
+                      <p className="text-xs text-slate-600">
+                        Divulgue este link exclusivo para seus clientes acessarem sua página,
+                        fidelizarem-se e agendarem serviços.
+                      </p>
+                    </div>
+                  </div>
+                  {store?.slug && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-semibold rounded-xl border-slate-300 self-start sm:self-auto"
+                      onClick={() => window.open(fullStorePublicUrl, '_blank')}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-1 text-slate-600" />
+                      Visualizar Página
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch gap-2 pt-1">
+                  <div className="flex-1 flex items-center bg-white border border-indigo-200 rounded-xl px-3 py-2 shadow-inner text-xs font-mono text-slate-800 break-all select-all">
+                    <span className="text-slate-400 select-none mr-1 hidden sm:inline">URL:</span>
+                    <span className="font-semibold text-indigo-700">{fullStorePublicUrl}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleCopyStoreLink}
+                    className="font-bold text-xs rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 px-4 py-2 shadow-sm"
+                  >
+                    {copiedStoreLink ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 mr-1 text-emerald-300" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 mr-1" />
+                        Copiar Link
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
               <form onSubmit={handleSaveStore} className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -1914,6 +2086,69 @@ export default function MerchantDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                {/* PERSONALIZAÇÃO DO SLUG / LINK INDIVIDUAL */}
+                <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Share2 className="w-3.5 h-3.5 text-indigo-600" />
+                      Personalizar Link Individual da Loja (/loja/seu-link)
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleGenerateSlugFromName}
+                      disabled={slugChecking}
+                      className="text-[11px] h-7 px-2 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100/60"
+                    >
+                      Gerar do nome
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center bg-white rounded-xl border border-indigo-200 px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
+                      <span className="text-xs font-mono text-slate-400 select-none">/loja/</span>
+                      <input
+                        type="text"
+                        value={storeSlug}
+                        onChange={(e) => handleSlugChange(e.target.value)}
+                        onBlur={handleVerifySlugAvailability}
+                        placeholder="minha-loja"
+                        className="flex-1 text-xs font-mono font-medium text-slate-900 bg-transparent outline-none pl-1"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleVerifySlugAvailability}
+                      disabled={slugChecking || !storeSlug}
+                      className="text-xs h-9 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-100/60"
+                    >
+                      {slugChecking ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        'Verificar'
+                      )}
+                    </Button>
+                  </div>
+                  {slugError && (
+                    <p className="text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {slugError}
+                    </p>
+                  )}
+                  {slugAvailable === true && !slugError && (
+                    <p className="text-[11px] text-emerald-700 flex items-center gap-1 font-medium">
+                      <Check className="w-3.5 h-3.5 shrink-0" />
+                      Link disponível e pronto para uso!
+                    </p>
+                  )}
+                  <p className="text-[10px] text-slate-500">
+                    Use apenas letras minúsculas, números e hífens. Seus clientes acessarão sua loja
+                    diretamente por este endereço.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">

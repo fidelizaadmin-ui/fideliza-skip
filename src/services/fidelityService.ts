@@ -83,6 +83,90 @@ export async function getStoreById(id: string): Promise<StoreRecord | null> {
   }
 }
 
+/**
+ * Converte qualquer texto de nome para formato slug legível:
+ * "Padaria Pão de Ouro" -> "padaria-pao-de-ouro"
+ */
+export function sanitizeStoreSlug(raw: string): string {
+  if (!raw) return ''
+  return raw
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/**
+ * Busca loja pelo slug (ou ID como fallback resiliente)
+ */
+export async function getStoreBySlug(slugOrId: string): Promise<StoreRecord | null> {
+  if (!slugOrId) return null
+  const clean = slugOrId.trim()
+  try {
+    // 1. Tentar por slug exato
+    const bySlug = await pb.collection('stores').getList<StoreRecord>(1, 1, {
+      filter: `slug = "${clean}"`,
+      expand: 'owner_id,subscription_plan_id',
+    })
+    if (bySlug.items.length > 0) {
+      return bySlug.items[0]
+    }
+  } catch (err) {
+    console.warn('Notice querying store by slug:', err)
+  }
+
+  // 2. Fallback por ID (caso o link tenha sido passado como id legado)
+  try {
+    return await pb.collection('stores').getOne<StoreRecord>(clean, {
+      expand: 'owner_id,subscription_plan_id',
+    })
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Verifica se um slug está disponível para uso (opcionalmente excluindo uma loja específica)
+ */
+export async function isStoreSlugAvailable(
+  slug: string,
+  excludeStoreId?: string,
+): Promise<boolean> {
+  const clean = sanitizeStoreSlug(slug)
+  if (!clean || clean.length < 2) return false
+  try {
+    let filter = `slug = "${clean}"`
+    if (excludeStoreId) {
+      filter += ` && id != "${excludeStoreId}"`
+    }
+    const res = await pb.collection('stores').getList<StoreRecord>(1, 1, { filter })
+    return res.items.length === 0
+  } catch (err) {
+    console.error('Error checking slug availability:', err)
+    return false
+  }
+}
+
+/**
+ * Gera um slug único resolvendo colisões com sufixo numérico
+ */
+export async function generateUniqueStoreSlug(
+  baseName: string,
+  excludeStoreId?: string,
+): Promise<string> {
+  const base = sanitizeStoreSlug(baseName) || 'loja'
+  let candidate = base
+  let counter = 2
+  while (!(await isStoreSlugAvailable(candidate, excludeStoreId))) {
+    candidate = `${base}-${counter}`
+    counter++
+    if (counter > 50) break
+  }
+  return candidate
+}
+
 export async function getMerchantStore(ownerId: string): Promise<StoreRecord | null> {
   try {
     const records = await pb.collection('stores').getList<StoreRecord>(1, 1, {
