@@ -8,7 +8,6 @@ import {
   UserCheck,
   Calendar as CalendarIcon,
   TrendingUp,
-  Menu,
   ChevronRight,
   ShieldAlert,
 } from 'lucide-react'
@@ -54,6 +53,31 @@ interface MerchantSidebarProps {
   customersCount?: number
   storeName?: string
   className?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  showTriggerBar?: boolean
+}
+
+/**
+ * Ícone personalizado de 2 traços horizontais ("dois riscos"),
+ * estilo hamburguer minimalista com 2 linhas.
+ */
+export function TwoLinesMenuIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn('w-4 h-4', className)}
+      aria-hidden="true"
+    >
+      <line x1="4" y1="8" x2="20" y2="8" />
+      <line x1="4" y1="16" x2="20" y2="16" />
+    </svg>
+  )
 }
 
 export function buildMerchantNavItems(options: {
@@ -134,8 +158,20 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
   customersCount = 0,
   storeName,
   className,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
+  showTriggerBar = true,
 }) => {
-  const [mobileOpen, setMobileOpen] = React.useState(false)
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const isControlled = controlledOpen !== undefined
+  const isOpen = isControlled ? controlledOpen : internalOpen
+  const setIsOpen = (next: boolean) => {
+    if (isControlled) {
+      setControlledOpen?.(next)
+    } else {
+      setInternalOpen(next)
+    }
+  }
 
   const items = React.useMemo(
     () =>
@@ -152,16 +188,16 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
   const handleItemClick = (key: MerchantTabKey, disabled?: boolean) => {
     if (disabled) return
     onSelectTab(key)
-    setMobileOpen(false)
+    setIsOpen(false)
 
-    // Suaviza rolagem para o conteúdo caso a página esteja mais abaixo
+    // Suaviza rolagem para o conteúdo
     const contentEl = document.getElementById('tabs-section')
     if (contentEl) {
       contentEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }
 
-  const renderNavList = (isMobile = false) => (
+  const renderNavList = () => (
     <nav className="flex flex-col gap-1.5" aria-label="Navegação do Lojista">
       {items.map((item) => {
         const Icon = item.icon
@@ -236,97 +272,70 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
 
   return (
     <div className={cn('w-full', className)}>
-      {/* MOBILE TRIGGER BAR (< lg) */}
-      <div className="lg:hidden mb-4 bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 shadow-xs flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
-            {React.createElement(activeItem.icon, {
-              className: cn('w-4 h-4', activeItem.iconColor),
-            })}
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Seção Atual
-            </p>
-            <p className="text-xs sm:text-sm font-black text-slate-900 truncate">
-              {activeItem.label}
-            </p>
-          </div>
-        </div>
-
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 rounded-xl border-slate-200 font-bold text-xs bg-slate-50 hover:bg-slate-100 shrink-0 text-slate-800"
-            >
-              <Menu className="w-4 h-4 text-slate-700" />
-              <span>Menu do Painel</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[300px] sm:w-[340px] p-0 flex flex-col bg-white">
-            <SheetHeader className="p-5 border-b border-slate-100 text-left bg-gradient-to-br from-amber-50/70 to-white">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-xs">
-                  <Store className="w-5 h-5" />
-                </div>
-                <div>
-                  <SheetTitle className="text-sm font-black text-slate-900">
-                    Menu do Lojista
-                  </SheetTitle>
-                  <SheetDescription className="text-[11px] text-slate-500 truncate max-w-[210px]">
-                    {storeName || 'Painel de Controle'}
-                  </SheetDescription>
-                </div>
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        {showTriggerBar && (
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 shadow-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
+                {React.createElement(activeItem.icon, {
+                  className: cn('w-4 h-4', activeItem.iconColor),
+                })}
               </div>
-            </SheetHeader>
-
-            <div className="p-3.5 flex-1 overflow-y-auto">{renderNavList(true)}</div>
-
-            {isMerchantSuspended && (
-              <div className="p-3.5 m-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-950 text-[11px]">
-                <p className="font-bold flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                  Operações bloqueadas
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Seção Atual
                 </p>
-                <p className="text-rose-800 mt-0.5 leading-snug">
-                  PDV e Fidelidade estão suspensos até regularização do pagamento.
+                <p className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                  {activeItem.label}
                 </p>
               </div>
-            )}
-          </SheetContent>
-        </Sheet>
-      </div>
+            </div>
 
-      {/* DESKTOP LATERAL SIDEBAR (>= lg) */}
-      <aside
-        className="hidden lg:block w-72 shrink-0 bg-white border border-slate-200 rounded-3xl p-4 shadow-xs self-start sticky top-24"
-        aria-label="Menu Lateral do Lojista"
-      >
-        <div className="pb-3.5 mb-3 border-b border-slate-100">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-            Navegação do Lojista
-          </p>
-          <h2 className="text-sm font-black text-slate-900 truncate mt-0.5">
-            {storeName || 'Painel da Loja'}
-          </h2>
-        </div>
-
-        {renderNavList(false)}
-
-        {isMerchantSuspended && (
-          <div className="mt-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs">
-            <p className="font-bold flex items-center gap-1.5 text-rose-950">
-              <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
-              Operações suspensas
-            </p>
-            <p className="text-[11px] text-rose-800 mt-1 leading-relaxed">
-              O PDV e o Plano de Fidelidade estão bloqueados até o pagamento da assinatura.
-            </p>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 rounded-xl border-slate-200 font-bold text-xs bg-slate-50 hover:bg-slate-100 shrink-0 text-slate-800"
+              >
+                <TwoLinesMenuIcon className="text-slate-700" />
+                <span>Menu do Painel</span>
+              </Button>
+            </SheetTrigger>
           </div>
         )}
-      </aside>
+
+        <SheetContent side="left" className="w-[300px] sm:w-[340px] p-0 flex flex-col bg-white">
+          <SheetHeader className="p-5 border-b border-slate-100 text-left bg-gradient-to-br from-amber-50/70 to-white">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-xs">
+                <Store className="w-5 h-5" />
+              </div>
+              <div>
+                <SheetTitle className="text-sm font-black text-slate-900">
+                  Menu do Lojista
+                </SheetTitle>
+                <SheetDescription className="text-[11px] text-slate-500 truncate max-w-[210px]">
+                  {storeName || 'Painel de Controle'}
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+
+          <div className="p-3.5 flex-1 overflow-y-auto">{renderNavList()}</div>
+
+          {isMerchantSuspended && (
+            <div className="p-3.5 m-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-950 text-[11px]">
+              <p className="font-bold flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                Operações bloqueadas
+              </p>
+              <p className="text-rose-800 mt-0.5 leading-snug">
+                PDV e Fidelidade estão suspensos até regularização do pagamento.
+              </p>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

@@ -1306,7 +1306,19 @@ export default function MerchantDashboard() {
         </div>
       )}
 
-      {/* MAIN TABS COM MENU LATERAL (DESKTOP) E GAVETA/HAMBÚRGUER (MOBILE) */}
+      {/* MENU LATERAL RETRÁTIL DO LOJISTA (BARRA COM BOTÃO DE 2 RISCOS + GAVETA SHEET) */}
+      <div className="mb-6">
+        <MerchantSidebar
+          activeTab={activeTab}
+          onSelectTab={(tab: MerchantTabKey) => setActiveTab(tab)}
+          isMerchantSuspended={isMerchantSuspended}
+          giveawaysCount={giveaways.length}
+          customersCount={fidelityCustomers.length}
+          storeName={store?.name}
+        />
+      </div>
+
+      {/* CONTEÚDO PRINCIPAL EM LARGURA TOTAL */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6" id="tabs-section">
         {/* Hidden triggers to maintain full accessibility and internal Tab primitives support */}
         <TabsList className="sr-only">
@@ -1322,19 +1334,9 @@ export default function MerchantDashboard() {
           <TabsTrigger value="sales">Relatório de Vendas</TabsTrigger>
         </TabsList>
 
-        <div className="flex flex-col lg:flex-row items-start gap-6 lg:gap-8">
-          {/* MENU LATERAL DO LOJISTA */}
-          <MerchantSidebar
-            activeTab={activeTab}
-            onSelectTab={(tab: MerchantTabKey) => setActiveTab(tab)}
-            isMerchantSuspended={isMerchantSuspended}
-            giveawaysCount={giveaways.length}
-            customersCount={fidelityCustomers.length}
-            storeName={store?.name}
-          />
-
+        <div className="w-full">
           {/* CONTEÚDO PRINCIPAL DAS SEÇÕES */}
-          <div className="flex-1 min-w-0 w-full">
+          <div className="w-full">
             {/* ======================================================== */}
             {/* TAB 1: PDV - REGISTRAR COMPRA PELO CÓDIGO DO CLIENTE */}
             {/* ======================================================== */}
