@@ -40,7 +40,7 @@ import {
 } from 'lucide-react'
 
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
-import { HeroStorefrontWatermark } from '@/components/HeroStorefrontWatermark'
+import { HeroPhotoWatermark } from '@/components/HeroPhotoWatermark'
 
 const CATEGORIES: ('Todas' | StoreCategory)[] = [
   'Todas',
@@ -198,8 +198,8 @@ export default function Index() {
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Marca d'água decorativa: vitrine/loja em tons azulados, sutil, atrás do conteúdo */}
-        <HeroStorefrontWatermark />
+        {/* Marca d'água fotográfica: lojista com smartphone, sutil, atrás do conteúdo */}
+        <HeroPhotoWatermark />
 
         <div className="container mx-auto max-w-5xl relative z-10 text-center">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-rose-300 mb-6">
