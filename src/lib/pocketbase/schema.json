@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T19:37:32.484Z",
+  "generatedAt": "2026-11-06T20:18:32.699Z",
   "collections": [
     {
       "name": "users",
@@ -297,9 +297,15 @@
           "type": "bool",
           "required": false,
           "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE UNIQUE INDEX `idx_stores_slug` ON `stores` (slug)"]
     },
     {
       "name": "fidelity_plans",

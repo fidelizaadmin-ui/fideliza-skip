@@ -100,6 +100,7 @@ import {
   generateUniqueStoreSlug,
 } from '@/services/fidelityService'
 import { AppointmentsManager } from '@/components/AppointmentsManager'
+import { MerchantSidebar, type MerchantTabKey } from '@/components/MerchantSidebar'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
@@ -1305,1905 +1306,1922 @@ export default function MerchantDashboard() {
         </div>
       )}
 
-      {/* MAIN TABS */}
+      {/* MAIN TABS COM MENU LATERAL (DESKTOP) E GAVETA/HAMBÚRGUER (MOBILE) */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6" id="tabs-section">
-        <TabsList className="bg-slate-200/70 p-1 rounded-xl flex-wrap h-auto">
-          <TabsTrigger
-            value="pos"
-            disabled={isMerchantSuspended}
-            className="gap-2 text-xs sm:text-sm font-semibold"
-            id="registrar-compra-section"
-          >
-            <ShoppingBag className="w-4 h-4" />
+        {/* Hidden triggers to maintain full accessibility and internal Tab primitives support */}
+        <TabsList className="sr-only">
+          <TabsTrigger value="pos" id="registrar-compra-section">
             Registrar Compra (PDV)
           </TabsTrigger>
-          <TabsTrigger
-            value="program"
-            disabled={isMerchantSuspended}
-            className="gap-2 text-xs sm:text-sm font-semibold"
-          >
-            <Award className="w-4 h-4" />
-            Meu Plano de Fidelidade
-          </TabsTrigger>
-          <TabsTrigger value="store" className="gap-2 text-xs sm:text-sm font-semibold">
-            <Store className="w-4 h-4" />
-            Dados da Loja
-          </TabsTrigger>
-          <TabsTrigger value="subscription" className="gap-2 text-xs sm:text-sm font-semibold">
-            <CreditCard className="w-4 h-4" />
-            Assinatura
-          </TabsTrigger>
-          <TabsTrigger value="marketing" className="gap-2 text-xs sm:text-sm font-semibold">
-            <Gift className="w-4 h-4 text-rose-600" />
-            Marketing & Sorteios ({giveaways.length})
-          </TabsTrigger>
-          <TabsTrigger value="customers" className="gap-2 text-xs sm:text-sm font-semibold">
-            <UserCheck className="w-4 h-4 text-emerald-600" />
-            Base de Clientes ({fidelityCustomers.length})
-          </TabsTrigger>
-          <TabsTrigger value="appointments" className="gap-2 text-xs sm:text-sm font-semibold">
-            <CalendarIcon className="w-4 h-4 text-blue-600" />
-            Agendamentos
-          </TabsTrigger>
-          <TabsTrigger value="sales" className="gap-2 text-xs sm:text-sm font-semibold">
-            <TrendingUp className="w-4 h-4" />
-            Relatório de Vendas
-          </TabsTrigger>
+          <TabsTrigger value="program">Meu Plano de Fidelidade</TabsTrigger>
+          <TabsTrigger value="store">Dados da Loja</TabsTrigger>
+          <TabsTrigger value="subscription">Assinatura</TabsTrigger>
+          <TabsTrigger value="marketing">Marketing & Sorteios</TabsTrigger>
+          <TabsTrigger value="customers">Base de Clientes</TabsTrigger>
+          <TabsTrigger value="appointments">Agendamentos</TabsTrigger>
+          <TabsTrigger value="sales">Relatório de Vendas</TabsTrigger>
         </TabsList>
 
-        {/* ======================================================== */}
-        {/* TAB 1: PDV - REGISTRAR COMPRA PELO CÓDIGO DO CLIENTE */}
-        {/* ======================================================== */}
-        <TabsContent value="pos" className="space-y-6">
-          {isMerchantSuspended ? (
-            <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto border-rose-200 bg-rose-50/50">
-              <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-slate-900 mb-1">
-                PDV Bloqueado por Suspensão de Funcionalidades
-              </h3>
-              <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                O administrador ativou a{' '}
-                <strong>Suspensão nas funcionalidades do perfil do lojista</strong> devido ao status{' '}
-                <strong>
-                  {store?.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelado'}
-                </strong>{' '}
-                da assinatura. Efetue o pagamento para reativar o registro de compras e créditos aos
-                clientes.
-              </p>
-              <Button
-                onClick={() => {
-                  setShowPixFallback(false)
-                  setIsPayModalOpen(true)
-                  fetchServerPixPayload()
-                }}
-                className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
-              >
-                <CreditCard className="w-4 h-4 mr-2" /> Pagar Assinatura Agora
-              </Button>
-            </Card>
-          ) : !store ? (
-            <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
-              <Store className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-slate-900 mb-1">Cadastre sua loja primeiro</h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Preencha os dados da sua loja na aba "Dados da Loja" para habilitar o registro de
-                compras.
-              </p>
-            </Card>
-          ) : !plan ? (
-            <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
-              <Award className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Configure o plano de fidelidade
-              </h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Vá até a aba "Meu Plano de Fidelidade" e escolha se sua loja acumulará selos, pontos
-                ou cashback.
-              </p>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left col: Customer Search & Information */}
-              <div className="lg:col-span-5 space-y-6">
-                <Card className="rounded-3xl border-slate-200 shadow-xs">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base font-black text-slate-900 flex items-center gap-2">
-                      <Search className="w-4 h-4 text-rose-600" />
-                      1. Identificar Cliente
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      Localize o cliente pelo código (ex: CLI-7842), e-mail ou CPF/CNPJ
-                    </CardDescription>
-                  </CardHeader>
+        <div className="flex flex-col lg:flex-row items-start gap-6 lg:gap-8">
+          {/* MENU LATERAL DO LOJISTA */}
+          <MerchantSidebar
+            activeTab={activeTab}
+            onSelectTab={(tab: MerchantTabKey) => setActiveTab(tab)}
+            isMerchantSuspended={isMerchantSuspended}
+            giveawaysCount={giveaways.length}
+            customersCount={fidelityCustomers.length}
+            storeName={store?.name}
+          />
 
-                  <CardContent className="space-y-4">
-                    <form onSubmit={handleSearchCustomer} className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          placeholder="Código, e-mail ou CPF/CNPJ"
-                          value={customerSearchCode}
-                          onChange={(e) => setCustomerSearchCode(e.target.value)}
-                          className="font-mono text-sm uppercase rounded-xl border-slate-300"
-                        />
-                      </div>
-                      <Button
-                        type="submit"
-                        disabled={isSearchingCustomer || !customerSearchCode.trim()}
-                        className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
-                      >
-                        {isSearchingCustomer ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          'Buscar'
-                        )}
-                      </Button>
-                    </form>
-
-                    {/* Quick helper for demo */}
-                    <div className="text-[11px] text-slate-400 flex items-center justify-between">
-                      <span>Dica para teste rápido:</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerSearchCode('CLI-7842')
-                        }}
-                        className="font-mono font-bold text-rose-600 hover:underline"
-                      >
-                        Usar CLI-7842
-                      </button>
-                    </div>
-
-                    {/* Found customer card info */}
-                    {foundCustomer && (
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white space-y-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center text-sm">
-                              {foundCustomer.name.charAt(0)}
-                            </div>
-                            <div>
-                              <p className="font-extrabold text-sm">{foundCustomer.name}</p>
-                              <p className="text-[11px] text-slate-300">{foundCustomer.email}</p>
-                              {foundCustomer.document && (
-                                <p className="text-[10px] text-amber-300 font-mono mt-0.5">
-                                  {cleanDocument(foundCustomer.document).length > 11
-                                    ? `CNPJ: ${formatCNPJ(cleanDocument(foundCustomer.document))}`
-                                    : `CPF: ${formatCPF(cleanDocument(foundCustomer.document))}`}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <Badge className="bg-white/10 font-mono text-[10px] text-amber-300 border-white/20 shrink-0">
-                            {foundCustomer.customer_code || 'ID'}
-                          </Badge>
-                        </div>
-
-                        {/* Customer Current Balance in this Store */}
-                        <div className="pt-3 border-t border-white/10 grid grid-cols-2 gap-3 text-xs">
-                          <div className="bg-white/5 p-2.5 rounded-xl">
-                            <p className="text-slate-400 text-[10px] font-bold uppercase">
-                              Saldo Atual
-                            </p>
-                            <p className="text-base font-black text-amber-400 mt-0.5">
-                              {plan.type === 'stamps' &&
-                                `${customerCard?.stamps_count || 0} / ${plan.target_stamps || 10} Selos`}
-                              {plan.type === 'points' &&
-                                `${customerCard?.points_balance || 0} Pontos`}
-                              {plan.type === 'cashback' &&
-                                `R$ ${(customerCard?.cashback_balance || 0).toFixed(2)}`}
-                            </p>
-                          </div>
-
-                          <div className="bg-white/5 p-2.5 rounded-xl">
-                            <p className="text-slate-400 text-[10px] font-bold uppercase">
-                              Total Comprado
-                            </p>
-                            <p className="text-base font-black text-emerald-400 mt-0.5">
-                              R$ {(customerCard?.total_spent || 0).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Eligible for reward button */}
-                        {((plan.type === 'stamps' &&
-                          (customerCard?.stamps_count || 0) >= (plan.target_stamps || 10)) ||
-                          (plan.type === 'points' &&
-                            (customerCard?.points_balance || 0) >=
-                              (plan.points_to_redeem || 100)) ||
-                          (plan.type === 'cashback' &&
-                            (customerCard?.cashback_balance || 0) > 0)) && (
-                          <Button
-                            type="button"
-                            onClick={() => setIsRedeemModalOpen(true)}
-                            className="w-full bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-bold text-xs py-2 rounded-xl"
-                          >
-                            <Gift className="w-4 h-4 mr-1.5" />
-                            Cliente pode Resgatar Recompensa!
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
+          {/* CONTEÚDO PRINCIPAL DAS SEÇÕES */}
+          <div className="flex-1 min-w-0 w-full">
+            {/* ======================================================== */}
+            {/* TAB 1: PDV - REGISTRAR COMPRA PELO CÓDIGO DO CLIENTE */}
+            {/* ======================================================== */}
+            <TabsContent value="pos" className="space-y-6 mt-0">
+              {isMerchantSuspended ? (
+                <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto border-rose-200 bg-rose-50/50">
+                  <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">
+                    PDV Bloqueado por Suspensão de Funcionalidades
+                  </h3>
+                  <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                    O administrador ativou a{' '}
+                    <strong>Suspensão nas funcionalidades do perfil do lojista</strong> devido ao
+                    status{' '}
+                    <strong>
+                      {store?.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelado'}
+                    </strong>{' '}
+                    da assinatura. Efetue o pagamento para reativar o registro de compras e créditos
+                    aos clientes.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      setShowPixFallback(false)
+                      setIsPayModalOpen(true)
+                      fetchServerPixPayload()
+                    }}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" /> Pagar Assinatura Agora
+                  </Button>
                 </Card>
-
-                {/* Plan rules summary card */}
-                <Card className="rounded-3xl border-slate-200 bg-slate-50/50 p-5 text-xs text-slate-600 space-y-2">
-                  <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-amber-600" /> Regra do seu Plano (
-                    {plan.type.toUpperCase()})
-                  </h4>
-                  {plan.type === 'stamps' && (
-                    <p>
-                      A cada R$ {(plan.min_purchase_amount || 1).toFixed(2)} em compras = 1 selo. Ao
-                      juntar {plan.target_stamps} selos o cliente ganha:{' '}
-                      <strong>{plan.reward_title}</strong>.
-                    </p>
-                  )}
-                  {plan.type === 'points' && (
-                    <p>
-                      R$ 1,00 gasto = {plan.points_per_currency || 1} ponto(s). Ao juntar{' '}
-                      {plan.points_to_redeem} pontos o cliente ganha:{' '}
-                      <strong>{plan.reward_title}</strong>.
-                    </p>
-                  )}
-                  {plan.type === 'cashback' && (
-                    <p>
-                      {plan.cashback_percentage}% do valor da compra volta como saldo para o cliente
-                      usar nesta loja.
-                    </p>
-                  )}
+              ) : !store ? (
+                <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
+                  <Store className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">
+                    Cadastre sua loja primeiro
+                  </h3>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Preencha os dados da sua loja na aba "Dados da Loja" para habilitar o registro
+                    de compras.
+                  </p>
                 </Card>
-              </div>
+              ) : !plan ? (
+                <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
+                  <Award className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">
+                    Configure o plano de fidelidade
+                  </h3>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Vá até a aba "Meu Plano de Fidelidade" e escolha se sua loja acumulará selos,
+                    pontos ou cashback.
+                  </p>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left col: Customer Search & Information */}
+                  <div className="lg:col-span-5 space-y-6">
+                    <Card className="rounded-3xl border-slate-200 shadow-xs">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-black text-slate-900 flex items-center gap-2">
+                          <Search className="w-4 h-4 text-rose-600" />
+                          1. Identificar Cliente
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-500">
+                          Localize o cliente pelo código (ex: CLI-7842), e-mail ou CPF/CNPJ
+                        </CardDescription>
+                      </CardHeader>
 
-              {/* Right col: Register Purchase Form */}
-              <div className="lg:col-span-7">
-                <Card className="rounded-3xl border-slate-200 shadow-xs h-full flex flex-col justify-between">
-                  <CardHeader>
-                    <CardTitle className="text-base font-black text-slate-900 flex items-center gap-2">
-                      <ShoppingBag className="w-4 h-4 text-rose-600" />
-                      2. Registrar Valor da Compra
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      O sistema calcula e credita automaticamente os selos, pontos ou cashback para
-                      o cliente
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="space-y-6 flex-1">
-                    {!foundCustomer ? (
-                      <div className="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        <UserCheck className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                        <p className="text-xs font-bold text-slate-700">
-                          Identifique o cliente ao lado para liberar o registro
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Digite o código, e-mail ou CPF/CNPJ e clique em "Buscar"
-                        </p>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleRegisterPurchase} className="space-y-5">
-                        <div className="space-y-2">
-                          <Label className="text-xs font-bold text-slate-700">
-                            Valor Total da Compra (R$) *
-                          </Label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-3 text-slate-400 font-bold text-base">
-                              R$
-                            </span>
+                      <CardContent className="space-y-4">
+                        <form onSubmit={handleSearchCustomer} className="flex gap-2">
+                          <div className="relative flex-1">
                             <Input
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              required
-                              placeholder="0,00"
-                              value={purchaseAmount}
-                              onChange={(e) =>
-                                setPurchaseAmount(
-                                  e.target.value === '' ? '' : Number(e.target.value),
-                                )
-                              }
-                              className="pl-11 text-xl font-black text-slate-900 py-6 rounded-2xl border-slate-300 focus-visible:ring-rose-500"
+                              placeholder="Código, e-mail ou CPF/CNPJ"
+                              value={customerSearchCode}
+                              onChange={(e) => setCustomerSearchCode(e.target.value)}
+                              className="font-mono text-sm uppercase rounded-xl border-slate-300"
                             />
                           </div>
-                        </div>
-
-                        {/* Real-time simulation of benefit */}
-                        {typeof purchaseAmount === 'number' && purchaseAmount > 0 && (
-                          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-950 space-y-1 text-xs">
-                            <p className="font-bold uppercase tracking-wider text-[10px] text-rose-700">
-                              Benefício que o cliente receberá nesta compra:
-                            </p>
-                            <p className="text-base font-black text-rose-700">
-                              {plan.type === 'stamps' && (
-                                <>
-                                  +{Math.floor(purchaseAmount / (plan.min_purchase_amount || 1))}{' '}
-                                  Selo(s)
-                                  <span className="text-xs font-normal text-slate-600 block">
-                                    (1 selo a cada R$ {(plan.min_purchase_amount || 1).toFixed(2)})
-                                  </span>
-                                </>
-                              )}
-                              {plan.type === 'points' && (
-                                <>
-                                  +{Math.round(purchaseAmount * (plan.points_per_currency || 1))}{' '}
-                                  Pontos
-                                </>
-                              )}
-                              {plan.type === 'cashback' && (
-                                <>
-                                  +R${' '}
-                                  {(
-                                    (purchaseAmount * (plan.cashback_percentage || 5)) /
-                                    100
-                                  ).toFixed(2)}{' '}
-                                  de Cashback ({plan.cashback_percentage}%)
-                                </>
-                              )}
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-700">
-                            Descrição / Itens / Observação (Opcional)
-                          </Label>
-                          <Input
-                            placeholder="Ex: 2 Lanches artesanais, mesa 04"
-                            value={purchaseNotes}
-                            onChange={(e) => setPurchaseNotes(e.target.value)}
-                            className="rounded-xl border-slate-300 text-xs"
-                          />
-                        </div>
-
-                        <Button
-                          type="submit"
-                          disabled={isSubmittingPurchase || !purchaseAmount}
-                          className="w-full py-6 rounded-2xl font-black text-sm bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white shadow-lg shadow-rose-600/30"
-                        >
-                          {isSubmittingPurchase ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Registrando no Cartão Digital...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-5 h-5 mr-2" />
-                              Confirmar Compra e Creditar Benefício
-                            </>
-                          )}
-                        </Button>
-                      </form>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ======================================================== */}
-        {/* TAB 2: MEU PLANO DE FIDELIDADE (SELOS / PONTOS / CASHBACK) */}
-        {/* ======================================================== */}
-        <TabsContent value="program" className="space-y-6">
-          {isMerchantSuspended ? (
-            <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto border-rose-200 bg-rose-50/50">
-              <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Configuração Bloqueada por Suspensão de Funcionalidades
-              </h3>
-              <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                As funcionalidades do seu perfil foram suspensas pelo administrador devido à
-                pendência na assinatura. Regularize para alterar ou gerenciar as regras do seu plano
-                de fidelidade.
-              </p>
-              <Button
-                onClick={() => {
-                  setShowPixFallback(false)
-                  setIsPayModalOpen(true)
-                  fetchServerPixPayload()
-                }}
-                className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
-              >
-                <CreditCard className="w-4 h-4 mr-2" /> Regularizar Assinatura
-              </Button>
-            </Card>
-          ) : (
-            <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
-              <CardHeader>
-                <CardTitle className="text-xl font-black text-slate-900">
-                  Configurar Regras de Fidelidade
-                </CardTitle>
-                <CardDescription className="text-xs text-slate-500">
-                  Escolha o modelo que melhor engaja seu público: Selos no cartão, Pontos
-                  acumulativos ou Cashback em %
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent>
-                <form onSubmit={handleSavePlan} className="space-y-6">
-                  {/* MODEL SELECTOR */}
-                  <div className="space-y-3">
-                    <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Tipo de Fidelidade
-                    </Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setPlanType('stamps')}
-                        className={`p-4 rounded-2xl border text-left transition-all ${
-                          planType === 'stamps'
-                            ? 'border-amber-500 bg-amber-50/70 shadow-xs ring-2 ring-amber-500/20'
-                            : 'border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <Award
-                          className={`w-6 h-6 mb-2 ${
-                            planType === 'stamps' ? 'text-amber-600' : 'text-slate-400'
-                          }`}
-                        />
-                        <p className="font-extrabold text-sm text-slate-900">Selos Digitais</p>
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          Estilo cafeteria: complete 10 selos e ganhe uma cortesia.
-                        </p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPlanType('points')}
-                        className={`p-4 rounded-2xl border text-left transition-all ${
-                          planType === 'points'
-                            ? 'border-indigo-500 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
-                            : 'border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <Coins
-                          className={`w-6 h-6 mb-2 ${
-                            planType === 'points' ? 'text-indigo-600' : 'text-slate-400'
-                          }`}
-                        />
-                        <p className="font-extrabold text-sm text-slate-900">Pontos por R$</p>
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          Acumule pontos proporcionais ao gasto e troque por prêmios.
-                        </p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPlanType('cashback')}
-                        className={`p-4 rounded-2xl border text-left transition-all ${
-                          planType === 'cashback'
-                            ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20'
-                            : 'border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <Percent
-                          className={`w-6 h-6 mb-2 ${
-                            planType === 'cashback' ? 'text-emerald-600' : 'text-slate-400'
-                          }`}
-                        />
-                        <p className="font-extrabold text-sm text-slate-900">Cashback</p>
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          Devolva uma % em reais para abater em compras futuras.
-                        </p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Plan Title & General Description */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-700">Título do Programa</Label>
-                      <Input
-                        required
-                        placeholder="Ex: Cartão 10 Cafés ou Clube VIP"
-                        value={planTitle}
-                        onChange={(e) => setPlanTitle(e.target.value)}
-                        className="text-xs rounded-xl"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-700">
-                        Descrição curta para o cliente
-                      </Label>
-                      <Input
-                        placeholder="Ex: A cada R$ 20 ganhe 1 selo"
-                        value={planDesc}
-                        onChange={(e) => setPlanDesc(e.target.value)}
-                        className="text-xs rounded-xl"
-                      />
-                    </div>
-                  </div>
-
-                  {/* TYPE-SPECIFIC PARAMETERS */}
-                  {planType === 'stamps' && (
-                    <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
-                        Regras de Selos
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-700">
-                            Quantidade de Selos para Resgatar (Meta)
-                          </Label>
-                          <Input
-                            type="number"
-                            min={2}
-                            max={50}
-                            required
-                            value={planTargetStamps}
-                            onChange={(e) => setPlanTargetStamps(Number(e.target.value))}
-                            className="text-xs bg-white rounded-xl"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-700">
-                            Valor Mínimo da Compra por Selo (R$)
-                          </Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            step="0.50"
-                            required
-                            value={planMinAmount}
-                            onChange={(e) => setPlanMinAmount(Number(e.target.value))}
-                            className="text-xs bg-white rounded-xl"
-                          />
-                          <p className="text-[10px] text-slate-500">
-                            Ex: R$ 20,00 significa que uma compra de R$ 60 dá 3 selos.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {planType === 'points' && (
-                    <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-900">
-                        Regras de Pontos
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-700">
-                            Pontos Gerados por R$ 1,00 Gasto
-                          </Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            required
-                            value={planPointsRate}
-                            onChange={(e) => setPlanPointsRate(Number(e.target.value))}
-                            className="text-xs bg-white rounded-xl"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-700">
-                            Pontos Necessários para Resgate
-                          </Label>
-                          <Input
-                            type="number"
-                            min={10}
-                            required
-                            value={planPointsRedeem}
-                            onChange={(e) => setPlanPointsRedeem(Number(e.target.value))}
-                            className="text-xs bg-white rounded-xl"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {planType === 'cashback' && (
-                    <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900">
-                        Regras de Cashback
-                      </h4>
-                      <div className="space-y-1.5 max-w-xs">
-                        <Label className="text-xs font-bold text-slate-700">
-                          Porcentagem de Devolução (%)
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            min={1}
-                            max={50}
-                            step="0.5"
-                            required
-                            value={planCashbackPct}
-                            onChange={(e) => setPlanCashbackPct(Number(e.target.value))}
-                            className="text-xs bg-white rounded-xl pr-8"
-                          />
-                          <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
-                            %
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500">
-                          Ex: 8% em uma compra de R$ 100 credita R$ 8,00 no saldo digital.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* REWARD DETAILS */}
-                  <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Recompensa Oferecida
-                    </h4>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-700">
-                        Nome do Prêmio / Benefício *
-                      </Label>
-                      <Input
-                        required
-                        placeholder="Ex: 1 Hambúrguer Smash ou R$ 20 de Desconto"
-                        value={planRewardTitle}
-                        onChange={(e) => setPlanRewardTitle(e.target.value)}
-                        className="text-xs rounded-xl"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-700">
-                        Instruções de Resgate no Caixa (Opcional)
-                      </Label>
-                      <Textarea
-                        rows={2}
-                        placeholder="Ex: Apresente o cartão digital ao atendente antes de fechar a conta."
-                        value={planRewardDesc}
-                        onChange={(e) => setPlanRewardDesc(e.target.value)}
-                        className="text-xs rounded-xl resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={isSavingPlan}
-                    className="w-full py-5 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white"
-                  >
-                    {isSavingPlan ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Salvando Plano...
-                      </>
-                    ) : (
-                      'Salvar e Publicar Plano de Fidelidade'
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* ======================================================== */}
-        {/* TAB 3: DADOS DA LOJA (NOME, CATEGORIA, ENDEREÇO, ETC) */}
-        {/* ======================================================== */}
-        <TabsContent value="store" className="space-y-6">
-          <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
-            <CardHeader>
-              <CardTitle className="text-xl font-black text-slate-900">
-                {store ? 'Editar Minha Loja' : 'Cadastrar Nova Loja'}
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-500">
-                Informações visíveis para os clientes no portal público do Fideliza
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              {/* DESTAQUE DE MARKETING: LINK PRÓPRIO / INDIVIDUAL DA LOJA */}
-              <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-rose-500/10 border-2 border-indigo-200/80 shadow-xs space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                      <Share2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                        Seu Link Individual de Divulgação
-                        <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] uppercase font-bold">
-                          Marketing
-                        </Badge>
-                      </h4>
-                      <p className="text-xs text-slate-600">
-                        Divulgue este link exclusivo para seus clientes acessarem sua página,
-                        fidelizarem-se e agendarem serviços.
-                      </p>
-                    </div>
-                  </div>
-                  {store?.slug && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="text-xs font-semibold rounded-xl border-slate-300 self-start sm:self-auto"
-                      onClick={() => window.open(fullStorePublicUrl, '_blank')}
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 mr-1 text-slate-600" />
-                      Visualizar Página
-                    </Button>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch gap-2 pt-1">
-                  <div className="flex-1 flex items-center bg-white border border-indigo-200 rounded-xl px-3 py-2 shadow-inner text-xs font-mono text-slate-800 break-all select-all">
-                    <span className="text-slate-400 select-none mr-1 hidden sm:inline">URL:</span>
-                    <span className="font-semibold text-indigo-700">{fullStorePublicUrl}</span>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={handleCopyStoreLink}
-                    className="font-bold text-xs rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 px-4 py-2 shadow-sm"
-                  >
-                    {copiedStoreLink ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 mr-1 text-emerald-300" />
-                        Copiado!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5 mr-1" />
-                        Copiar Link
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveStore} className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">
-                      Nome do Estabelecimento *
-                    </Label>
-                    <Input
-                      required
-                      placeholder="Ex: Pizzaria Forno & Sabor"
-                      value={storeName}
-                      onChange={(e) => setStoreName(e.target.value)}
-                      className="text-xs rounded-xl"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">Categoria *</Label>
-                    <Select
-                      value={storeCat}
-                      onValueChange={(val) => setStoreCat(val as StoreCategory)}
-                    >
-                      <SelectTrigger className="text-xs rounded-xl">
-                        <SelectValue placeholder="Selecione a categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* PERSONALIZAÇÃO DO SLUG / LINK INDIVIDUAL */}
-                <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <Share2 className="w-3.5 h-3.5 text-indigo-600" />
-                      Personalizar Link Individual da Loja (/loja/seu-link)
-                    </Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleGenerateSlugFromName}
-                      disabled={slugChecking}
-                      className="text-[11px] h-7 px-2 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100/60"
-                    >
-                      Gerar do nome
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center bg-white rounded-xl border border-indigo-200 px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
-                      <span className="text-xs font-mono text-slate-400 select-none">/loja/</span>
-                      <input
-                        type="text"
-                        value={storeSlug}
-                        onChange={(e) => handleSlugChange(e.target.value)}
-                        onBlur={handleVerifySlugAvailability}
-                        placeholder="minha-loja"
-                        className="flex-1 text-xs font-mono font-medium text-slate-900 bg-transparent outline-none pl-1"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleVerifySlugAvailability}
-                      disabled={slugChecking || !storeSlug}
-                      className="text-xs h-9 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-100/60"
-                    >
-                      {slugChecking ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        'Verificar'
-                      )}
-                    </Button>
-                  </div>
-                  {slugError && (
-                    <p className="text-[11px] text-rose-600 flex items-center gap-1 font-medium">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {slugError}
-                    </p>
-                  )}
-                  {slugAvailable === true && !slugError && (
-                    <p className="text-[11px] text-emerald-700 flex items-center gap-1 font-medium">
-                      <Check className="w-3.5 h-3.5 shrink-0" />
-                      Link disponível e pronto para uso!
-                    </p>
-                  )}
-                  <p className="text-[10px] text-slate-500">
-                    Use apenas letras minúsculas, números e hífens. Seus clientes acessarão sua loja
-                    diretamente por este endereço.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700">Descrição Comercial</Label>
-                  <Textarea
-                    rows={3}
-                    placeholder="Conte sobre sua loja, especialidades e diferenciais..."
-                    value={storeDesc}
-                    onChange={(e) => setStoreDesc(e.target.value)}
-                    className="text-xs rounded-xl resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">Endereço Completo</Label>
-                    <Input
-                      placeholder="Ex: Rua das Flores, 120 - Centro"
-                      value={storeAddr}
-                      onChange={(e) => setStoreAddr(e.target.value)}
-                      className="text-xs rounded-xl"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">Cidade / Estado</Label>
-                    <Input
-                      placeholder="Ex: São Paulo - SP"
-                      value={storeCity}
-                      onChange={(e) => setStoreCity(e.target.value)}
-                      className="text-xs rounded-xl"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">
-                      Telefone Fixo / Contato
-                    </Label>
-                    <Input
-                      placeholder="Ex: (11) 3456-7890"
-                      value={storePhone}
-                      onChange={(e) => setStorePhone(e.target.value)}
-                      className="text-xs rounded-xl"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                      WhatsApp da Loja (Link wa.me)
-                    </Label>
-                    <Input
-                      placeholder="Ex: (11) 98765-4321 ou wa.me/5511..."
-                      value={storeWhatsapp}
-                      onChange={(e) => setStoreWhatsapp(e.target.value)}
-                      className="text-xs rounded-xl"
-                    />
-                    <p className="text-[11px] text-slate-500">
-                      {storeWhatsapp ? (
-                        <span className="text-emerald-700 font-medium flex items-center gap-1">
-                          Link gerado: {formatWhatsAppUrl(storeWhatsapp)}
-                        </span>
-                      ) : (
-                        'Gera link https://wa.me/55... automaticamente para clientes conversarem pelo portal.'
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {/* LOGO AND BANNER UPLOAD SECTION */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 pt-4">
-                  <div>
-                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <ImageIcon className="w-4 h-4 text-rose-600" />
-                      Imagens da Loja para o Portal Público
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Personalize a logo e o banner que seus clientes verão na página da sua loja
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Logo upload */}
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <Upload className="w-3.5 h-3.5 text-slate-500" />
-                        Logo do Estabelecimento
-                      </Label>
-                      <div className="flex items-center gap-3">
-                        <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
-                          {logoPreview ? (
-                            <img
-                              src={logoPreview}
-                              alt="Logo preview"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : store ? (
-                            <img
-                              src={getStoreImageUrl(store, 'logo')}
-                              alt={store.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Store className="w-7 h-7 text-slate-300" />
-                          )}
-                        </div>
-                        <div className="space-y-1 flex-1">
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleLogoFileChange}
-                            className="text-xs rounded-xl file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100 cursor-pointer"
-                          />
-                          <p className="text-[10px] text-slate-400">JPG, PNG ou WebP (máx. 5MB)</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Banner upload */}
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <Upload className="w-3.5 h-3.5 text-slate-500" />
-                        Banner de Capa (Topo)
-                      </Label>
-                      <div className="space-y-1.5">
-                        <div className="w-full h-16 rounded-xl bg-slate-200 overflow-hidden border border-slate-300 flex items-center justify-center">
-                          {bannerPreview ? (
-                            <img
-                              src={bannerPreview}
-                              alt="Banner preview"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : store ? (
-                            <img
-                              src={getStoreImageUrl(store, 'banner')}
-                              alt={store.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-[10px] text-slate-400 font-bold">
-                              Banner padrão
-                            </span>
-                          )}
-                        </div>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleBannerFileChange}
-                          className="text-xs rounded-xl file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
-                        />
-                        <p className="text-[10px] text-slate-400">
-                          Recomendado 800x400 (máx. 10MB)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Subscription plan select */}
-                <div className="space-y-1.5 pt-2">
-                  <Label className="text-xs font-bold text-slate-700">
-                    Plano de Assinatura Desejado
-                  </Label>
-                  <Select value={selectedSubPlanId} onValueChange={setSelectedSubPlanId}>
-                    <SelectTrigger className="text-xs rounded-xl">
-                      <SelectValue placeholder="Selecione seu plano" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subPlans.map((sp) => (
-                        <SelectItem key={sp.id} value={sp.id}>
-                          {sp.name} - R$ {Number(sp.price).toFixed(2)} ({sp.trial_days} dias de
-                          teste)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isSavingStore}
-                  className="w-full py-5 rounded-xl font-bold bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white shadow-md shadow-rose-600/20"
-                >
-                  {isSavingStore ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Salvando Loja...
-                    </>
-                  ) : store ? (
-                    'Atualizar Dados da Loja'
-                  ) : (
-                    'Cadastrar Loja e Iniciar Teste'
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ======================================================== */}
-        {/* TAB: ASSINATURA DA LOJA & PAGAMENTO */}
-        {/* ======================================================== */}
-        <TabsContent value="subscription" className="space-y-6">
-          <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-purple-600" />
-                    Assinatura do Estabelecimento
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500">
-                    Gerencie seu plano de assinatura mensal/anual e mantenha seus serviços em dia
-                  </CardDescription>
-                </div>
-                <Badge
-                  className={`text-xs px-3 py-1 font-bold ${
-                    store?.subscription_status === 'active'
-                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                      : store?.subscription_status === 'trial'
-                        ? 'bg-amber-100 text-amber-800 border-amber-300'
-                        : store?.subscription_status === 'pending'
-                          ? 'bg-blue-100 text-blue-800 border-blue-300'
-                          : 'bg-rose-100 text-rose-800 border-rose-300'
-                  }`}
-                >
-                  {store?.subscription_status === 'active'
-                    ? 'Ativa / Paga'
-                    : store?.subscription_status === 'trial'
-                      ? 'Período de Teste Grátis'
-                      : store?.subscription_status === 'pending'
-                        ? 'Aguardando Confirmação'
-                        : store?.subscription_status === 'overdue'
-                          ? 'Em Atraso (Suspensa)'
-                          : 'Cancelada (Suspensa)'}
-                </Badge>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-6">
-              {/* STATUS SUMMARY BANNER */}
-              {store?.subscription_status === 'pending' ? (
-                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 space-y-1">
-                  <p className="font-bold text-xs flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-blue-600" />
-                    Pagamento em análise pelo Administrador
-                  </p>
-                  <p className="text-[11px] text-blue-800 leading-relaxed">
-                    Você já enviou a confirmação de pagamento via PIX. O administrador irá conferir
-                    o recebimento e reativar sua assinatura em instantes.
-                  </p>
-                </div>
-              ) : hasOverdueSub ? (
-                <div
-                  className={`p-4 rounded-2xl space-y-1 border ${
-                    isMerchantSuspended
-                      ? 'bg-rose-50 border-rose-200 text-rose-900'
-                      : 'bg-amber-50 border-amber-200 text-amber-900'
-                  }`}
-                >
-                  <p className="font-bold text-xs flex items-center gap-1.5">
-                    <AlertCircle
-                      className={`w-4 h-4 ${
-                        isMerchantSuspended ? 'text-rose-600' : 'text-amber-600'
-                      }`}
-                    />
-                    Assinatura com Pagamento Pendente (
-                    {store?.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelada'})
-                  </p>
-                  <p className="text-[11px] leading-relaxed">
-                    {isMerchantSuspended && isPublicSuspended && (
-                      <>
-                        Sua loja está suspensa no portal público e as ferramentas do painel estão
-                        bloqueadas.
-                      </>
-                    )}
-                    {isMerchantSuspended && !isPublicSuspended && (
-                      <>
-                        As ferramentas do painel (PDV e Fidelidade) estão bloqueadas, mas a loja
-                        continua listada no portal.
-                      </>
-                    )}
-                    {!isMerchantSuspended && isPublicSuspended && (
-                      <>
-                        Sua loja foi ocultada do portal público, mas suas ferramentas de operação
-                        continuam ativas.
-                      </>
-                    )}
-                    {!isMerchantSuspended && !isPublicSuspended && (
-                      <>
-                        Suas ferramentas continuam liberadas, mas há pendência financeira na
-                        assinatura.
-                      </>
-                    )}{' '}
-                    Clique no botão abaixo para pagar e regularizar.
-                  </p>
-                </div>
-              ) : (
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
-                  <p className="font-bold text-xs flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    Tudo certo com sua assinatura!
-                  </p>
-                  <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    Sua loja está ativa no portal e os clientes podem pontuar e resgatar
-                    normalmente.
-                  </p>
-                </div>
-              )}
-
-              {/* PLAN DETAILS GRID */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Plano Atual
-                  </p>
-                  <h4 className="text-base font-black text-slate-900 mt-1">
-                    {currentSubPlan?.name || 'Plano Básico'}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Cobrança a cada {currentSubPlan?.billing_interval_months || 1} mês(es)
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Valor da Assinatura
-                  </p>
-                  <h4 className="text-xl font-black text-slate-900 mt-1">
-                    R$ {Number(currentSubPlan?.price || 49.9).toFixed(2)}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Sem taxa de adesão</p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Data de Vencimento
-                  </p>
-                  <h4 className="text-base font-black text-slate-900 mt-1">
-                    {store?.subscription_expires_at
-                      ? new Date(store.subscription_expires_at).toLocaleDateString('pt-BR')
-                      : 'Não definida'}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {store?.subscription_status === 'trial'
-                      ? 'Fim do teste grátis'
-                      : 'Próxima renovação'}
-                  </p>
-                </div>
-              </div>
-
-              {/* ACTION BUTTON */}
-              <div className="pt-2 flex flex-col sm:flex-row gap-3">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setShowPixFallback(false)
-                    setIsPayModalOpen(true)
-                    fetchServerPixPayload()
-                  }}
-                  className="flex-1 py-6 rounded-2xl font-black text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg shadow-purple-600/20"
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  {store?.subscription_status === 'pending'
-                    ? 'Opções de Pagamento / Pagar Novamente'
-                    : hasOverdueSub
-                      ? 'Pagar Assinatura e Regularizar Loja'
-                      : 'Renovar / Pagar Assinatura'}
-                </Button>
-              </div>
-
-              {/* HISTÓRICO DE PAGAMENTOS ONLINE */}
-              {subPaymentsHistory.length > 0 && (
-                <div className="pt-4 border-t border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-                    Histórico Recente de Pagamentos
-                  </h4>
-                  <div className="space-y-2">
-                    {subPaymentsHistory.slice(0, 5).map((pay) => (
-                      <div
-                        key={pay.id}
-                        className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            R$ {(pay.amount / 100).toFixed(2)}{' '}
-                            <span className="font-normal text-slate-500">• {pay.order_nsu}</span>
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            {new Date(pay.created).toLocaleDateString('pt-BR')} às{' '}
-                            {new Date(pay.created).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                            {pay.capture_method && ` • Método: ${pay.capture_method.toUpperCase()}`}
-                          </p>
-                        </div>
-                        <Badge
-                          className={`text-[10px] border-0 font-bold ${
-                            pay.status === 'paid'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : pay.status === 'pending'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-slate-200 text-slate-700'
-                          }`}
-                        >
-                          {pay.status === 'paid'
-                            ? 'Pago'
-                            : pay.status === 'pending'
-                              ? 'Aguardando'
-                              : pay.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ======================================================== */}
-        {/* TAB 4: RELATÓRIO DE VENDAS */}
-        {/* ======================================================== */}
-        <TabsContent value="sales" className="space-y-6">
-          {/* FILTERS & PDF EXPORT HEADER CARD */}
-          <Card className="rounded-3xl border-slate-200 shadow-xs bg-gradient-to-br from-slate-50 to-white">
-            <CardHeader className="pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-rose-600" />
-                    Relatório de Vendas e Resgates
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500">
-                    Filtre por período e tipo de movimentação para acompanhar ou exportar em PDF
-                  </CardDescription>
-                </div>
-
-                <Button
-                  onClick={handleExportPDF}
-                  disabled={isGeneratingPdf || filteredPurchases.length === 0}
-                  className="bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold rounded-xl gap-2 shadow-sm text-xs py-5 shrink-0"
-                >
-                  {isGeneratingPdf ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Gerando PDF...
-                    </>
-                  ) : (
-                    <>
-                      <FileDown className="w-4 h-4" />
-                      Gerar PDF ({filteredPurchases.length})
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-4 pt-0">
-              {/* Filter controls row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-                {/* Period in months selector */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    Período em Meses
-                  </Label>
-                  <Select value={reportPeriodMonths} onValueChange={setReportPeriodMonths}>
-                    <SelectTrigger className="text-xs rounded-xl bg-white border-slate-200">
-                      <SelectValue placeholder="Selecione o período" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todo o Histórico</SelectItem>
-                      <SelectItem value="1">Último 1 Mês (30 dias)</SelectItem>
-                      <SelectItem value="3">Últimos 3 Meses</SelectItem>
-                      <SelectItem value="6">Últimos 6 Meses</SelectItem>
-                      <SelectItem value="12">Últimos 12 Meses (1 ano)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Movement type selector */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Filter className="w-3.5 h-3.5 text-slate-500" />
-                    Tipo de Movimentação
-                  </Label>
-                  <Select value={reportTypeFilter} onValueChange={setReportTypeFilter}>
-                    <SelectTrigger className="text-xs rounded-xl bg-white border-slate-200">
-                      <SelectValue placeholder="Selecione a operação" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as Operações</SelectItem>
-                      <SelectItem value="purchase">Compras (Crédito/Acúmulo)</SelectItem>
-                      <SelectItem value="redemption">Resgates de Recompensas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Reset filters shortcut */}
-                <div className="flex items-end">
-                  {(reportPeriodMonths !== 'all' || reportTypeFilter !== 'all') && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setReportPeriodMonths('all')
-                        setReportTypeFilter('all')
-                      }}
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl"
-                    >
-                      Limpar Filtros
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Dynamic summary KPI cards for active filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Total Filtrado em Vendas
-                  </p>
-                  <p className="text-lg font-black text-emerald-600 mt-0.5">
-                    R$ {filteredTotalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    {filteredPurchasesCount} compras registradas
-                  </p>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Resgates Filtrados
-                  </p>
-                  <p className="text-lg font-black text-amber-600 mt-0.5">
-                    {filteredRedemptionsCount}
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Prêmios entregues aos clientes
-                  </p>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Total de Linhas no Relatório
-                  </p>
-                  <p className="text-lg font-black text-slate-800 mt-0.5">
-                    {filteredPurchases.length}
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Prontas para exportação em PDF
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* TABLE OF MOVEMENTS */}
-          <Card className="rounded-3xl border-slate-200 shadow-xs">
-            <CardHeader className="py-4 border-b border-slate-100 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-bold text-slate-800">
-                  Movimentações Filtradas ({filteredPurchases.length})
-                </CardTitle>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                      <th className="py-3 px-4">Data/Hora</th>
-                      <th className="py-3 px-4">Cliente</th>
-                      <th className="py-3 px-4">Operação</th>
-                      <th className="py-3 px-4">Valor</th>
-                      <th className="py-3 px-4">Benefício Gerado / Resgatado</th>
-                      <th className="py-3 px-4">Obs</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredPurchases.map((pc) => (
-                      <tr key={pc.id} className="hover:bg-slate-50/70">
-                        <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
-                          {new Date(pc.created).toLocaleDateString('pt-BR')} às{' '}
-                          {new Date(pc.created).toLocaleTimeString('pt-BR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </td>
-                        <td className="py-3 px-4 font-bold text-slate-900">
-                          {pc.expand?.customer_id?.name || 'Cliente'}
-                        </td>
-                        <td className="py-3 px-4">
-                          {pc.type === 'purchase' ? (
-                            <Badge className="bg-emerald-100 text-emerald-800 border-0 text-[10px]">
-                              Compra
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-amber-100 text-amber-800 border-0 text-[10px]">
-                              Resgate
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 font-bold text-slate-900">
-                          {pc.amount ? `R$ ${Number(pc.amount).toFixed(2)}` : '-'}
-                        </td>
-                        <td className="py-3 px-4 text-slate-700">
-                          {pc.stamps_earned ? (
-                            <span className="text-amber-700 font-semibold">
-                              +{pc.stamps_earned} selo(s)
-                            </span>
-                          ) : pc.points_earned ? (
-                            <span className="text-indigo-700 font-semibold">
-                              +{pc.points_earned} pontos
-                            </span>
-                          ) : pc.cashback_earned ? (
-                            <span className="text-emerald-700 font-semibold">
-                              +R$ {Number(pc.cashback_earned).toFixed(2)} cashback
-                            </span>
-                          ) : pc.points_spent ? (
-                            <span className="text-rose-600 font-semibold">
-                              -{pc.points_spent} pontos resgatados
-                            </span>
-                          ) : pc.cashback_spent ? (
-                            <span className="text-rose-600 font-semibold">
-                              -R$ {Number(pc.cashback_spent).toFixed(2)} abatidos
-                            </span>
-                          ) : (
-                            '-'
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
-                          {pc.notes || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredPurchases.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400">
-                          Nenhuma movimentação encontrada com os filtros selecionados.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ======================================================== */}
-        {/* TAB: MARKETING & SORTEIOS */}
-        {/* ======================================================== */}
-        <TabsContent value="marketing" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <Gift className="w-6 h-6 text-rose-600" />
-                Marketing & Sorteios de Brindes
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Crie sorteios exclusivos para os clientes fidelizados da sua loja. O sistema sorteia
-                aleatoriamente e notifica o ganhador por e-mail e no aplicativo.
-              </p>
-            </div>
-
-            <Button
-              onClick={() => setIsCreateGiveawayOpen(true)}
-              className="bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md gap-2 shrink-0"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Novo Sorteio
-            </Button>
-          </div>
-
-          {/* KPI CARDS MARKETING */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="rounded-2xl border-slate-200 bg-white">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Clientes Participantes
-                  </p>
-                  <p className="text-2xl font-black text-slate-900 mt-0.5">
-                    {fidelityCustomers.length}
-                  </p>
-                  <p className="text-[11px] text-slate-500">Fidelizados à sua loja</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <UserCheck className="w-5 h-5" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-slate-200 bg-white">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Sorteios Ativos / Abertos
-                  </p>
-                  <p className="text-2xl font-black text-rose-600 mt-0.5">
-                    {giveaways.filter((g) => g.status === 'open').length}
-                  </p>
-                  <p className="text-[11px] text-rose-700">Aguardando sorteio</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-slate-200 bg-white">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Prêmios Entregues / Resgatados
-                  </p>
-                  <p className="text-2xl font-black text-amber-600 mt-0.5">
-                    {giveaways.filter((g) => g.status === 'redeemed').length}
-                  </p>
-                  <p className="text-[11px] text-slate-500">Resgate confirmado</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <Award className="w-5 h-5" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* LISTA DE SORTEIOS */}
-          <Card className="rounded-3xl border-slate-200 shadow-xs">
-            <CardHeader className="py-4 border-b border-slate-100 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-bold text-slate-800">
-                  Histórico de Sorteios ({giveaways.length})
-                </CardTitle>
-                <CardDescription className="text-xs text-slate-400">
-                  Gerencie os sorteios criados, realize o sorteio e confirme o resgate dos prêmios
-                </CardDescription>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-4">
-              {giveaways.length === 0 ? (
-                <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 max-w-md mx-auto">
-                  <Gift className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-slate-700">Nenhum sorteio criado ainda</p>
-                  <p className="text-[11px] text-slate-400 mt-1 mb-4">
-                    Crie campanhas de sorteio de brindes ou descontos para incentivar os clientes a
-                    se fidelizarem à sua loja.
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={() => setIsCreateGiveawayOpen(true)}
-                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
-                  >
-                    Criar Primeiro Sorteio
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {giveaways.map((gw) => {
-                    const winner = gw.expand?.winner
-                    const isExpired =
-                      gw.expires_at &&
-                      new Date(gw.expires_at).getTime() < Date.now() &&
-                      gw.status === 'drawn'
-                    const rewardLabel =
-                      gw.reward_type === 'discount' && gw.discount_amount
-                        ? `Desconto de R$ ${Number(gw.discount_amount).toFixed(2)}`
-                        : gw.reward_description || 'Brinde'
-
-                    return (
-                      <Card
-                        key={gw.id}
-                        className="rounded-2xl border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white"
-                      >
-                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                          <Badge
-                            className={
-                              gw.status === 'redeemed'
-                                ? 'bg-slate-200 text-slate-800 text-[10px]'
-                                : isExpired
-                                  ? 'bg-red-100 text-red-700 border-red-200 text-[10px]'
-                                  : gw.status === 'drawn'
-                                    ? 'bg-amber-100 text-amber-800 border-amber-200 text-[10px]'
-                                    : 'bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]'
-                            }
+                          <Button
+                            type="submit"
+                            disabled={isSearchingCustomer || !customerSearchCode.trim()}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
                           >
-                            {gw.status === 'redeemed'
-                              ? 'Prêmio Resgatado'
-                              : isExpired
-                                ? 'Prazo Expirado'
-                                : gw.status === 'drawn'
-                                  ? 'Sorteado (Aguardando Resgate)'
-                                  : 'Aberto / Ativo'}
-                          </Badge>
+                            {isSearchingCustomer ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              'Buscar'
+                            )}
+                          </Button>
+                        </form>
 
+                        {/* Quick helper for demo */}
+                        <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                          <span>Dica para teste rápido:</span>
                           <button
                             type="button"
-                            onClick={() => handleDeleteGiveaway(gw.id)}
-                            className="text-slate-400 hover:text-rose-600 text-[11px] font-semibold"
-                            title="Excluir sorteio"
+                            onClick={() => {
+                              setCustomerSearchCode('CLI-7842')
+                            }}
+                            className="font-mono font-bold text-rose-600 hover:underline"
                           >
-                            Excluir
+                            Usar CLI-7842
                           </button>
                         </div>
 
-                        <CardContent className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                          <div>
-                            <h4 className="font-black text-sm text-slate-900">{gw.title}</h4>
-                            <p className="text-xs font-bold text-rose-600 mt-1 flex items-center gap-1">
-                              🎁 {rewardLabel}
-                            </p>
-                            <p className="text-[11px] text-slate-500 mt-2">
-                              Prazo de resgate: <strong>{gw.redemption_days} dias</strong>
-                            </p>
-
-                            {/* Informações do Ganhador se já sorteado */}
-                            {gw.status !== 'open' && winner && (
-                              <div className="mt-3 p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-xs space-y-1">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                                  🎉 Ganhador Sorteado:
-                                </p>
-                                <p className="font-black text-slate-900">{winner.name}</p>
-                                <p className="text-[11px] text-slate-600 font-mono">
-                                  Código: {winner.customer_code || 'CLI-0000'}
-                                </p>
-                                {winner.document && (
-                                  <p className="text-[10px] text-slate-500 font-mono">
-                                    Doc:{' '}
-                                    {cleanDocument(winner.document).length > 11
-                                      ? formatCNPJ(cleanDocument(winner.document))
-                                      : formatCPF(cleanDocument(winner.document))}
+                        {/* Found customer card info */}
+                        {foundCustomer && (
+                          <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center text-sm">
+                                  {foundCustomer.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="font-extrabold text-sm">{foundCustomer.name}</p>
+                                  <p className="text-[11px] text-slate-300">
+                                    {foundCustomer.email}
                                   </p>
-                                )}
-                                {gw.drawn_at && (
-                                  <p className="text-[10px] text-slate-400 pt-1">
-                                    Sorteado em: {new Date(gw.drawn_at).toLocaleDateString('pt-BR')}
-                                  </p>
-                                )}
-                                {gw.expires_at && (
-                                  <p className="text-[10px] text-rose-700 font-bold">
-                                    Válido até:{' '}
-                                    {new Date(gw.expires_at).toLocaleDateString('pt-BR')}
-                                  </p>
-                                )}
-                                {gw.redeemed_at && (
-                                  <p className="text-[10px] text-emerald-700 font-bold">
-                                    Resgatado em:{' '}
-                                    {new Date(gw.redeemed_at).toLocaleDateString('pt-BR')}
-                                  </p>
-                                )}
+                                  {foundCustomer.document && (
+                                    <p className="text-[10px] text-amber-300 font-mono mt-0.5">
+                                      {cleanDocument(foundCustomer.document).length > 11
+                                        ? `CNPJ: ${formatCNPJ(cleanDocument(foundCustomer.document))}`
+                                        : `CPF: ${formatCPF(cleanDocument(foundCustomer.document))}`}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                            )}
+                              <Badge className="bg-white/10 font-mono text-[10px] text-amber-300 border-white/20 shrink-0">
+                                {foundCustomer.customer_code || 'ID'}
+                              </Badge>
+                            </div>
 
-                            {gw.status === 'open' && (
-                              <div className="mt-2 text-[11px] text-slate-500">
-                                Participantes aptos:{' '}
-                                <strong className="text-slate-800">
-                                  {fidelityCustomers.length}
-                                </strong>{' '}
-                                clientes fidelizados.
+                            {/* Customer Current Balance in this Store */}
+                            <div className="pt-3 border-t border-white/10 grid grid-cols-2 gap-3 text-xs">
+                              <div className="bg-white/5 p-2.5 rounded-xl">
+                                <p className="text-slate-400 text-[10px] font-bold uppercase">
+                                  Saldo Atual
+                                </p>
+                                <p className="text-base font-black text-amber-400 mt-0.5">
+                                  {plan.type === 'stamps' &&
+                                    `${customerCard?.stamps_count || 0} / ${plan.target_stamps || 10} Selos`}
+                                  {plan.type === 'points' &&
+                                    `${customerCard?.points_balance || 0} Pontos`}
+                                  {plan.type === 'cashback' &&
+                                    `R$ ${(customerCard?.cashback_balance || 0).toFixed(2)}`}
+                                </p>
                               </div>
-                            )}
-                          </div>
 
-                          {/* AÇÕES DO SORTEIO */}
-                          <div className="pt-2 border-t border-slate-100 space-y-2">
-                            {gw.status === 'open' && (
-                              <Button
-                                size="sm"
-                                disabled={
-                                  isDrawingWinner === gw.id || fidelityCustomers.length === 0
-                                }
-                                onClick={() => handleDrawWinner(gw.id)}
-                                className="w-full bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-xs"
-                              >
-                                {isDrawingWinner === gw.id ? (
-                                  <>
-                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                                    Sorteando cliente e enviando e-mail...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                                    Realizar Sorteio Agora
-                                  </>
-                                )}
-                              </Button>
-                            )}
+                              <div className="bg-white/5 p-2.5 rounded-xl">
+                                <p className="text-slate-400 text-[10px] font-bold uppercase">
+                                  Total Comprado
+                                </p>
+                                <p className="text-base font-black text-emerald-400 mt-0.5">
+                                  R$ {(customerCard?.total_spent || 0).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
 
-                            {gw.status === 'drawn' && (
+                            {/* Eligible for reward button */}
+                            {((plan.type === 'stamps' &&
+                              (customerCard?.stamps_count || 0) >= (plan.target_stamps || 10)) ||
+                              (plan.type === 'points' &&
+                                (customerCard?.points_balance || 0) >=
+                                  (plan.points_to_redeem || 100)) ||
+                              (plan.type === 'cashback' &&
+                                (customerCard?.cashback_balance || 0) > 0)) && (
                               <Button
-                                size="sm"
-                                disabled={isConfirmingRedeem === gw.id}
-                                onClick={() => handleConfirmRedemption(gw.id)}
-                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                                type="button"
+                                onClick={() => setIsRedeemModalOpen(true)}
+                                className="w-full bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-bold text-xs py-2 rounded-xl"
                               >
-                                {isConfirmingRedeem === gw.id ? (
-                                  'Confirmando...'
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                                    Confirmar Resgate na Loja
-                                  </>
-                                )}
+                                <Gift className="w-4 h-4 mr-1.5" />
+                                Cliente pode Resgatar Recompensa!
                               </Button>
                             )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Plan rules summary card */}
+                    <Card className="rounded-3xl border-slate-200 bg-slate-50/50 p-5 text-xs text-slate-600 space-y-2">
+                      <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-amber-600" /> Regra do seu Plano (
+                        {plan.type.toUpperCase()})
+                      </h4>
+                      {plan.type === 'stamps' && (
+                        <p>
+                          A cada R$ {(plan.min_purchase_amount || 1).toFixed(2)} em compras = 1
+                          selo. Ao juntar {plan.target_stamps} selos o cliente ganha:{' '}
+                          <strong>{plan.reward_title}</strong>.
+                        </p>
+                      )}
+                      {plan.type === 'points' && (
+                        <p>
+                          R$ 1,00 gasto = {plan.points_per_currency || 1} ponto(s). Ao juntar{' '}
+                          {plan.points_to_redeem} pontos o cliente ganha:{' '}
+                          <strong>{plan.reward_title}</strong>.
+                        </p>
+                      )}
+                      {plan.type === 'cashback' && (
+                        <p>
+                          {plan.cashback_percentage}% do valor da compra volta como saldo para o
+                          cliente usar nesta loja.
+                        </p>
+                      )}
+                    </Card>
+                  </div>
+
+                  {/* Right col: Register Purchase Form */}
+                  <div className="lg:col-span-7">
+                    <Card className="rounded-3xl border-slate-200 shadow-xs h-full flex flex-col justify-between">
+                      <CardHeader>
+                        <CardTitle className="text-base font-black text-slate-900 flex items-center gap-2">
+                          <ShoppingBag className="w-4 h-4 text-rose-600" />
+                          2. Registrar Valor da Compra
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-500">
+                          O sistema calcula e credita automaticamente os selos, pontos ou cashback
+                          para o cliente
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="space-y-6 flex-1">
+                        {!foundCustomer ? (
+                          <div className="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            <UserCheck className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                            <p className="text-xs font-bold text-slate-700">
+                              Identifique o cliente ao lado para liberar o registro
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-1">
+                              Digite o código, e-mail ou CPF/CNPJ e clique em "Buscar"
+                            </p>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleRegisterPurchase} className="space-y-5">
+                            <div className="space-y-2">
+                              <Label className="text-xs font-bold text-slate-700">
+                                Valor Total da Compra (R$) *
+                              </Label>
+                              <div className="relative">
+                                <span className="absolute left-3.5 top-3 text-slate-400 font-bold text-base">
+                                  R$
+                                </span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  required
+                                  placeholder="0,00"
+                                  value={purchaseAmount}
+                                  onChange={(e) =>
+                                    setPurchaseAmount(
+                                      e.target.value === '' ? '' : Number(e.target.value),
+                                    )
+                                  }
+                                  className="pl-11 text-xl font-black text-slate-900 py-6 rounded-2xl border-slate-300 focus-visible:ring-rose-500"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Real-time simulation of benefit */}
+                            {typeof purchaseAmount === 'number' && purchaseAmount > 0 && (
+                              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-950 space-y-1 text-xs">
+                                <p className="font-bold uppercase tracking-wider text-[10px] text-rose-700">
+                                  Benefício que o cliente receberá nesta compra:
+                                </p>
+                                <p className="text-base font-black text-rose-700">
+                                  {plan.type === 'stamps' && (
+                                    <>
+                                      +
+                                      {Math.floor(purchaseAmount / (plan.min_purchase_amount || 1))}{' '}
+                                      Selo(s)
+                                      <span className="text-xs font-normal text-slate-600 block">
+                                        (1 selo a cada R${' '}
+                                        {(plan.min_purchase_amount || 1).toFixed(2)})
+                                      </span>
+                                    </>
+                                  )}
+                                  {plan.type === 'points' && (
+                                    <>
+                                      +
+                                      {Math.round(purchaseAmount * (plan.points_per_currency || 1))}{' '}
+                                      Pontos
+                                    </>
+                                  )}
+                                  {plan.type === 'cashback' && (
+                                    <>
+                                      +R${' '}
+                                      {(
+                                        (purchaseAmount * (plan.cashback_percentage || 5)) /
+                                        100
+                                      ).toFixed(2)}{' '}
+                                      de Cashback ({plan.cashback_percentage}%)
+                                    </>
+                                  )}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-bold text-slate-700">
+                                Descrição / Itens / Observação (Opcional)
+                              </Label>
+                              <Input
+                                placeholder="Ex: 2 Lanches artesanais, mesa 04"
+                                value={purchaseNotes}
+                                onChange={(e) => setPurchaseNotes(e.target.value)}
+                                className="rounded-xl border-slate-300 text-xs"
+                              />
+                            </div>
+
+                            <Button
+                              type="submit"
+                              disabled={isSubmittingPurchase || !purchaseAmount}
+                              className="w-full py-6 rounded-2xl font-black text-sm bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white shadow-lg shadow-rose-600/30"
+                            >
+                              {isSubmittingPurchase ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Registrando no Cartão Digital...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-5 h-5 mr-2" />
+                                  Confirmar Compra e Creditar Benefício
+                                </>
+                              )}
+                            </Button>
+                          </form>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
 
-        {/* ======================================================== */}
-        {/* TAB: AGENDAMENTOS */}
-        {/* ======================================================== */}
-        <TabsContent value="appointments" className="space-y-6">
-          {store ? (
-            <AppointmentsManager
-              store={store}
-              onStoreUpdated={(updatedStore) => setStore(updatedStore)}
-            />
-          ) : (
-            <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
-              <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-slate-900 mb-1">Cadastre sua loja primeiro</h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Preencha os dados da sua loja na aba "Dados da Loja" para habilitar a gestão de
-                agendamentos.
-              </p>
-            </Card>
-          )}
-        </TabsContent>
+            {/* ======================================================== */}
+            {/* TAB 2: MEU PLANO DE FIDELIDADE (SELOS / PONTOS / CASHBACK) */}
+            {/* ======================================================== */}
+            <TabsContent value="program" className="space-y-6">
+              {isMerchantSuspended ? (
+                <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto border-rose-200 bg-rose-50/50">
+                  <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">
+                    Configuração Bloqueada por Suspensão de Funcionalidades
+                  </h3>
+                  <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                    As funcionalidades do seu perfil foram suspensas pelo administrador devido à
+                    pendência na assinatura. Regularize para alterar ou gerenciar as regras do seu
+                    plano de fidelidade.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      setShowPixFallback(false)
+                      setIsPayModalOpen(true)
+                      fetchServerPixPayload()
+                    }}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" /> Regularizar Assinatura
+                  </Button>
+                </Card>
+              ) : (
+                <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
+                  <CardHeader>
+                    <CardTitle className="text-xl font-black text-slate-900">
+                      Configurar Regras de Fidelidade
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Escolha o modelo que melhor engaja seu público: Selos no cartão, Pontos
+                      acumulativos ou Cashback em %
+                    </CardDescription>
+                  </CardHeader>
 
-        {/* ======================================================== */}
-        {/* TAB 6: BASE DE CLIENTES FIDELIZADOS */}
-        {/* ======================================================== */}
-        <TabsContent value="customers" className="space-y-6">
-          {' '}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <UserCheck className="w-6 h-6 text-emerald-600" />
-                Base de Clientes Fidelizados ({fidelityCustomers.length})
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Clientes que se cadastraram ou se fidelizaram diretamente à sua loja, com dados
-                completos e código pessoal para identificação.
-              </p>
-            </div>
+                  <CardContent>
+                    <form onSubmit={handleSavePlan} className="space-y-6">
+                      {/* MODEL SELECTOR */}
+                      <div className="space-y-3">
+                        <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Tipo de Fidelidade
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setPlanType('stamps')}
+                            className={`p-4 rounded-2xl border text-left transition-all ${
+                              planType === 'stamps'
+                                ? 'border-amber-500 bg-amber-50/70 shadow-xs ring-2 ring-amber-500/20'
+                                : 'border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Award
+                              className={`w-6 h-6 mb-2 ${
+                                planType === 'stamps' ? 'text-amber-600' : 'text-slate-400'
+                              }`}
+                            />
+                            <p className="font-extrabold text-sm text-slate-900">Selos Digitais</p>
+                            <p className="text-[11px] text-slate-500 mt-1">
+                              Estilo cafeteria: complete 10 selos e ganhe uma cortesia.
+                            </p>
+                          </button>
 
-            <div className="w-full sm:w-64">
-              <Input
-                placeholder="Filtrar por nome, CPF ou código..."
-                value={customerFilterQuery}
-                onChange={(e) => setCustomerFilterQuery(e.target.value)}
-                className="text-xs rounded-xl border-slate-300"
-              />
-            </div>
-          </div>
-          <Card className="rounded-3xl border-slate-200 shadow-xs">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                      <th className="py-3 px-4">Código do Cliente</th>
-                      <th className="py-3 px-4">Nome Completo</th>
-                      <th className="py-3 px-4">E-mail</th>
-                      <th className="py-3 px-4">Telefone / WhatsApp</th>
-                      <th className="py-3 px-4">CPF / CNPJ</th>
-                      <th className="py-3 px-4">Data de Fidelização</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {fidelityCustomers
-                      .filter((item) => {
-                        if (!customerFilterQuery.trim()) return true
-                        const q = customerFilterQuery.toLowerCase()
-                        const c = item.expand?.customer
-                        return (
-                          (c?.name && c.name.toLowerCase().includes(q)) ||
-                          (c?.email && c.email.toLowerCase().includes(q)) ||
-                          (c?.customer_code && c.customer_code.toLowerCase().includes(q)) ||
-                          (c?.document && c.document.includes(q))
-                        )
-                      })
-                      .map((item) => {
-                        const cust = item.expand?.customer
-                        return (
-                          <tr key={item.id} className="hover:bg-slate-50/70">
-                            <td className="py-3 px-4">
-                              <span className="font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded text-[11px]">
-                                {cust?.customer_code || 'CLI-0000'}
+                          <button
+                            type="button"
+                            onClick={() => setPlanType('points')}
+                            className={`p-4 rounded-2xl border text-left transition-all ${
+                              planType === 'points'
+                                ? 'border-indigo-500 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
+                                : 'border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Coins
+                              className={`w-6 h-6 mb-2 ${
+                                planType === 'points' ? 'text-indigo-600' : 'text-slate-400'
+                              }`}
+                            />
+                            <p className="font-extrabold text-sm text-slate-900">Pontos por R$</p>
+                            <p className="text-[11px] text-slate-500 mt-1">
+                              Acumule pontos proporcionais ao gasto e troque por prêmios.
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPlanType('cashback')}
+                            className={`p-4 rounded-2xl border text-left transition-all ${
+                              planType === 'cashback'
+                                ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20'
+                                : 'border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Percent
+                              className={`w-6 h-6 mb-2 ${
+                                planType === 'cashback' ? 'text-emerald-600' : 'text-slate-400'
+                              }`}
+                            />
+                            <p className="font-extrabold text-sm text-slate-900">Cashback</p>
+                            <p className="text-[11px] text-slate-500 mt-1">
+                              Devolva uma % em reais para abater em compras futuras.
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Plan Title & General Description */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Título do Programa
+                          </Label>
+                          <Input
+                            required
+                            placeholder="Ex: Cartão 10 Cafés ou Clube VIP"
+                            value={planTitle}
+                            onChange={(e) => setPlanTitle(e.target.value)}
+                            className="text-xs rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Descrição curta para o cliente
+                          </Label>
+                          <Input
+                            placeholder="Ex: A cada R$ 20 ganhe 1 selo"
+                            value={planDesc}
+                            onChange={(e) => setPlanDesc(e.target.value)}
+                            className="text-xs rounded-xl"
+                          />
+                        </div>
+                      </div>
+
+                      {/* TYPE-SPECIFIC PARAMETERS */}
+                      {planType === 'stamps' && (
+                        <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                            Regras de Selos
+                          </h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-bold text-slate-700">
+                                Quantidade de Selos para Resgatar (Meta)
+                              </Label>
+                              <Input
+                                type="number"
+                                min={2}
+                                max={50}
+                                required
+                                value={planTargetStamps}
+                                onChange={(e) => setPlanTargetStamps(Number(e.target.value))}
+                                className="text-xs bg-white rounded-xl"
+                              />
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-bold text-slate-700">
+                                Valor Mínimo da Compra por Selo (R$)
+                              </Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                step="0.50"
+                                required
+                                value={planMinAmount}
+                                onChange={(e) => setPlanMinAmount(Number(e.target.value))}
+                                className="text-xs bg-white rounded-xl"
+                              />
+                              <p className="text-[10px] text-slate-500">
+                                Ex: R$ 20,00 significa que uma compra de R$ 60 dá 3 selos.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {planType === 'points' && (
+                        <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                            Regras de Pontos
+                          </h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-bold text-slate-700">
+                                Pontos Gerados por R$ 1,00 Gasto
+                              </Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                required
+                                value={planPointsRate}
+                                onChange={(e) => setPlanPointsRate(Number(e.target.value))}
+                                className="text-xs bg-white rounded-xl"
+                              />
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-bold text-slate-700">
+                                Pontos Necessários para Resgate
+                              </Label>
+                              <Input
+                                type="number"
+                                min={10}
+                                required
+                                value={planPointsRedeem}
+                                onChange={(e) => setPlanPointsRedeem(Number(e.target.value))}
+                                className="text-xs bg-white rounded-xl"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {planType === 'cashback' && (
+                        <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                            Regras de Cashback
+                          </h4>
+                          <div className="space-y-1.5 max-w-xs">
+                            <Label className="text-xs font-bold text-slate-700">
+                              Porcentagem de Devolução (%)
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                min={1}
+                                max={50}
+                                step="0.5"
+                                required
+                                value={planCashbackPct}
+                                onChange={(e) => setPlanCashbackPct(Number(e.target.value))}
+                                className="text-xs bg-white rounded-xl pr-8"
+                              />
+                              <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
+                                %
                               </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500">
+                              Ex: 8% em uma compra de R$ 100 credita R$ 8,00 no saldo digital.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* REWARD DETAILS */}
+                      <div className="space-y-3 pt-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          Recompensa Oferecida
+                        </h4>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Nome do Prêmio / Benefício *
+                          </Label>
+                          <Input
+                            required
+                            placeholder="Ex: 1 Hambúrguer Smash ou R$ 20 de Desconto"
+                            value={planRewardTitle}
+                            onChange={(e) => setPlanRewardTitle(e.target.value)}
+                            className="text-xs rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Instruções de Resgate no Caixa (Opcional)
+                          </Label>
+                          <Textarea
+                            rows={2}
+                            placeholder="Ex: Apresente o cartão digital ao atendente antes de fechar a conta."
+                            value={planRewardDesc}
+                            onChange={(e) => setPlanRewardDesc(e.target.value)}
+                            className="text-xs rounded-xl resize-none"
+                          />
+                        </div>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={isSavingPlan}
+                        className="w-full py-5 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white"
+                      >
+                        {isSavingPlan ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Salvando Plano...
+                          </>
+                        ) : (
+                          'Salvar e Publicar Plano de Fidelidade'
+                        )}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* ======================================================== */}
+            {/* TAB 3: DADOS DA LOJA (NOME, CATEGORIA, ENDEREÇO, ETC) */}
+            {/* ======================================================== */}
+            <TabsContent value="store" className="space-y-6">
+              <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
+                <CardHeader>
+                  <CardTitle className="text-xl font-black text-slate-900">
+                    {store ? 'Editar Minha Loja' : 'Cadastrar Nova Loja'}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Informações visíveis para os clientes no portal público do Fideliza
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent>
+                  {/* DESTAQUE DE MARKETING: LINK PRÓPRIO / INDIVIDUAL DA LOJA */}
+                  <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-rose-500/10 border-2 border-indigo-200/80 shadow-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                          <Share2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                            Seu Link Individual de Divulgação
+                            <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] uppercase font-bold">
+                              Marketing
+                            </Badge>
+                          </h4>
+                          <p className="text-xs text-slate-600">
+                            Divulgue este link exclusivo para seus clientes acessarem sua página,
+                            fidelizarem-se e agendarem serviços.
+                          </p>
+                        </div>
+                      </div>
+                      {store?.slug && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs font-semibold rounded-xl border-slate-300 self-start sm:self-auto"
+                          onClick={() => window.open(fullStorePublicUrl, '_blank')}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 mr-1 text-slate-600" />
+                          Visualizar Página
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2 pt-1">
+                      <div className="flex-1 flex items-center bg-white border border-indigo-200 rounded-xl px-3 py-2 shadow-inner text-xs font-mono text-slate-800 break-all select-all">
+                        <span className="text-slate-400 select-none mr-1 hidden sm:inline">
+                          URL:
+                        </span>
+                        <span className="font-semibold text-indigo-700">{fullStorePublicUrl}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleCopyStoreLink}
+                        className="font-bold text-xs rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 px-4 py-2 shadow-sm"
+                      >
+                        {copiedStoreLink ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 mr-1 text-emerald-300" />
+                            Copiado!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 mr-1" />
+                            Copiar Link
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSaveStore} className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">
+                          Nome do Estabelecimento *
+                        </Label>
+                        <Input
+                          required
+                          placeholder="Ex: Pizzaria Forno & Sabor"
+                          value={storeName}
+                          onChange={(e) => setStoreName(e.target.value)}
+                          className="text-xs rounded-xl"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">Categoria *</Label>
+                        <Select
+                          value={storeCat}
+                          onValueChange={(val) => setStoreCat(val as StoreCategory)}
+                        >
+                          <SelectTrigger className="text-xs rounded-xl">
+                            <SelectValue placeholder="Selecione a categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIES.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* PERSONALIZAÇÃO DO SLUG / LINK INDIVIDUAL */}
+                    <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Share2 className="w-3.5 h-3.5 text-indigo-600" />
+                          Personalizar Link Individual da Loja (/loja/seu-link)
+                        </Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleGenerateSlugFromName}
+                          disabled={slugChecking}
+                          className="text-[11px] h-7 px-2 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100/60"
+                        >
+                          Gerar do nome
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 flex items-center bg-white rounded-xl border border-indigo-200 px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
+                          <span className="text-xs font-mono text-slate-400 select-none">
+                            /loja/
+                          </span>
+                          <input
+                            type="text"
+                            value={storeSlug}
+                            onChange={(e) => handleSlugChange(e.target.value)}
+                            onBlur={handleVerifySlugAvailability}
+                            placeholder="minha-loja"
+                            className="flex-1 text-xs font-mono font-medium text-slate-900 bg-transparent outline-none pl-1"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleVerifySlugAvailability}
+                          disabled={slugChecking || !storeSlug}
+                          className="text-xs h-9 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-100/60"
+                        >
+                          {slugChecking ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            'Verificar'
+                          )}
+                        </Button>
+                      </div>
+                      {slugError && (
+                        <p className="text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          {slugError}
+                        </p>
+                      )}
+                      {slugAvailable === true && !slugError && (
+                        <p className="text-[11px] text-emerald-700 flex items-center gap-1 font-medium">
+                          <Check className="w-3.5 h-3.5 shrink-0" />
+                          Link disponível e pronto para uso!
+                        </p>
+                      )}
+                      <p className="text-[10px] text-slate-500">
+                        Use apenas letras minúsculas, números e hífens. Seus clientes acessarão sua
+                        loja diretamente por este endereço.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Descrição Comercial
+                      </Label>
+                      <Textarea
+                        rows={3}
+                        placeholder="Conte sobre sua loja, especialidades e diferenciais..."
+                        value={storeDesc}
+                        onChange={(e) => setStoreDesc(e.target.value)}
+                        className="text-xs rounded-xl resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">
+                          Endereço Completo
+                        </Label>
+                        <Input
+                          placeholder="Ex: Rua das Flores, 120 - Centro"
+                          value={storeAddr}
+                          onChange={(e) => setStoreAddr(e.target.value)}
+                          className="text-xs rounded-xl"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">Cidade / Estado</Label>
+                        <Input
+                          placeholder="Ex: São Paulo - SP"
+                          value={storeCity}
+                          onChange={(e) => setStoreCity(e.target.value)}
+                          className="text-xs rounded-xl"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">
+                          Telefone Fixo / Contato
+                        </Label>
+                        <Input
+                          placeholder="Ex: (11) 3456-7890"
+                          value={storePhone}
+                          onChange={(e) => setStorePhone(e.target.value)}
+                          className="text-xs rounded-xl"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                          WhatsApp da Loja (Link wa.me)
+                        </Label>
+                        <Input
+                          placeholder="Ex: (11) 98765-4321 ou wa.me/5511..."
+                          value={storeWhatsapp}
+                          onChange={(e) => setStoreWhatsapp(e.target.value)}
+                          className="text-xs rounded-xl"
+                        />
+                        <p className="text-[11px] text-slate-500">
+                          {storeWhatsapp ? (
+                            <span className="text-emerald-700 font-medium flex items-center gap-1">
+                              Link gerado: {formatWhatsAppUrl(storeWhatsapp)}
+                            </span>
+                          ) : (
+                            'Gera link https://wa.me/55... automaticamente para clientes conversarem pelo portal.'
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* LOGO AND BANNER UPLOAD SECTION */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 pt-4">
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <ImageIcon className="w-4 h-4 text-rose-600" />
+                          Imagens da Loja para o Portal Público
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Personalize a logo e o banner que seus clientes verão na página da sua
+                          loja
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Logo upload */}
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <Upload className="w-3.5 h-3.5 text-slate-500" />
+                            Logo do Estabelecimento
+                          </Label>
+                          <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                              {logoPreview ? (
+                                <img
+                                  src={logoPreview}
+                                  alt="Logo preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : store ? (
+                                <img
+                                  src={getStoreImageUrl(store, 'logo')}
+                                  alt={store.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <Store className="w-7 h-7 text-slate-300" />
+                              )}
+                            </div>
+                            <div className="space-y-1 flex-1">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLogoFileChange}
+                                className="text-xs rounded-xl file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100 cursor-pointer"
+                              />
+                              <p className="text-[10px] text-slate-400">
+                                JPG, PNG ou WebP (máx. 5MB)
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Banner upload */}
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <Upload className="w-3.5 h-3.5 text-slate-500" />
+                            Banner de Capa (Topo)
+                          </Label>
+                          <div className="space-y-1.5">
+                            <div className="w-full h-16 rounded-xl bg-slate-200 overflow-hidden border border-slate-300 flex items-center justify-center">
+                              {bannerPreview ? (
+                                <img
+                                  src={bannerPreview}
+                                  alt="Banner preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : store ? (
+                                <img
+                                  src={getStoreImageUrl(store, 'banner')}
+                                  alt={store.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-bold">
+                                  Banner padrão
+                                </span>
+                              )}
+                            </div>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleBannerFileChange}
+                              className="text-xs rounded-xl file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
+                            />
+                            <p className="text-[10px] text-slate-400">
+                              Recomendado 800x400 (máx. 10MB)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subscription plan select */}
+                    <div className="space-y-1.5 pt-2">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Plano de Assinatura Desejado
+                      </Label>
+                      <Select value={selectedSubPlanId} onValueChange={setSelectedSubPlanId}>
+                        <SelectTrigger className="text-xs rounded-xl">
+                          <SelectValue placeholder="Selecione seu plano" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subPlans.map((sp) => (
+                            <SelectItem key={sp.id} value={sp.id}>
+                              {sp.name} - R$ {Number(sp.price).toFixed(2)} ({sp.trial_days} dias de
+                              teste)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isSavingStore}
+                      className="w-full py-5 rounded-xl font-bold bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white shadow-md shadow-rose-600/20"
+                    >
+                      {isSavingStore ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Salvando Loja...
+                        </>
+                      ) : store ? (
+                        'Atualizar Dados da Loja'
+                      ) : (
+                        'Cadastrar Loja e Iniciar Teste'
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ======================================================== */}
+            {/* TAB: ASSINATURA DA LOJA & PAGAMENTO */}
+            {/* ======================================================== */}
+            <TabsContent value="subscription" className="space-y-6">
+              <Card className="rounded-3xl border-slate-200 shadow-xs max-w-3xl">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-purple-600" />
+                        Assinatura do Estabelecimento
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        Gerencie seu plano de assinatura mensal/anual e mantenha seus serviços em
+                        dia
+                      </CardDescription>
+                    </div>
+                    <Badge
+                      className={`text-xs px-3 py-1 font-bold ${
+                        store?.subscription_status === 'active'
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          : store?.subscription_status === 'trial'
+                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                            : store?.subscription_status === 'pending'
+                              ? 'bg-blue-100 text-blue-800 border-blue-300'
+                              : 'bg-rose-100 text-rose-800 border-rose-300'
+                      }`}
+                    >
+                      {store?.subscription_status === 'active'
+                        ? 'Ativa / Paga'
+                        : store?.subscription_status === 'trial'
+                          ? 'Período de Teste Grátis'
+                          : store?.subscription_status === 'pending'
+                            ? 'Aguardando Confirmação'
+                            : store?.subscription_status === 'overdue'
+                              ? 'Em Atraso (Suspensa)'
+                              : 'Cancelada (Suspensa)'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-6">
+                  {/* STATUS SUMMARY BANNER */}
+                  {store?.subscription_status === 'pending' ? (
+                    <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 space-y-1">
+                      <p className="font-bold text-xs flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-blue-600" />
+                        Pagamento em análise pelo Administrador
+                      </p>
+                      <p className="text-[11px] text-blue-800 leading-relaxed">
+                        Você já enviou a confirmação de pagamento via PIX. O administrador irá
+                        conferir o recebimento e reativar sua assinatura em instantes.
+                      </p>
+                    </div>
+                  ) : hasOverdueSub ? (
+                    <div
+                      className={`p-4 rounded-2xl space-y-1 border ${
+                        isMerchantSuspended
+                          ? 'bg-rose-50 border-rose-200 text-rose-900'
+                          : 'bg-amber-50 border-amber-200 text-amber-900'
+                      }`}
+                    >
+                      <p className="font-bold text-xs flex items-center gap-1.5">
+                        <AlertCircle
+                          className={`w-4 h-4 ${
+                            isMerchantSuspended ? 'text-rose-600' : 'text-amber-600'
+                          }`}
+                        />
+                        Assinatura com Pagamento Pendente (
+                        {store?.subscription_status === 'overdue' ? 'Em Atraso' : 'Cancelada'})
+                      </p>
+                      <p className="text-[11px] leading-relaxed">
+                        {isMerchantSuspended && isPublicSuspended && (
+                          <>
+                            Sua loja está suspensa no portal público e as ferramentas do painel
+                            estão bloqueadas.
+                          </>
+                        )}
+                        {isMerchantSuspended && !isPublicSuspended && (
+                          <>
+                            As ferramentas do painel (PDV e Fidelidade) estão bloqueadas, mas a loja
+                            continua listada no portal.
+                          </>
+                        )}
+                        {!isMerchantSuspended && isPublicSuspended && (
+                          <>
+                            Sua loja foi ocultada do portal público, mas suas ferramentas de
+                            operação continuam ativas.
+                          </>
+                        )}
+                        {!isMerchantSuspended && !isPublicSuspended && (
+                          <>
+                            Suas ferramentas continuam liberadas, mas há pendência financeira na
+                            assinatura.
+                          </>
+                        )}{' '}
+                        Clique no botão abaixo para pagar e regularizar.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
+                      <p className="font-bold text-xs flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        Tudo certo com sua assinatura!
+                      </p>
+                      <p className="text-[11px] text-emerald-800 leading-relaxed">
+                        Sua loja está ativa no portal e os clientes podem pontuar e resgatar
+                        normalmente.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* PLAN DETAILS GRID */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Plano Atual
+                      </p>
+                      <h4 className="text-base font-black text-slate-900 mt-1">
+                        {currentSubPlan?.name || 'Plano Básico'}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Cobrança a cada {currentSubPlan?.billing_interval_months || 1} mês(es)
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Valor da Assinatura
+                      </p>
+                      <h4 className="text-xl font-black text-slate-900 mt-1">
+                        R$ {Number(currentSubPlan?.price || 49.9).toFixed(2)}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Sem taxa de adesão</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Data de Vencimento
+                      </p>
+                      <h4 className="text-base font-black text-slate-900 mt-1">
+                        {store?.subscription_expires_at
+                          ? new Date(store.subscription_expires_at).toLocaleDateString('pt-BR')
+                          : 'Não definida'}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {store?.subscription_status === 'trial'
+                          ? 'Fim do teste grátis'
+                          : 'Próxima renovação'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* ACTION BUTTON */}
+                  <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setShowPixFallback(false)
+                        setIsPayModalOpen(true)
+                        fetchServerPixPayload()
+                      }}
+                      className="flex-1 py-6 rounded-2xl font-black text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg shadow-purple-600/20"
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      {store?.subscription_status === 'pending'
+                        ? 'Opções de Pagamento / Pagar Novamente'
+                        : hasOverdueSub
+                          ? 'Pagar Assinatura e Regularizar Loja'
+                          : 'Renovar / Pagar Assinatura'}
+                    </Button>
+                  </div>
+
+                  {/* HISTÓRICO DE PAGAMENTOS ONLINE */}
+                  {subPaymentsHistory.length > 0 && (
+                    <div className="pt-4 border-t border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+                        Histórico Recente de Pagamentos
+                      </h4>
+                      <div className="space-y-2">
+                        {subPaymentsHistory.slice(0, 5).map((pay) => (
+                          <div
+                            key={pay.id}
+                            className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs"
+                          >
+                            <div>
+                              <p className="font-bold text-slate-900">
+                                R$ {(pay.amount / 100).toFixed(2)}{' '}
+                                <span className="font-normal text-slate-500">
+                                  • {pay.order_nsu}
+                                </span>
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                {new Date(pay.created).toLocaleDateString('pt-BR')} às{' '}
+                                {new Date(pay.created).toLocaleTimeString('pt-BR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                                {pay.capture_method &&
+                                  ` • Método: ${pay.capture_method.toUpperCase()}`}
+                              </p>
+                            </div>
+                            <Badge
+                              className={`text-[10px] border-0 font-bold ${
+                                pay.status === 'paid'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : pay.status === 'pending'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-slate-200 text-slate-700'
+                              }`}
+                            >
+                              {pay.status === 'paid'
+                                ? 'Pago'
+                                : pay.status === 'pending'
+                                  ? 'Aguardando'
+                                  : pay.status}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ======================================================== */}
+            {/* TAB 5: RELATÓRIO DE VENDAS */}
+            {/* ======================================================== */}
+            <TabsContent value="sales" className="space-y-6 mt-0">
+              {' '}
+              {/* FILTERS & PDF EXPORT HEADER CARD */}
+              <Card className="rounded-3xl border-slate-200 shadow-xs bg-gradient-to-br from-slate-50 to-white">
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-rose-600" />
+                        Relatório de Vendas e Resgates
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        Filtre por período e tipo de movimentação para acompanhar ou exportar em PDF
+                      </CardDescription>
+                    </div>
+
+                    <Button
+                      onClick={handleExportPDF}
+                      disabled={isGeneratingPdf || filteredPurchases.length === 0}
+                      className="bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold rounded-xl gap-2 shadow-sm text-xs py-5 shrink-0"
+                    >
+                      {isGeneratingPdf ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Gerando PDF...
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="w-4 h-4" />
+                          Gerar PDF ({filteredPurchases.length})
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4 pt-0">
+                  {/* Filter controls row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+                    {/* Period in months selector */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        Período em Meses
+                      </Label>
+                      <Select value={reportPeriodMonths} onValueChange={setReportPeriodMonths}>
+                        <SelectTrigger className="text-xs rounded-xl bg-white border-slate-200">
+                          <SelectValue placeholder="Selecione o período" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todo o Histórico</SelectItem>
+                          <SelectItem value="1">Último 1 Mês (30 dias)</SelectItem>
+                          <SelectItem value="3">Últimos 3 Meses</SelectItem>
+                          <SelectItem value="6">Últimos 6 Meses</SelectItem>
+                          <SelectItem value="12">Últimos 12 Meses (1 ano)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Movement type selector */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <Filter className="w-3.5 h-3.5 text-slate-500" />
+                        Tipo de Movimentação
+                      </Label>
+                      <Select value={reportTypeFilter} onValueChange={setReportTypeFilter}>
+                        <SelectTrigger className="text-xs rounded-xl bg-white border-slate-200">
+                          <SelectValue placeholder="Selecione a operação" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas as Operações</SelectItem>
+                          <SelectItem value="purchase">Compras (Crédito/Acúmulo)</SelectItem>
+                          <SelectItem value="redemption">Resgates de Recompensas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Reset filters shortcut */}
+                    <div className="flex items-end">
+                      {(reportPeriodMonths !== 'all' || reportTypeFilter !== 'all') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setReportPeriodMonths('all')
+                            setReportTypeFilter('all')
+                          }}
+                          className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl"
+                        >
+                          Limpar Filtros
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Dynamic summary KPI cards for active filters */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
+                    <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Total Filtrado em Vendas
+                      </p>
+                      <p className="text-lg font-black text-emerald-600 mt-0.5">
+                        R${' '}
+                        {filteredTotalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        {filteredPurchasesCount} compras registradas
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Resgates Filtrados
+                      </p>
+                      <p className="text-lg font-black text-amber-600 mt-0.5">
+                        {filteredRedemptionsCount}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        Prêmios entregues aos clientes
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Total de Linhas no Relatório
+                      </p>
+                      <p className="text-lg font-black text-slate-800 mt-0.5">
+                        {filteredPurchases.length}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        Prontas para exportação em PDF
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              {/* TABLE OF MOVEMENTS */}
+              <Card className="rounded-3xl border-slate-200 shadow-xs">
+                <CardHeader className="py-4 border-b border-slate-100 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-800">
+                      Movimentações Filtradas ({filteredPurchases.length})
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                          <th className="py-3 px-4">Data/Hora</th>
+                          <th className="py-3 px-4">Cliente</th>
+                          <th className="py-3 px-4">Operação</th>
+                          <th className="py-3 px-4">Valor</th>
+                          <th className="py-3 px-4">Benefício Gerado / Resgatado</th>
+                          <th className="py-3 px-4">Obs</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredPurchases.map((pc) => (
+                          <tr key={pc.id} className="hover:bg-slate-50/70">
+                            <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                              {new Date(pc.created).toLocaleDateString('pt-BR')} às{' '}
+                              {new Date(pc.created).toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
                             </td>
                             <td className="py-3 px-4 font-bold text-slate-900">
-                              {cust?.name || 'Cliente'}
+                              {pc.expand?.customer_id?.name || 'Cliente'}
                             </td>
-                            <td className="py-3 px-4 text-slate-600">{cust?.email || '-'}</td>
-                            <td className="py-3 px-4 text-slate-600">
-                              {cust?.phone ? (
-                                <a
-                                  href={formatWhatsAppUrl(cust.phone)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-emerald-700 hover:underline font-medium"
-                                >
-                                  {formatWhatsAppDisplay(cust.phone)}
-                                </a>
+                            <td className="py-3 px-4">
+                              {pc.type === 'purchase' ? (
+                                <Badge className="bg-emerald-100 text-emerald-800 border-0 text-[10px]">
+                                  Compra
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-100 text-amber-800 border-0 text-[10px]">
+                                  Resgate
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 font-bold text-slate-900">
+                              {pc.amount ? `R$ ${Number(pc.amount).toFixed(2)}` : '-'}
+                            </td>
+                            <td className="py-3 px-4 text-slate-700">
+                              {pc.stamps_earned ? (
+                                <span className="text-amber-700 font-semibold">
+                                  +{pc.stamps_earned} selo(s)
+                                </span>
+                              ) : pc.points_earned ? (
+                                <span className="text-indigo-700 font-semibold">
+                                  +{pc.points_earned} pontos
+                                </span>
+                              ) : pc.cashback_earned ? (
+                                <span className="text-emerald-700 font-semibold">
+                                  +R$ {Number(pc.cashback_earned).toFixed(2)} cashback
+                                </span>
+                              ) : pc.points_spent ? (
+                                <span className="text-rose-600 font-semibold">
+                                  -{pc.points_spent} pontos resgatados
+                                </span>
+                              ) : pc.cashback_spent ? (
+                                <span className="text-rose-600 font-semibold">
+                                  -R$ {Number(pc.cashback_spent).toFixed(2)} abatidos
+                                </span>
                               ) : (
                                 '-'
                               )}
                             </td>
-                            <td className="py-3 px-4 font-mono text-slate-600">
-                              {cust?.document
-                                ? cleanDocument(cust.document).length > 11
-                                  ? formatCNPJ(cleanDocument(cust.document))
-                                  : formatCPF(cleanDocument(cust.document))
-                                : '-'}
-                            </td>
-                            <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
-                              {new Date(item.created).toLocaleDateString('pt-BR')}
+                            <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
+                              {pc.notes || '-'}
                             </td>
                           </tr>
+                        ))}
+                        {filteredPurchases.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="py-12 text-center text-slate-400">
+                              Nenhuma movimentação encontrada com os filtros selecionados.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ======================================================== */}
+            {/* TAB 6: MARKETING & SORTEIOS */}
+            {/* ======================================================== */}
+            <TabsContent value="marketing" className="space-y-6 mt-0">
+              {' '}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <Gift className="w-6 h-6 text-rose-600" />
+                    Marketing & Sorteios de Brindes
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Crie sorteios exclusivos para os clientes fidelizados da sua loja. O sistema
+                    sorteia aleatoriamente e notifica o ganhador por e-mail e no aplicativo.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={() => setIsCreateGiveawayOpen(true)}
+                  className="bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md gap-2 shrink-0"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Novo Sorteio
+                </Button>
+              </div>
+              {/* KPI CARDS MARKETING */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card className="rounded-2xl border-slate-200 bg-white">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Clientes Participantes
+                      </p>
+                      <p className="text-2xl font-black text-slate-900 mt-0.5">
+                        {fidelityCustomers.length}
+                      </p>
+                      <p className="text-[11px] text-slate-500">Fidelizados à sua loja</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <UserCheck className="w-5 h-5" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-slate-200 bg-white">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Sorteios Ativos / Abertos
+                      </p>
+                      <p className="text-2xl font-black text-rose-600 mt-0.5">
+                        {giveaways.filter((g) => g.status === 'open').length}
+                      </p>
+                      <p className="text-[11px] text-rose-700">Aguardando sorteio</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-slate-200 bg-white">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Prêmios Entregues / Resgatados
+                      </p>
+                      <p className="text-2xl font-black text-amber-600 mt-0.5">
+                        {giveaways.filter((g) => g.status === 'redeemed').length}
+                      </p>
+                      <p className="text-[11px] text-slate-500">Resgate confirmado</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <Award className="w-5 h-5" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              {/* LISTA DE SORTEIOS */}
+              <Card className="rounded-3xl border-slate-200 shadow-xs">
+                <CardHeader className="py-4 border-b border-slate-100 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-800">
+                      Histórico de Sorteios ({giveaways.length})
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-400">
+                      Gerencie os sorteios criados, realize o sorteio e confirme o resgate dos
+                      prêmios
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-4">
+                  {giveaways.length === 0 ? (
+                    <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 max-w-md mx-auto">
+                      <Gift className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-slate-700">
+                        Nenhum sorteio criado ainda
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-1 mb-4">
+                        Crie campanhas de sorteio de brindes ou descontos para incentivar os
+                        clientes a se fidelizarem à sua loja.
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsCreateGiveawayOpen(true)}
+                        className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
+                      >
+                        Criar Primeiro Sorteio
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {giveaways.map((gw) => {
+                        const winner = gw.expand?.winner
+                        const isExpired =
+                          gw.expires_at &&
+                          new Date(gw.expires_at).getTime() < Date.now() &&
+                          gw.status === 'drawn'
+                        const rewardLabel =
+                          gw.reward_type === 'discount' && gw.discount_amount
+                            ? `Desconto de R$ ${Number(gw.discount_amount).toFixed(2)}`
+                            : gw.reward_description || 'Brinde'
+
+                        return (
+                          <Card
+                            key={gw.id}
+                            className="rounded-2xl border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white"
+                          >
+                            <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                              <Badge
+                                className={
+                                  gw.status === 'redeemed'
+                                    ? 'bg-slate-200 text-slate-800 text-[10px]'
+                                    : isExpired
+                                      ? 'bg-red-100 text-red-700 border-red-200 text-[10px]'
+                                      : gw.status === 'drawn'
+                                        ? 'bg-amber-100 text-amber-800 border-amber-200 text-[10px]'
+                                        : 'bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]'
+                                }
+                              >
+                                {gw.status === 'redeemed'
+                                  ? 'Prêmio Resgatado'
+                                  : isExpired
+                                    ? 'Prazo Expirado'
+                                    : gw.status === 'drawn'
+                                      ? 'Sorteado (Aguardando Resgate)'
+                                      : 'Aberto / Ativo'}
+                              </Badge>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteGiveaway(gw.id)}
+                                className="text-slate-400 hover:text-rose-600 text-[11px] font-semibold"
+                                title="Excluir sorteio"
+                              >
+                                Excluir
+                              </button>
+                            </div>
+
+                            <CardContent className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                              <div>
+                                <h4 className="font-black text-sm text-slate-900">{gw.title}</h4>
+                                <p className="text-xs font-bold text-rose-600 mt-1 flex items-center gap-1">
+                                  🎁 {rewardLabel}
+                                </p>
+                                <p className="text-[11px] text-slate-500 mt-2">
+                                  Prazo de resgate: <strong>{gw.redemption_days} dias</strong>
+                                </p>
+
+                                {/* Informações do Ganhador se já sorteado */}
+                                {gw.status !== 'open' && winner && (
+                                  <div className="mt-3 p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-xs space-y-1">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                                      🎉 Ganhador Sorteado:
+                                    </p>
+                                    <p className="font-black text-slate-900">{winner.name}</p>
+                                    <p className="text-[11px] text-slate-600 font-mono">
+                                      Código: {winner.customer_code || 'CLI-0000'}
+                                    </p>
+                                    {winner.document && (
+                                      <p className="text-[10px] text-slate-500 font-mono">
+                                        Doc:{' '}
+                                        {cleanDocument(winner.document).length > 11
+                                          ? formatCNPJ(cleanDocument(winner.document))
+                                          : formatCPF(cleanDocument(winner.document))}
+                                      </p>
+                                    )}
+                                    {gw.drawn_at && (
+                                      <p className="text-[10px] text-slate-400 pt-1">
+                                        Sorteado em:{' '}
+                                        {new Date(gw.drawn_at).toLocaleDateString('pt-BR')}
+                                      </p>
+                                    )}
+                                    {gw.expires_at && (
+                                      <p className="text-[10px] text-rose-700 font-bold">
+                                        Válido até:{' '}
+                                        {new Date(gw.expires_at).toLocaleDateString('pt-BR')}
+                                      </p>
+                                    )}
+                                    {gw.redeemed_at && (
+                                      <p className="text-[10px] text-emerald-700 font-bold">
+                                        Resgatado em:{' '}
+                                        {new Date(gw.redeemed_at).toLocaleDateString('pt-BR')}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+
+                                {gw.status === 'open' && (
+                                  <div className="mt-2 text-[11px] text-slate-500">
+                                    Participantes aptos:{' '}
+                                    <strong className="text-slate-800">
+                                      {fidelityCustomers.length}
+                                    </strong>{' '}
+                                    clientes fidelizados.
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* AÇÕES DO SORTEIO */}
+                              <div className="pt-2 border-t border-slate-100 space-y-2">
+                                {gw.status === 'open' && (
+                                  <Button
+                                    size="sm"
+                                    disabled={
+                                      isDrawingWinner === gw.id || fidelityCustomers.length === 0
+                                    }
+                                    onClick={() => handleDrawWinner(gw.id)}
+                                    className="w-full bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                                  >
+                                    {isDrawingWinner === gw.id ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                        Sorteando cliente e enviando e-mail...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                                        Realizar Sorteio Agora
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+
+                                {gw.status === 'drawn' && (
+                                  <Button
+                                    size="sm"
+                                    disabled={isConfirmingRedeem === gw.id}
+                                    onClick={() => handleConfirmRedemption(gw.id)}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                                  >
+                                    {isConfirmingRedeem === gw.id ? (
+                                      'Confirmando...'
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                                        Confirmar Resgate na Loja
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
                         )
                       })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                    {fidelityCustomers.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400">
-                          Nenhum cliente fidelizado ainda. Os clientes entram nesta lista ao se
-                          fidelizarem pelo portal da sua loja ou ao terem sua primeira compra
-                          registrada.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            {/* ======================================================== */}
+            {/* TAB 7: AGENDAMENTOS */}
+            {/* ======================================================== */}
+            <TabsContent value="appointments" className="space-y-6 mt-0">
+              {' '}
+              {store ? (
+                <AppointmentsManager
+                  store={store}
+                  onStoreUpdated={(updatedStore) => setStore(updatedStore)}
+                />
+              ) : (
+                <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
+                  <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">
+                    Cadastre sua loja primeiro
+                  </h3>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Preencha os dados da sua loja na aba "Dados da Loja" para habilitar a gestão de
+                    agendamentos.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* ======================================================== */}
+            {/* TAB 8: BASE DE CLIENTES */}
+            {/* ======================================================== */}
+            <TabsContent value="customers" className="space-y-6 mt-0">
+              {' '}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <UserCheck className="w-6 h-6 text-emerald-600" />
+                    Base de Clientes Fidelizados ({fidelityCustomers.length})
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Clientes que se cadastraram ou se fidelizaram diretamente à sua loja, com dados
+                    completos e código pessoal para identificação.
+                  </p>
+                </div>
+
+                <div className="w-full sm:w-64">
+                  <Input
+                    placeholder="Filtrar por nome, CPF ou código..."
+                    value={customerFilterQuery}
+                    onChange={(e) => setCustomerFilterQuery(e.target.value)}
+                    className="text-xs rounded-xl border-slate-300"
+                  />
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              <Card className="rounded-3xl border-slate-200 shadow-xs">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                          <th className="py-3 px-4">Código do Cliente</th>
+                          <th className="py-3 px-4">Nome Completo</th>
+                          <th className="py-3 px-4">E-mail</th>
+                          <th className="py-3 px-4">Telefone / WhatsApp</th>
+                          <th className="py-3 px-4">CPF / CNPJ</th>
+                          <th className="py-3 px-4">Data de Fidelização</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {fidelityCustomers
+                          .filter((item) => {
+                            if (!customerFilterQuery.trim()) return true
+                            const q = customerFilterQuery.toLowerCase()
+                            const c = item.expand?.customer
+                            return (
+                              (c?.name && c.name.toLowerCase().includes(q)) ||
+                              (c?.email && c.email.toLowerCase().includes(q)) ||
+                              (c?.customer_code && c.customer_code.toLowerCase().includes(q)) ||
+                              (c?.document && c.document.includes(q))
+                            )
+                          })
+                          .map((item) => {
+                            const cust = item.expand?.customer
+                            return (
+                              <tr key={item.id} className="hover:bg-slate-50/70">
+                                <td className="py-3 px-4">
+                                  <span className="font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded text-[11px]">
+                                    {cust?.customer_code || 'CLI-0000'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 font-bold text-slate-900">
+                                  {cust?.name || 'Cliente'}
+                                </td>
+                                <td className="py-3 px-4 text-slate-600">{cust?.email || '-'}</td>
+                                <td className="py-3 px-4 text-slate-600">
+                                  {cust?.phone ? (
+                                    <a
+                                      href={formatWhatsAppUrl(cust.phone)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-emerald-700 hover:underline font-medium"
+                                    >
+                                      {formatWhatsAppDisplay(cust.phone)}
+                                    </a>
+                                  ) : (
+                                    '-'
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 font-mono text-slate-600">
+                                  {cust?.document
+                                    ? cleanDocument(cust.document).length > 11
+                                      ? formatCNPJ(cleanDocument(cust.document))
+                                      : formatCPF(cleanDocument(cust.document))
+                                    : '-'}
+                                </td>
+                                <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                                  {new Date(item.created).toLocaleDateString('pt-BR')}
+                                </td>
+                              </tr>
+                            )
+                          })}
+
+                        {fidelityCustomers.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="py-12 text-center text-slate-400">
+                              Nenhum cliente fidelizado ainda. Os clientes entram nesta lista ao se
+                              fidelizarem pelo portal da sua loja ou ao terem sua primeira compra
+                              registrada.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </div>
+        </div>
       </Tabs>
 
       {/* MODAL: CRIAR NOVO SORTEIO */}
