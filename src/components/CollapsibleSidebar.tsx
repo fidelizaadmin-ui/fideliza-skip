@@ -60,6 +60,7 @@ export interface CollapsibleSidebarProps<T extends string = string> {
   footerContent?: React.ReactNode
   className?: string
   scrollTargetId?: string
+  showCurrentSectionBar?: boolean
 }
 
 export function CollapsibleSidebar<T extends string = string>({
@@ -76,6 +77,7 @@ export function CollapsibleSidebar<T extends string = string>({
   footerContent,
   className,
   scrollTargetId,
+  showCurrentSectionBar = true,
 }: CollapsibleSidebarProps<T>) {
   const [open, setOpen] = React.useState(false)
 
@@ -99,36 +101,54 @@ export function CollapsibleSidebar<T extends string = string>({
   return (
     <div className={cn('w-full', className)}>
       <Sheet open={open} onOpenChange={setOpen}>
-        {/* Barra superior com Seção Atual e Botão de 3 traços */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 shadow-xs flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {ActiveIcon && (
-              <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0 font-bold border border-slate-200/70">
-                <ActiveIcon className={cn('w-4 h-4', activeItem?.iconColor)} />
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Seção Atual
-              </p>
-              <p className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                {activeItem?.label || title}
-              </p>
-            </div>
-          </div>
-
+        {/* BOTÃO FIXO NA LATERAL SUPERIOR ESQUERDA DA TELA (SEMPRE NO TOPO) */}
+        <div className="fixed top-20 left-4 z-30 pointer-events-auto">
           <SheetTrigger asChild>
             <Button
+              type="button"
               variant="outline"
               size="sm"
-              className="gap-2 rounded-xl border-slate-200 font-bold text-xs bg-slate-50 hover:bg-slate-100 shrink-0 text-slate-800"
+              className="h-10 px-3.5 gap-2 rounded-xl bg-white/95 backdrop-blur-md border-slate-300 shadow-md hover:shadow-lg font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
               aria-label={triggerButtonText}
             >
-              <ThreeLinesMenuIcon className="text-slate-700" />
+              <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
               <span>{triggerButtonText}</span>
             </Button>
           </SheetTrigger>
         </div>
+
+        {/* Barra superior de Seção Atual (opcional, contextual no corpo da página) */}
+        {showCurrentSectionBar && (
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 shadow-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {ActiveIcon && (
+                <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0 font-bold border border-slate-200/70">
+                  <ActiveIcon className={cn('w-4 h-4', activeItem?.iconColor)} />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Seção Atual
+                </p>
+                <p className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                  {activeItem?.label || title}
+                </p>
+              </div>
+            </div>
+
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 rounded-xl border-slate-200 font-bold text-xs bg-slate-50 hover:bg-slate-100 shrink-0 text-slate-800"
+                aria-label={triggerButtonText}
+              >
+                <ThreeLinesMenuIcon className="text-slate-700" />
+                <span>{triggerButtonText}</span>
+              </Button>
+            </SheetTrigger>
+          </div>
+        )}
 
         {/* Gaveta Retrátil com Overlay e Fechamento no X */}
         <SheetContent side="left" className="w-[300px] sm:w-[340px] p-0 flex flex-col bg-white">

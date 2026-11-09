@@ -56,6 +56,7 @@ interface MerchantSidebarProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   showTriggerBar?: boolean
+  showFixedTriggerButton?: boolean
 }
 
 /**
@@ -170,6 +171,7 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
   open: controlledOpen,
   onOpenChange: setControlledOpen,
   showTriggerBar = true,
+  showFixedTriggerButton = true,
 }) => {
   const [internalOpen, setInternalOpen] = React.useState(false)
   const isControlled = controlledOpen !== undefined
@@ -282,6 +284,24 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
   return (
     <div className={cn('w-full', className)}>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        {/* BOTÃO FIXO NA LATERAL SUPERIOR ESQUERDA DA TELA (SEMPRE NO TOPO) */}
+        {showFixedTriggerButton && (
+          <div className="fixed top-20 left-4 z-30 pointer-events-auto">
+            <SheetTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 px-3.5 gap-2 rounded-xl bg-white/95 backdrop-blur-md border-slate-300 shadow-md hover:shadow-lg font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
+                aria-label="Menu do Painel"
+              >
+                <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
+                <span>Menu do Painel</span>
+              </Button>
+            </SheetTrigger>
+          </div>
+        )}
+
         {showTriggerBar && (
           <div className="bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 shadow-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
