@@ -684,12 +684,19 @@ export async function generatePixSubscriptionPayload(
 
 export async function getPixSettings(): Promise<PixSettingRecord[]> {
   try {
-    return await pb.collection('pix_settings').getFullList<PixSettingRecord>({
-      sort: '-created',
+    const res = await pb.send<{ items: PixSettingRecord[] }>('/backend/v1/pix-settings', {
+      method: 'GET',
     })
+    return res.items || []
   } catch (error) {
-    console.error('Error fetching pix settings:', error)
-    return []
+    console.error('Error fetching pix settings via hook, trying fallback collection:', error)
+    try {
+      return await pb.collection('pix_settings').getFullList<PixSettingRecord>({
+        sort: '-created',
+      })
+    } catch {
+      return []
+    }
   }
 }
 
@@ -700,7 +707,10 @@ export async function createPixSetting(data: {
   receiver_city: string
   is_active?: boolean
 }): Promise<PixSettingRecord> {
-  return await pb.collection('pix_settings').create<PixSettingRecord>(data)
+  return await pb.send<PixSettingRecord>('/backend/v1/pix-settings', {
+    method: 'POST',
+    body: data,
+  })
 }
 
 export async function updatePixSetting(
@@ -713,11 +723,17 @@ export async function updatePixSetting(
     is_active?: boolean
   },
 ): Promise<PixSettingRecord> {
-  return await pb.collection('pix_settings').update<PixSettingRecord>(id, data)
+  return await pb.send<PixSettingRecord>('/backend/v1/pix-settings/' + id, {
+    method: 'PATCH',
+    body: data,
+  })
 }
 
 export async function deletePixSetting(id: string): Promise<boolean> {
-  return await pb.collection('pix_settings').delete(id)
+  await pb.send('/backend/v1/pix-settings/' + id, {
+    method: 'DELETE',
+  })
+  return true
 }
 
 /**
