@@ -61,6 +61,7 @@ export interface CollapsibleSidebarProps<T extends string = string> {
   className?: string
   scrollTargetId?: string
   showCurrentSectionBar?: boolean
+  showFixedTriggerButton?: boolean
 }
 
 export function CollapsibleSidebar<T extends string = string>({
@@ -69,7 +70,7 @@ export function CollapsibleSidebar<T extends string = string>({
   headerIcon: HeaderIcon,
   headerBadge,
   headerGradient = 'from-slate-50 to-white',
-  triggerButtonText = 'Menu do Painel',
+  triggerButtonText = 'MENU',
   activeColorClass = 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 ring-1 ring-amber-400',
   items,
   activeKey,
@@ -78,6 +79,7 @@ export function CollapsibleSidebar<T extends string = string>({
   className,
   scrollTargetId,
   showCurrentSectionBar = true,
+  showFixedTriggerButton = true,
 }: CollapsibleSidebarProps<T>) {
   const [open, setOpen] = React.useState(false)
 
@@ -101,21 +103,23 @@ export function CollapsibleSidebar<T extends string = string>({
   return (
     <div className={cn('w-full', className)}>
       <Sheet open={open} onOpenChange={setOpen}>
-        {/* BOTÃO FIXO NA LATERAL SUPERIOR ESQUERDA DA TELA (SEMPRE NO TOPO) */}
-        <div className="fixed top-20 left-4 z-30 pointer-events-auto">
-          <SheetTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-10 px-3.5 gap-2 rounded-xl bg-white/95 backdrop-blur-md border-slate-300 shadow-md hover:shadow-lg font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
-              aria-label={triggerButtonText}
-            >
-              <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
-              <span>{triggerButtonText}</span>
-            </Button>
-          </SheetTrigger>
-        </div>
+        {/* BOTÃO FIXO NA LATERAL SUPERIOR ESQUERDA DA TELA (SEMPRE VISÍVEL NO TOPO, ACIMA DE QUALQUER CONTEÚDO E DO CABEÇALHO) */}
+        {showFixedTriggerButton && (
+          <div className="fixed top-20 left-4 z-50 pointer-events-auto">
+            <SheetTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 px-3.5 gap-2 rounded-xl bg-white/95 backdrop-blur-md border-slate-300 shadow-md hover:shadow-lg font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
+                aria-label={triggerButtonText}
+              >
+                <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
+                <span>{triggerButtonText}</span>
+              </Button>
+            </SheetTrigger>
+          </div>
+        )}
 
         {/* Barra superior de Seção Atual (opcional, contextual no corpo da página) */}
         {showCurrentSectionBar && (

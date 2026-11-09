@@ -31,6 +31,7 @@ import {
 import type { NotificationRecord } from '@/types'
 import { Logo } from '@/components/Logo'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
+import { cn } from '@/lib/utils'
 
 export const Navbar: React.FC = () => {
   const { user, role, isAuthenticated, logout } = useAuth()

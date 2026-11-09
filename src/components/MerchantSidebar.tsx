@@ -284,19 +284,19 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
   return (
     <div className={cn('w-full', className)}>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        {/* BOTÃO FIXO NA LATERAL SUPERIOR ESQUERDA DA TELA (SEMPRE NO TOPO) */}
+        {/* BOTÃO FIXO NA LATERAL SUPERIOR ESQUERDA DA TELA (SEMPRE VISÍVEL NO TOPO, ACIMA DE QUALQUER CONTEÚDO E DO CABEÇALHO) */}
         {showFixedTriggerButton && (
-          <div className="fixed top-20 left-4 z-30 pointer-events-auto">
+          <div className="fixed top-20 left-4 z-50 pointer-events-auto">
             <SheetTrigger asChild>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="h-10 px-3.5 gap-2 rounded-xl bg-white/95 backdrop-blur-md border-slate-300 shadow-md hover:shadow-lg font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
-                aria-label="Menu do Painel"
+                aria-label="MENU"
               >
                 <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
-                <span>Menu do Painel</span>
+                <span>MENU</span>
               </Button>
             </SheetTrigger>
           </div>
@@ -325,10 +325,10 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
                 variant="outline"
                 size="sm"
                 className="gap-2 rounded-xl border-slate-200 font-bold text-xs bg-slate-50 hover:bg-slate-100 shrink-0 text-slate-800"
-                aria-label="Menu do Painel"
+                aria-label="MENU"
               >
                 <ThreeLinesMenuIcon className="text-slate-700" />
-                <span>Menu do Painel</span>
+                <span>MENU</span>
               </Button>
             </SheetTrigger>
           </div>
