@@ -721,33 +721,44 @@ export async function deletePixSetting(id: string): Promise<boolean> {
 
 /**
  * Lista todas as credenciais de pagamento cadastradas (Exclusivo Admin).
+ * Passa pela rota de pb_hooks para trazer apenas valores mascarados.
  */
 export async function getPaymentCredentials(): Promise<PaymentCredentialRecord[]> {
   try {
-    return await pb.collection('payment_credentials').getFullList<PaymentCredentialRecord>({
-      sort: '-created',
-    })
+    const res = await pb.send<{ items: PaymentCredentialRecord[] }>(
+      '/backend/v1/payment-credentials',
+      { method: 'GET' },
+    )
+    return res.items || []
   } catch (error) {
     console.error('Error fetching payment credentials:', error)
-    return []
+    throw error
   }
 }
 
 /**
  * Cria uma nova credencial de pagamento (Exclusivo Admin).
+ * Os campos secretos são gravados no servidor (coleção "hidden" para clientes).
  */
 export async function createPaymentCredential(data: {
   provider: string
   name: string
-  api_key: string
-  extra_config?: Record<string, any>
+  api_key?: string
+  public_key?: string
+  access_token?: string
+  client_id?: string
+  client_secret?: string
   is_active?: boolean
 }): Promise<PaymentCredentialRecord> {
-  return await pb.collection('payment_credentials').create<PaymentCredentialRecord>(data)
+  return await pb.send<PaymentCredentialRecord>('/backend/v1/payment-credentials', {
+    method: 'POST',
+    body: data,
+  })
 }
 
 /**
  * Atualiza uma credencial de pagamento existente (Exclusivo Admin).
+ * Chaves em branco preservam o valor atual (nunca retornam em texto aberto).
  */
 export async function updatePaymentCredential(
   id: string,
@@ -755,18 +766,27 @@ export async function updatePaymentCredential(
     provider?: string
     name?: string
     api_key?: string
-    extra_config?: Record<string, any>
+    public_key?: string
+    access_token?: string
+    client_id?: string
+    client_secret?: string
     is_active?: boolean
   },
 ): Promise<PaymentCredentialRecord> {
-  return await pb.collection('payment_credentials').update<PaymentCredentialRecord>(id, data)
+  return await pb.send<PaymentCredentialRecord>('/backend/v1/payment-credentials/' + id, {
+    method: 'PATCH',
+    body: data,
+  })
 }
 
 /**
  * Exclui uma credencial de pagamento (Exclusivo Admin).
  */
 export async function deletePaymentCredential(id: string): Promise<boolean> {
-  return await pb.collection('payment_credentials').delete(id)
+  await pb.send<{ message: string }>('/backend/v1/payment-credentials/' + id, {
+    method: 'DELETE',
+  })
+  return true
 }
 
 // ==========================================

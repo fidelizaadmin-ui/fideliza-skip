@@ -180,9 +180,10 @@ export interface PaymentCredentialRecord {
   id: string
   provider: string
   name: string
-  api_key?: string
+  /** Somente leitura — sempre mascarado (nunca retorna em texto aberto) */
   api_key_masked?: string
-  extra_config?: Record<string, any>
+  /** Somente leitura — snapshot mascarado de cada campo secreto preenchido */
+  credentials_masked?: Record<string, string>
   is_active: boolean
   created: string
   updated: string
