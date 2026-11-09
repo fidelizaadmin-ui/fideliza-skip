@@ -10,6 +10,7 @@ import {
   TrendingUp,
   ChevronRight,
   ShieldAlert,
+  Images,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ export type MerchantTabKey =
   | 'pos'
   | 'program'
   | 'store'
+  | 'gallery'
   | 'subscription'
   | 'marketing'
   | 'customers'
@@ -119,6 +121,13 @@ export function buildMerchantNavItems(options: {
       label: 'Dados da Loja',
       shortLabel: 'Loja',
       icon: Store,
+    },
+    {
+      key: 'gallery',
+      label: 'Galeria de Fotos',
+      shortLabel: 'Galeria',
+      icon: Images,
+      iconColor: 'text-pink-600',
     },
     {
       key: 'subscription',

@@ -100,6 +100,7 @@ import {
   generateUniqueStoreSlug,
 } from '@/services/fidelityService'
 import { AppointmentsManager } from '@/components/AppointmentsManager'
+import { StoreGalleryManager } from '@/components/StoreGalleryManager'
 import { MerchantSidebar, type MerchantTabKey } from '@/components/MerchantSidebar'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -1331,6 +1332,7 @@ export default function MerchantDashboard() {
           </TabsTrigger>
           <TabsTrigger value="program">Meu Plano de Fidelidade</TabsTrigger>
           <TabsTrigger value="store">Dados da Loja</TabsTrigger>
+          <TabsTrigger value="gallery">Galeria de Fotos</TabsTrigger>
           <TabsTrigger value="subscription">Assinatura</TabsTrigger>
           <TabsTrigger value="marketing">Marketing & Sorteios</TabsTrigger>
           <TabsTrigger value="customers">Base de Clientes</TabsTrigger>
@@ -2359,6 +2361,13 @@ export default function MerchantDashboard() {
                   </form>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* ======================================================== */}
+            {/* TAB: GALERIA DE FOTOS */}
+            {/* ======================================================== */}
+            <TabsContent value="gallery" className="space-y-6">
+              <StoreGalleryManager store={store} isMerchantSuspended={isMerchantSuspended} />
             </TabsContent>
 
             {/* ======================================================== */}

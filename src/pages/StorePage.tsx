@@ -13,6 +13,9 @@ import {
 } from '@/services/fidelityService'
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 import { AppointmentBooking } from '@/components/AppointmentBooking'
+import { StorePublicGallery } from '@/components/StorePublicGallery'
+import { StoreGalleryPhotoRecord } from '@/types'
+import { listStoreGalleryPhotos } from '@/services/storeGalleryService'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -46,6 +49,7 @@ export default function StorePage() {
   const [store, setStore] = useState<StoreRecord | null>(null)
   const [plan, setPlan] = useState<FidelityPlanRecord | null>(null)
   const [customerCard, setCustomerCard] = useState<CustomerCardRecord | null>(null)
+  const [galleryPhotos, setGalleryPhotos] = useState<StoreGalleryPhotoRecord[]>([])
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isEnrolling, setIsEnrolling] = useState(false)
@@ -84,10 +88,14 @@ export default function StorePage() {
           return
         }
 
-        // Carregar plano de fidelidade
-        const planData = await getStoreFidelityPlan(storeData.id)
+        // Carregar plano de fidelidade e fotos da galeria em paralelo
+        const [planData, photosData] = await Promise.all([
+          getStoreFidelityPlan(storeData.id),
+          listStoreGalleryPhotos(storeData.id),
+        ])
         if (!isMounted) return
         setPlan(planData)
+        setGalleryPhotos(photosData)
 
         // Carregar dados de cliente logado
         if (user && role === 'customer') {
@@ -663,6 +671,9 @@ export default function StorePage() {
                 </div>
               </div>
             ) : null}
+
+            {/* SEÇÃO DE GALERIA DE FOTOS (quando houver fotos cadastradas) */}
+            <StorePublicGallery photos={galleryPhotos} storeName={store.name} />
 
             {/* SEÇÃO DE AGENDAMENTO DE SERVIÇOS (quando appointments_enabled) */}
             {store.appointments_enabled && (

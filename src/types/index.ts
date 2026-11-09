@@ -42,6 +42,19 @@ export interface SubscriptionPlanRecord {
   updated: string
 }
 
+export interface StoreGalleryPhotoRecord {
+  id: string
+  store: string
+  photo_file: string
+  title?: string
+  sort_order?: number
+  created: string
+  updated: string
+  expand?: {
+    store?: StoreRecord
+  }
+}
+
 export interface StoreRecord {
   id: string
   owner_id: string

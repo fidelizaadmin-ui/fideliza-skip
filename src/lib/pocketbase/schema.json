@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T14:30:29.713Z",
+  "generatedAt": "2026-11-09T17:03:07.490Z",
   "collections": [
     {
       "name": "users",
@@ -1356,6 +1356,62 @@
       "indexes": [
         "CREATE INDEX idx_appointments_store_date ON appointments (store, date)",
         "CREATE INDEX idx_appointments_customer ON appointments (customer)"
+      ]
+    },
+    {
+      "name": "store_gallery_photos",
+      "type": "base",
+      "apiRules": {
+        "list": "store.suspend_public != true || store.owner_id = @request.auth.id || @request.auth.role = 'admin'",
+        "view": "store.suspend_public != true || store.owner_id = @request.auth.id || @request.auth.role = 'admin'",
+        "create": "(store.owner_id = @request.auth.id && store.suspend_merchant != true) || @request.auth.role = 'admin'",
+        "update": "(store.owner_id = @request.auth.id && store.suspend_merchant != true) || @request.auth.role = 'admin'",
+        "delete": "(store.owner_id = @request.auth.id && store.suspend_merchant != true) || @request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "store",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stores"
+        },
+        {
+          "name": "photo_file",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sort_order",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_store_gallery_photos_store ON store_gallery_photos (store)",
+        "CREATE INDEX idx_store_gallery_photos_created ON store_gallery_photos (store, created)"
       ]
     }
   ]
