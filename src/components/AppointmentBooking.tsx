@@ -1,30 +1,39 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
-  Calendar as CalendarIcon,
+  Calendar,
   Clock,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   DollarSign,
   ChevronRight,
   ArrowLeft,
+  Loader2,
+  Sparkles,
+  QrCode,
+  ShieldCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
 import type { StoreRecord } from '@/types'
-import type { BookedSlot, BusinessHourRecord, ServiceOfferingRecord } from '@/types/appointments'
+import type {
+  AppointmentPixPayloadData,
+  AppointmentRecord,
+  BookedSlot,
+  BusinessHourRecord,
+  ServiceOfferingRecord,
+} from '@/types/appointments'
 import { buildUpcomingDates, computeFreeSlots, weekdayOf } from '@/lib/appointmentSlots'
 import {
   bookAppointment,
-  getApiErrorMessage,
+  getAppointmentPix,
   getBookedSlots,
   listBusinessHours,
   listServiceOfferings,
 } from '@/services/appointmentsService'
+import { AppointmentDepositPaymentView } from '@/components/AppointmentDepositPaymentView'
 
 const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const MONTH_SHORT = [
@@ -53,8 +62,10 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  // Steps: 'service' -> 'datetime' -> 'confirm' -> 'done'
-  const [step, setStep] = useState<'service' | 'datetime' | 'confirm' | 'done'>('service')
+  // Steps: 'service' -> 'datetime' -> 'confirm' -> 'deposit_payment' -> 'done'
+  const [step, setStep] = useState<'service' | 'datetime' | 'confirm' | 'deposit_payment' | 'done'>(
+    'service',
+  )
 
   // Data
   const [services, setServices] = useState<ServiceOfferingRecord[]>([])
@@ -70,6 +81,21 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
   const [selectedTime, setSelectedTime] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Sinal / Pix
+  const [createdAppointmentId, setCreatedAppointmentId] = useState<string>('')
+  const [pixData, setPixData] = useState<AppointmentPixPayloadData | null>(null)
+  const [isLoadingPix, setIsLoadingPix] = useState(false)
+
+  // Cálculo de sinal estimado para exibição prévia
+  const depositPercent = store.appointment_deposit_percent ?? 0
+  const isDepositEnabled = !!store.appointment_deposit_enabled && depositPercent > 0
+
+  const estimatedDepositAmount = useMemo(() => {
+    if (!isDepositEnabled || !selectedService?.price) return 0
+    const val = (selectedService.price * depositPercent) / 100
+    return Math.round(val * 100) / 100
+  }, [isDepositEnabled, selectedService?.price, depositPercent])
 
   // Carrega serviços e horários da loja
   useEffect(() => {
@@ -123,20 +149,20 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
     if (step === 'datetime') {
       fetchAvailability()
     }
-  }, [step, store?.id, upcomingDates])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
 
-  // Horários livres calculados para a data e serviço selecionados
-  const freeSlots = React.useMemo(() => {
-    if (!selectedDate || !selectedService) return []
+  // Slots livres para a data selecionada e serviço atual
+  const freeSlots = useMemo(() => {
+    if (!selectedService || !selectedDate) return []
     return computeFreeSlots({
       date: selectedDate,
       durationMinutes: selectedService.duration_minutes,
       hours,
       booked: bookedSlots,
     })
-  }, [selectedDate, selectedService, hours, bookedSlots])
+  }, [selectedService, selectedDate, hours, bookedSlots])
 
-  // Handlers
   const handleSelectService = (srv: ServiceOfferingRecord) => {
     setSelectedService(srv)
     setSelectedTime('')
@@ -153,7 +179,7 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
 
     setIsSubmitting(true)
     try {
-      await bookAppointment({
+      const res = await bookAppointment({
         store_id: store.id,
         service_id: selectedService.id,
         date: selectedDate,
@@ -161,23 +187,53 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
         notes: notes.trim(),
       })
 
-      setStep('done')
-      toast({
-        title: 'Agendamento solicitado com sucesso!',
-        description: 'Aguarde a confirmação da loja. Acompanhe em Meus Agendamentos.',
-      })
-      if (onSuccess) {
-        // Deixa a mensagem de sucesso na tela e depois fecha
-        setTimeout(onSuccess, 1800)
+      const appt = res.appointment
+      setCreatedAppointmentId(appt.id)
+
+      // Se o agendamento requer pagamento de sinal, carrega o Pix copia e cola oficial
+      if (appt.deposit_required && appt.deposit_amount && appt.deposit_amount > 0) {
+        setIsLoadingPix(true)
+        setStep('deposit_payment')
+        if (res.pix) {
+          setPixData(res.pix)
+          setIsLoadingPix(false)
+        } else {
+          try {
+            const pix = await getAppointmentPix(appt.id)
+            setPixData(pix)
+          } catch (pixErr: any) {
+            console.error('Erro ao gerar Pix do sinal:', pixErr)
+            toast({
+              title: 'Sinal requerido',
+              description:
+                pixErr?.data?.message ||
+                pixErr?.message ||
+                'Agendamento criado! Entre em contato com a loja para realizar o Pix do sinal.',
+              variant: 'destructive',
+            })
+          } finally {
+            setIsLoadingPix(false)
+          }
+        }
+      } else {
+        // Fluxo tradicional sem sinal
+        setStep('done')
+        toast({
+          title: 'Agendamento solicitado com sucesso!',
+          description: 'Aguarde a confirmação da loja. Acompanhe em Meus Agendamentos.',
+        })
+        if (onSuccess) {
+          setTimeout(onSuccess, 1800)
+        }
       }
     } catch (err) {
       console.error('Erro ao agendar:', err)
-      const msg = getApiErrorMessage(
-        err,
-        'Não foi possível concluir o agendamento. Tente outro horário.',
-      )
+      const msg =
+        (err as any)?.data?.message ||
+        (err as any)?.message ||
+        'Não foi possível concluir o agendamento. Tente outro horário.'
       toast({
-        title: 'Horário indisponível',
+        title: 'Atenção ao agendar',
         description: msg,
         variant: 'destructive',
       })
@@ -238,7 +294,7 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
       {/* HEADER / BREADCRUMB */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          {step !== 'service' && step !== 'done' && (
+          {step !== 'service' && step !== 'done' && step !== 'deposit_payment' && (
             <Button
               variant="ghost"
               size="sm"
@@ -256,6 +312,7 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
               {step === 'service' && '1. Escolha o Serviço'}
               {step === 'datetime' && '2. Escolha a Data e o Horário'}
               {step === 'confirm' && '3. Confirmar Agendamento'}
+              {step === 'deposit_payment' && '4. Pagamento do Sinal via Pix'}
               {step === 'done' && 'Agendamento Confirmado!'}
             </h4>
             <p className="text-[11px] text-slate-500">
@@ -263,12 +320,13 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
               {step === 'datetime' &&
                 `${selectedService?.name} • ${selectedService?.duration_minutes} min`}
               {step === 'confirm' && 'Revise os dados antes de solicitar a reserva'}
+              {step === 'deposit_payment' && 'Pague o sinal para garantir o seu horário na agenda'}
               {step === 'done' && 'Sua solicitação foi enviada para o lojista'}
             </p>
           </div>
         </div>
 
-        {onCancel && step !== 'done' && (
+        {onCancel && (
           <Button
             variant="ghost"
             size="sm"
@@ -285,40 +343,58 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
       {/* ======================================================== */}
       {step === 'service' && (
         <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-          {services.map((srv) => (
-            <button
-              key={srv.id}
-              type="button"
-              onClick={() => handleSelectService(srv)}
-              className="w-full text-left bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3.5 transition-all shadow-xs flex items-center justify-between gap-3 group"
-            >
-              <div className="space-y-1 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-sm text-slate-900 group-hover:text-blue-900">
-                    {srv.name}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-slate-500">
-                  <span className="flex items-center gap-1 font-semibold text-slate-700">
-                    <Clock className="w-3.5 h-3.5 text-blue-600" />
-                    {srv.duration_minutes} min
-                  </span>
-                  {srv.price ? (
-                    <span className="flex items-center gap-1 font-bold text-emerald-700">
-                      <DollarSign className="w-3.5 h-3.5" />
-                      R$ {srv.price.toFixed(2)}
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">Preço sob consulta</span>
-                  )}
-                </div>
-              </div>
+          {services.map((srv) => {
+            const hasSinal = isDepositEnabled && srv.price && srv.price > 0 && depositPercent > 0
+            const sinalAmount = hasSinal
+              ? Math.round(((srv.price! * depositPercent) / 100) * 100) / 100
+              : 0
 
-              <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-slate-400 transition-colors shrink-0">
-                <ChevronRight className="w-4 h-4" />
-              </div>
-            </button>
-          ))}
+            return (
+              <button
+                key={srv.id}
+                type="button"
+                onClick={() => handleSelectService(srv)}
+                className="w-full text-left bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3.5 transition-all shadow-xs flex items-center justify-between gap-3 group"
+              >
+                <div className="space-y-1 flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-sm text-slate-900 group-hover:text-blue-900">
+                      {srv.name}
+                    </span>
+                    {hasSinal && (
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-bold">
+                        Sinal de {depositPercent}%
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1 font-semibold text-slate-700">
+                      <Clock className="w-3.5 h-3.5 text-blue-600" />
+                      {srv.duration_minutes} min
+                    </span>
+                    {srv.price ? (
+                      <span className="flex items-center gap-1 font-bold text-emerald-700">
+                        <DollarSign className="w-3.5 h-3.5" />
+                        R$ {srv.price.toFixed(2)}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Preço sob consulta</span>
+                    )}
+
+                    {hasSinal && (
+                      <span className="text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-md text-[11px]">
+                        Sinal: R$ {sinalAmount.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-slate-400 transition-colors shrink-0">
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -357,8 +433,8 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
                     </span>
                     <span className="text-base font-black my-0.5">{info.day}</span>
                     <span
-                      className={`text-[10px] font-medium ${
-                        isSelected ? 'text-blue-100' : 'text-slate-500'
+                      className={`text-[10px] font-semibold ${
+                        isSelected ? 'text-blue-100' : 'text-slate-400'
                       }`}
                     >
                       {info.month}
@@ -369,34 +445,33 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
             </div>
           </div>
 
-          {/* Grade de horários livres */}
+          {/* Grade de horários */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs font-bold text-slate-700">
-                Horários Disponíveis ({selectedDate ? formatDateDisplay(selectedDate).full : ''}):
-              </Label>
-              {isLoadingSlots && (
-                <span className="text-[11px] text-blue-600 flex items-center gap-1 font-semibold">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Atualizando...
-                </span>
-              )}
+              <Label className="text-xs font-bold text-slate-700">Horários Disponíveis:</Label>
+              <span className="text-[11px] text-slate-500">
+                Duração: <strong>{selectedService?.duration_minutes} min</strong>
+              </span>
             </div>
 
             {isLoadingSlots ? (
-              <div className="p-8 text-center text-xs text-slate-400">
-                Buscando horários disponíveis...
+              <div className="p-8 text-center">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600 mx-auto mb-1" />
+                <span className="text-xs text-slate-500">Calculando horários livres...</span>
               </div>
             ) : freeSlots.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-1">
-                <Clock className="w-6 h-6 text-slate-300 mx-auto" />
-                <p className="text-xs font-bold text-slate-700">Nenhum horário livre nesta data</p>
-                <p className="text-[11px] text-slate-400">
+              <div className="p-6 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/60 space-y-1">
+                <Clock className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                <p className="text-xs font-bold text-slate-700">
+                  Nenhum horário livre para esta data
+                </p>
+                <p className="text-[11px] text-slate-500">
                   A loja pode estar fechada neste dia ou todos os horários já foram reservados.
                   Escolha outra data acima.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[220px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-[220px] overflow-y-auto pr-1">
                 {freeSlots.map((slot) => {
                   const isSelected = selectedTime === slot
                   return (
@@ -457,12 +532,32 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
 
             {selectedService.price ? (
               <div className="pt-2 border-t border-blue-200/60 flex items-center justify-between text-xs">
-                <span className="text-slate-600 font-medium">Valor estimado:</span>
+                <span className="text-slate-600 font-medium">Valor total do serviço:</span>
                 <span className="font-black text-emerald-700 text-sm">
                   R$ {selectedService.price.toFixed(2)}
                 </span>
               </div>
             ) : null}
+
+            {/* Destaque da cobrança de sinal se ativa */}
+            {isDepositEnabled && estimatedDepositAmount > 0 && (
+              <div className="pt-2 border-t border-emerald-200 bg-emerald-50/70 -mx-4 -mb-2.5 p-3 rounded-b-2xl space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    Sinal de Reserva ({depositPercent}%):
+                  </span>
+                  <span className="text-base font-black text-emerald-900">
+                    R$ {estimatedDepositAmount.toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-800 leading-tight">
+                  Ao confirmar, você verá o QR Code e código Pix Copia e Cola para pagar o sinal de
+                  R$ {estimatedDepositAmount.toFixed(2)}. O restante de R${' '}
+                  {(selectedService.price! - estimatedDepositAmount).toFixed(2)} será pago na loja.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -505,7 +600,9 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
               ) : (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                  Confirmar Reserva
+                  {isDepositEnabled && estimatedDepositAmount > 0
+                    ? 'Avançar para Pagamento do Sinal'
+                    : 'Confirmar Reserva'}
                 </>
               )}
             </Button>
@@ -514,7 +611,49 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
       )}
 
       {/* ======================================================== */}
-      {/* PASSO 4: CONCLUÍDO */}
+      {/* PASSO 4: PAGAMENTO DE SINAL VIA PIX */}
+      {/* ======================================================== */}
+      {step === 'deposit_payment' && createdAppointmentId && (
+        <div>
+          {isLoadingPix ? (
+            <div className="p-8 text-center space-y-2">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600 mx-auto" />
+              <p className="text-xs text-slate-600 font-medium">
+                Gerando QR Code e PIX oficial do sinal...
+              </p>
+            </div>
+          ) : pixData ? (
+            <AppointmentDepositPaymentView
+              appointmentId={createdAppointmentId}
+              pix={pixData}
+              serviceName={selectedService?.name || 'Serviço'}
+              servicePrice={selectedService?.price}
+              dateDisplay={selectedDate ? formatDateDisplay(selectedDate).full : ''}
+              timeDisplay={selectedTime}
+              storeName={store.name}
+              onPaymentReported={() => {
+                if (onSuccess) {
+                  setTimeout(onSuccess, 3000)
+                }
+              }}
+            />
+          ) : (
+            <div className="p-6 text-center bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+              <AlertCircle className="w-7 h-7 text-amber-600 mx-auto" />
+              <p className="text-xs font-bold text-amber-900">
+                Agendamento criado! Porém não foi possível carregar a chave Pix da loja.
+              </p>
+              <p className="text-[11px] text-amber-800">
+                Entre em contato com o estabelecimento pelo WhatsApp para combinar o pagamento do
+                sinal.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* PASSO 5: CONCLUÍDO (SEM SINAL) */}
       {/* ======================================================== */}
       {step === 'done' && (
         <div className="p-8 text-center space-y-3 bg-emerald-50/60 border border-emerald-200 rounded-2xl">

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T14:12:37.169Z",
+  "generatedAt": "2026-11-09T14:30:29.713Z",
   "collections": [
     {
       "name": "users",
@@ -300,6 +300,43 @@
         },
         {
           "name": "slug",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "appointment_deposit_enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "appointment_deposit_percent",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "appointment_pix_key_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["cpf", "cnpj", "telefone", "email", "aleatoria"]
+        },
+        {
+          "name": "appointment_pix_key_masked",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "appointment_pix_receiver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "appointment_pix_receiver_city",
           "type": "text",
           "required": false,
           "system": false
@@ -1272,6 +1309,48 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "deposit_required",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deposit_percent",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deposit_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deposit_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "not_required",
+            "pending_payment",
+            "paid_pending_confirmation",
+            "confirmed"
+          ]
+        },
+        {
+          "name": "deposit_paid_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deposit_confirmed_at",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

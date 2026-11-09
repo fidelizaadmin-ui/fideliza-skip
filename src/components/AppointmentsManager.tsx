@@ -16,6 +16,10 @@ import {
   Check,
   X,
   Sparkles,
+  QrCode,
+  ShieldCheck,
+  CreditCard,
+  AlertTriangle,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -59,6 +63,7 @@ import {
   updateAppointmentStatus,
   updateServiceOffering,
 } from '@/services/appointmentsService'
+import { AppointmentDepositConfigCard } from '@/components/AppointmentDepositConfigCard'
 
 const WEEKDAY_NAMES = [
   'Domingo',
@@ -436,10 +441,51 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
     () => appointments.filter((a) => a.status === 'pending').length,
     [appointments],
   )
+
+  const pendingDepositConfirmationCount = useMemo(
+    () =>
+      appointments.filter(
+        (a) =>
+          a.status === 'pending' &&
+          a.deposit_required &&
+          a.deposit_status === 'paid_pending_confirmation',
+      ).length,
+    [appointments],
+  )
   const confirmedCount = useMemo(
     () => appointments.filter((a) => a.status === 'confirmed').length,
     [appointments],
   )
+
+  const renderDepositBadge = (appt: AppointmentRecord) => {
+    if (!appt.deposit_required) return null
+
+    switch (appt.deposit_status) {
+      case 'pending_payment':
+        return (
+          <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-bold gap-1 text-[11px]">
+            <Clock className="w-3 h-3 text-amber-700" />
+            Sinal: Aguardando Cliente Pagar (R$ {(appt.deposit_amount || 0).toFixed(2)})
+          </Badge>
+        )
+      case 'paid_pending_confirmation':
+        return (
+          <Badge className="bg-blue-600 text-white font-bold gap-1 text-[11px] animate-pulse">
+            <AlertTriangle className="w-3 h-3 text-amber-300" />
+            Sinal Informado: Confirmar Recebimento (R$ {(appt.deposit_amount || 0).toFixed(2)})
+          </Badge>
+        )
+      case 'confirmed':
+        return (
+          <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold gap-1 text-[11px]">
+            <ShieldCheck className="w-3 h-3 text-emerald-700" />
+            Sinal Pago e Confirmado (R$ {(appt.deposit_amount || 0).toFixed(2)})
+          </Badge>
+        )
+      default:
+        return null
+    }
+  }
 
   const renderStatusBadge = (status: AppointmentStatus) => {
     switch (status) {
@@ -485,6 +531,13 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Card de Configuração de Sinal e Chave Pix do Lojista */}
+      <AppointmentDepositConfigCard
+        store={store}
+        isMerchantSuspended={isMerchantSuspended}
+        onStoreUpdated={onStoreUpdated}
+      />
+
       {/* Banner / Card de Ativação do Módulo */}
       <Card className="rounded-3xl border-slate-200 shadow-xs overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-blue-50/80 via-white to-indigo-50/50 border-b border-slate-100 pb-5">
@@ -672,6 +725,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                         <div className="space-y-1.5 flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             {renderStatusBadge(appt.status)}
+                            {renderDepositBadge(appt)}
                             <span className="text-sm font-black text-slate-900">
                               {appt.service_name || 'Serviço'}
                             </span>
@@ -680,7 +734,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                                 variant="outline"
                                 className="text-emerald-700 border-emerald-200 bg-emerald-50 text-[11px] font-bold"
                               >
-                                R$ {appt.price.toFixed(2)}
+                                Total: R$ {appt.price.toFixed(2)}
                               </Badge>
                             ) : null}
                           </div>
@@ -727,10 +781,17 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                                 size="sm"
                                 disabled={isUpdatingStatus || isMerchantSuspended}
                                 onClick={() => handleUpdateStatus(appt, 'confirmed')}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1"
+                                className={
+                                  appt.deposit_required &&
+                                  appt.deposit_status === 'paid_pending_confirmation'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl gap-1 shadow-md ring-2 ring-emerald-400/50'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1'
+                                }
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                Confirmar
+                                {appt.deposit_required
+                                  ? 'Confirmar Sinal e Agendamento'
+                                  : 'Confirmar'}
                               </Button>
                               <Button
                                 size="sm"

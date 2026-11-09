@@ -64,6 +64,13 @@ export interface StoreRecord {
   suspend_public?: boolean
   suspend_merchant?: boolean
   appointments_enabled?: boolean
+  appointment_deposit_enabled?: boolean
+  appointment_deposit_percent?: number
+  appointment_pix_key_type?: 'cpf' | 'cnpj' | 'telefone' | 'email' | 'aleatoria'
+  appointment_pix_key?: string
+  appointment_pix_key_masked?: string
+  appointment_pix_receiver_name?: string
+  appointment_pix_receiver_city?: string
   created: string
   updated: string
   expand?: {

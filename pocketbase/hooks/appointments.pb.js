@@ -1,6 +1,6 @@
 // pocketbase/hooks/appointments.pb.js
-// Agendamento de serviços: disponibilidade pública, reserva pelo cliente e
-// mudança de status pelo lojista (ou cancelamento pelo próprio cliente).
+// Agendamento de serviços: disponibilidade pública, reserva pelo cliente,
+// cobrança de sinal (% do serviço), chave Pix do lojista e confirmação de pagamento.
 //
 // NOTA: em pb_hooks, funções de topo de arquivo NÃO são acessíveis dentro dos callbacks.
 // Por isso os auxiliares ficam inline em cada rota.
@@ -60,6 +60,8 @@ routerAdd('GET', '/backend/v1/appointments/availability', (e) => {
 
 // 2. Reserva do cliente logado. Valida loja aberta, serviço ativo, período de atendimento,
 // data/horário futuros e ausência de conflito com outro agendamento ativo.
+// Se a loja exigir sinal (appointment_deposit_enabled e % > 0), calcula o valor do sinal,
+// define deposit_status = 'pending_payment' e gera o payload Pix copia e cola EMV oficial.
 // POST /backend/v1/appointments/book { store_id, service_id, date, start_time, notes }
 routerAdd('POST', '/backend/v1/appointments/book', (e) => {
   const authUser = e.auth
@@ -173,6 +175,17 @@ routerAdd('POST', '/backend/v1/appointments/book', (e) => {
     return e.json(409, { message: 'Este horário acabou de ser ocupado. Escolha outro horário.' })
   }
 
+  const servicePrice = service.getFloat('price') || 0
+  const depositEnabled = store.getBool('appointment_deposit_enabled')
+  const depositPercent = store.getInt('appointment_deposit_percent') || 0
+  const pixKey = store.getString('appointment_pix_key') || ''
+
+  const depositRequired = depositEnabled && depositPercent > 0 && servicePrice > 0 && pixKey !== ''
+  let depositAmount = 0
+  if (depositRequired) {
+    depositAmount = Math.round(((servicePrice * depositPercent) / 100) * 100) / 100
+  }
+
   const collection = e.app.findCollectionByNameOrId('appointments')
   const record = new Record(collection)
   record.set('store', storeId)
@@ -186,26 +199,424 @@ routerAdd('POST', '/backend/v1/appointments/book', (e) => {
   record.set('end_time', endTime)
   record.set('status', 'pending')
   record.set('notes', notes)
-  record.set('price', service.getFloat('price') || 0)
+  record.set('price', servicePrice)
+
+  record.set('deposit_required', depositRequired)
+  record.set('deposit_percent', depositRequired ? depositPercent : 0)
+  record.set('deposit_amount', depositAmount)
+  record.set('deposit_status', depositRequired ? 'pending_payment' : 'not_required')
+
   e.app.save(record)
 
+  // Se requer sinal, gera o payload Pix copia e cola EMV
+  let pixPayloadData = null
+  if (depositRequired) {
+    function emvField(id, value) {
+      if (value === undefined || value === null) return ''
+      const s = String(value)
+      const len = String(s.length).padStart(2, '0')
+      return String(id).padStart(2, '0') + len + s
+    }
+
+    function removeAccents(str) {
+      if (!str) return ''
+      const map = {
+        á: 'a',
+        à: 'a',
+        ã: 'a',
+        â: 'a',
+        ä: 'a',
+        é: 'e',
+        è: 'e',
+        ê: 'e',
+        ë: 'e',
+        í: 'i',
+        ì: 'i',
+        î: 'i',
+        ï: 'i',
+        ó: 'o',
+        ò: 'o',
+        õ: 'o',
+        ô: 'o',
+        ö: 'o',
+        ú: 'u',
+        ù: 'u',
+        û: 'u',
+        ü: 'u',
+        ç: 'c',
+        ñ: 'n',
+        Á: 'A',
+        À: 'A',
+        Ã: 'A',
+        Â: 'A',
+        Ä: 'A',
+        É: 'E',
+        È: 'E',
+        Ê: 'E',
+        Ë: 'E',
+        Í: 'I',
+        Ì: 'I',
+        Î: 'I',
+        Ï: 'I',
+        Ó: 'O',
+        Ò: 'O',
+        Õ: 'O',
+        Ô: 'O',
+        Ö: 'O',
+        Ú: 'U',
+        Ù: 'U',
+        Û: 'U',
+        Ü: 'U',
+        Ç: 'C',
+        Ñ: 'N',
+      }
+      return String(str).replace(/[^\u0000-\u007E]/g, (c) => map[c] || '')
+    }
+
+    function cleanPixKey(key, type) {
+      if (!key) return ''
+      const k = String(key).trim()
+      if (type === 'cpf' || type === 'cnpj' || type === 'telefone') {
+        const digits = k.replace(/\D/g, '')
+        if (
+          type === 'telefone' &&
+          digits &&
+          !digits.startsWith('55') &&
+          (digits.length === 10 || digits.length === 11)
+        ) {
+          return '+55' + digits
+        }
+        if (type === 'telefone' && digits.startsWith('55')) {
+          return '+' + digits
+        }
+        return digits
+      }
+      return k
+    }
+
+    function crc16(str) {
+      let crc = 0xffff
+      const polynomial = 0x1021
+      for (let i = 0; i < str.length; i++) {
+        const b = str.charCodeAt(i)
+        for (let j = 0; j < 8; j++) {
+          const bit = ((b >> (7 - j)) & 1) === 1
+          const c15 = ((crc >> 15) & 1) === 1
+          crc <<= 1
+          if (c15 ^ bit) crc ^= polynomial
+        }
+      }
+      crc &= 0xffff
+      return crc.toString(16).toUpperCase().padStart(4, '0')
+    }
+
+    const keyType = store.getString('appointment_pix_key_type') || 'aleatoria'
+    const formattedKey = cleanPixKey(pixKey, keyType)
+    let receiverName = removeAccents(
+      store.getString('appointment_pix_receiver_name') || store.getString('name') || 'Lojista',
+    )
+      .replace(/[^A-Za-z0-9 ]/g, '')
+      .substring(0, 25)
+      .trim()
+    if (!receiverName) receiverName = 'Lojista'
+
+    let receiverCity = removeAccents(
+      store.getString('appointment_pix_receiver_city') || store.getString('city') || 'SAO PAULO',
+    )
+      .replace(/[^A-Za-z0-9 ]/g, '')
+      .substring(0, 15)
+      .trim()
+    if (!receiverCity) receiverCity = 'SAO PAULO'
+
+    const txid = ('AG' + record.id).substring(0, 25)
+    const amountStr = depositAmount.toFixed(2)
+
+    const maiPayload = emvField('00', 'br.gov.bcb.pix') + emvField('01', formattedKey)
+    const addDataField = emvField('05', txid)
+
+    let payloadWithoutCrc =
+      emvField('00', '01') +
+      emvField('01', '12') +
+      emvField('26', maiPayload) +
+      emvField('52', '0000') +
+      emvField('53', '986') +
+      emvField('54', amountStr) +
+      emvField('58', 'BR') +
+      emvField('59', receiverName) +
+      emvField('60', receiverCity) +
+      emvField('62', addDataField) +
+      '6304'
+
+    const crc = crc16(payloadWithoutCrc)
+    const finalPayload = payloadWithoutCrc + crc
+
+    pixPayloadData = {
+      pix_payload: finalPayload,
+      receiver_name: receiverName,
+      receiver_city: receiverCity,
+      txid: txid,
+      amount: depositAmount,
+      deposit_percent: depositPercent,
+    }
+  }
+
   return e.json(200, {
-    message: 'Agendamento solicitado! Aguarde a confirmação da loja.',
+    message: depositRequired
+      ? 'Agendamento pré-reservado! Efetue o pagamento do sinal para a loja confirmar.'
+      : 'Agendamento solicitado! Aguarde a confirmação da loja.',
     appointment: {
       id: record.id,
       date: date,
       start_time: startTime,
       end_time: endTime,
       status: 'pending',
+      deposit_required: depositRequired,
+      deposit_percent: depositPercent,
+      deposit_amount: depositAmount,
+      deposit_status: depositRequired ? 'pending_payment' : 'not_required',
+    },
+    pix: pixPayloadData,
+  })
+})
+
+// 3. Cliente marca que pagou o sinal.
+// Transiciona deposit_status de 'pending_payment' para 'paid_pending_confirmation'.
+// POST /backend/v1/appointments/mark-deposit-paid { appointment_id }
+routerAdd('POST', '/backend/v1/appointments/mark-deposit-paid', (e) => {
+  const authUser = e.auth
+  if (!authUser) {
+    return e.json(401, { message: 'Faça login para continuar.' })
+  }
+
+  const body = e.requestInfo().body || {}
+  const appointmentId = (body.appointment_id || '').trim()
+  if (!appointmentId) {
+    return e.json(400, { message: 'ID do agendamento não informado.' })
+  }
+
+  let appt = null
+  try {
+    appt = e.app.findRecordById('appointments', appointmentId)
+  } catch (_) {
+    return e.json(404, { message: 'Agendamento não encontrado.' })
+  }
+
+  if (appt.getString('customer') !== authUser.id) {
+    return e.json(403, { message: 'Você só pode alterar seus próprios agendamentos.' })
+  }
+
+  if (!appt.getBool('deposit_required')) {
+    return e.json(400, { message: 'Este agendamento não requer pagamento de sinal.' })
+  }
+
+  const currentStatus = appt.getString('deposit_status')
+  if (currentStatus === 'confirmed') {
+    return e.json(400, { message: 'O sinal deste agendamento já foi confirmado pelo lojista.' })
+  }
+
+  appt.set('deposit_status', 'paid_pending_confirmation')
+  appt.set('deposit_paid_at', new Date().toISOString())
+  e.app.save(appt)
+
+  // Notificação in-app para o lojista
+  try {
+    let store = e.app.findRecordById('stores', appt.getString('store'))
+    const ownerId = store.getString('owner_id')
+    if (ownerId) {
+      const notifCollection = e.app.findCollectionByNameOrId('notifications')
+      const notif = new Record(notifCollection)
+      notif.set('user', ownerId)
+      notif.set('store', store.id)
+      notif.set('type', 'system')
+      notif.set('title', 'Sinal de agendamento pago 💳')
+      notif.set(
+        'message',
+        'O cliente ' +
+          (appt.getString('customer_name') || 'Cliente') +
+          ' informou o pagamento do sinal de R$ ' +
+          (appt.getFloat('deposit_amount') || 0).toFixed(2) +
+          ' para o serviço ' +
+          (appt.getString('service_name') || 'Serviço') +
+          '. Confira em sua conta e confirme o agendamento.',
+      )
+      notif.set('is_read', false)
+      notif.set('data', { appointment_id: appt.id })
+      e.app.save(notif)
+    }
+  } catch (err) {
+    console.warn('[Appointments] Erro ao notificar lojista sobre sinal:', err.message)
+  }
+
+  return e.json(200, {
+    message: 'Pagamento informado com sucesso! O lojista irá conferir e confirmar seu horário.',
+    appointment: {
+      id: appt.id,
+      deposit_status: 'paid_pending_confirmation',
     },
   })
 })
 
-// 3. Mudança de status.
+// 4. Lojista consulta / atualiza configurações de sinal e chave Pix da sua loja.
+// GET /backend/v1/appointments/deposit-settings?store_id=...
+// Retorna as configurações com a chave mascarada (nunca completa).
+routerAdd('GET', '/backend/v1/appointments/deposit-settings', (e) => {
+  const authUser = e.auth
+  if (!authUser) {
+    return e.json(401, { message: 'Autenticação necessária.' })
+  }
+
+  const q = e.requestInfo().query || {}
+  const storeId = (q.store_id || '').trim()
+  if (!storeId) {
+    return e.json(400, { message: 'ID da loja não informado.' })
+  }
+
+  let store = null
+  try {
+    store = e.app.findRecordById('stores', storeId)
+  } catch (_) {
+    return e.json(404, { message: 'Loja não encontrada.' })
+  }
+
+  const isAdmin = authUser.getString('role') === 'admin'
+  const isOwner = store.getString('owner_id') === authUser.id
+  if (!isAdmin && !isOwner) {
+    return e.json(403, { message: 'Sem permissão para ver as configurações desta loja.' })
+  }
+
+  return e.json(200, {
+    deposit_enabled: store.getBool('appointment_deposit_enabled'),
+    deposit_percent: store.getInt('appointment_deposit_percent') || 0,
+    key_type: store.getString('appointment_pix_key_type') || 'aleatoria',
+    pix_key_masked: store.getString('appointment_pix_key_masked') || '',
+    receiver_name: store.getString('appointment_pix_receiver_name') || '',
+    receiver_city: store.getString('appointment_pix_receiver_city') || '',
+    has_pix_key: !!store.getString('appointment_pix_key'),
+  })
+})
+
+// POST /backend/v1/appointments/deposit-settings
+// Salva a chave Pix (mascara no backend e nunca reexibe a completa) e a porcentagem.
+routerAdd('POST', '/backend/v1/appointments/deposit-settings', (e) => {
+  const authUser = e.auth
+  if (!authUser) {
+    return e.json(401, { message: 'Autenticação necessária.' })
+  }
+
+  const body = e.requestInfo().body || {}
+  const storeId = (body.store_id || '').trim()
+  const depositEnabled = !!body.deposit_enabled
+  let depositPercent = Number(body.deposit_percent) || 0
+  const keyType = (body.key_type || 'aleatoria').trim()
+  const newPixKey = (body.pix_key || '').trim()
+  const receiverName = (body.receiver_name || '').trim().substring(0, 25)
+  const receiverCity = (body.receiver_city || '').trim().substring(0, 15)
+
+  if (!storeId) {
+    return e.json(400, { message: 'ID da loja não informado.' })
+  }
+  if (depositPercent < 0) depositPercent = 0
+  if (depositPercent > 100) depositPercent = 100
+
+  let store = null
+  try {
+    store = e.app.findRecordById('stores', storeId)
+  } catch (_) {
+    return e.json(404, { message: 'Loja não encontrada.' })
+  }
+
+  const isAdmin = authUser.getString('role') === 'admin'
+  const isOwner = store.getString('owner_id') === authUser.id
+  if (!isAdmin && !isOwner) {
+    return e.json(403, { message: 'Sem permissão para alterar as configurações desta loja.' })
+  }
+
+  function maskKey(key, type) {
+    if (!key) return ''
+    const clean = String(key).trim()
+    if (type === 'email') {
+      const parts = clean.split('@')
+      if (parts.length === 2) {
+        const user = parts[0]
+        const domain = parts[1]
+        const visible = user.substring(0, Math.min(2, user.length))
+        return visible + '***@' + domain
+      }
+    }
+    if (type === 'cpf') {
+      const digits = clean.replace(/\D/g, '')
+      if (digits.length === 11) {
+        return '***.' + digits.substring(3, 6) + '.' + digits.substring(6, 9) + '-**'
+      }
+    }
+    if (type === 'cnpj') {
+      const digits = clean.replace(/\D/g, '')
+      if (digits.length === 14) {
+        return digits.substring(0, 2) + '.***.***/' + digits.substring(8, 12) + '-**'
+      }
+    }
+    if (type === 'telefone') {
+      const digits = clean.replace(/\D/g, '')
+      if (digits.length >= 10) {
+        return '(' + digits.substring(0, 2) + ') *****-' + digits.substring(digits.length - 4)
+      }
+    }
+    if (clean.length > 8) {
+      return clean.substring(0, 4) + '...' + clean.substring(clean.length - 4)
+    }
+    return '********'
+  }
+
+  store.set('appointment_deposit_enabled', depositEnabled)
+  store.set('appointment_deposit_percent', depositPercent)
+  if (keyType) {
+    store.set('appointment_pix_key_type', keyType)
+  }
+  if (receiverName) {
+    store.set('appointment_pix_receiver_name', receiverName)
+  }
+  if (receiverCity) {
+    store.set('appointment_pix_receiver_city', receiverCity)
+  }
+
+  if (newPixKey) {
+    store.set('appointment_pix_key', newPixKey)
+    store.set('appointment_pix_key_masked', maskKey(newPixKey, keyType))
+  }
+
+  // Validação ao ativar
+  if (depositEnabled) {
+    const hasKey = !!store.getString('appointment_pix_key')
+    if (!hasKey) {
+      return e.json(400, {
+        message: 'Para ativar a cobrança de sinal, cadastre uma chave Pix de recebimento válida.',
+      })
+    }
+    if (depositPercent <= 0) {
+      return e.json(400, {
+        message: 'Defina uma porcentagem maior que 0% para a cobrança do sinal.',
+      })
+    }
+  }
+
+  e.app.save(store)
+
+  return e.json(200, {
+    message: 'Configurações de sinal salvas com sucesso!',
+    deposit_enabled: store.getBool('appointment_deposit_enabled'),
+    deposit_percent: store.getInt('appointment_deposit_percent') || 0,
+    key_type: store.getString('appointment_pix_key_type') || 'aleatoria',
+    pix_key_masked: store.getString('appointment_pix_key_masked') || '',
+    receiver_name: store.getString('appointment_pix_receiver_name') || '',
+    receiver_city: store.getString('appointment_pix_receiver_city') || '',
+    has_pix_key: !!store.getString('appointment_pix_key'),
+  })
+})
+
+// 5. Mudança de status do agendamento.
 // - Lojista dono (sem suspensão do perfil) ou admin: confirmar, concluir ou cancelar.
+//   Ao confirmar, se houver sinal, marca deposit_status = 'confirmed' e deposit_confirmed_at.
 // - Cliente dono: apenas cancelar o próprio agendamento pendente/confirmado.
-// Confirmação, conclusão e cancelamento pelo lojista geram notificação in-app ao cliente;
-// confirmação também dispara e-mail via Gmail do owner (mesmo mecanismo do sorteio).
 // POST /backend/v1/appointments/update-status { appointment_id, status, cancel_reason }
 routerAdd('POST', '/backend/v1/appointments/update-status', (e) => {
   const appUrl = 'https://fideliza-programa-de-fidelidade-4940d.goskip.app'
@@ -271,11 +682,19 @@ routerAdd('POST', '/backend/v1/appointments/update-status', (e) => {
   if (newStatus === 'cancelled' && cancelReason) {
     appt.set('cancel_reason', cancelReason)
   }
+
+  // Se o lojista está confirmando o agendamento e havia sinal requerido, marca o sinal como confirmado
+  if (isMerchantSide && newStatus === 'confirmed' && appt.getBool('deposit_required')) {
+    appt.set('deposit_status', 'confirmed')
+    appt.set('deposit_confirmed_at', new Date().toISOString())
+  }
+
   e.app.save(appt)
 
   const apptOut = {
     id: appt.id,
     status: newStatus,
+    deposit_status: appt.getString('deposit_status'),
     date: appt.getString('date').substring(0, 10),
     start_time: appt.getString('start_time'),
     end_time: appt.getString('end_time'),
@@ -298,7 +717,9 @@ routerAdd('POST', '/backend/v1/appointments/update-status', (e) => {
   const customerId = appt.getString('customer')
 
   const titles = {
-    confirmed: 'Agendamento confirmado ✅',
+    confirmed: appt.getBool('deposit_required')
+      ? 'Sinal recebido e agendamento confirmado! ✅'
+      : 'Agendamento confirmado ✅',
     completed: 'Atendimento concluído',
     cancelled: 'Agendamento cancelado',
   }
@@ -313,7 +734,11 @@ routerAdd('POST', '/backend/v1/appointments/update-status', (e) => {
     timeText +
     ' foi ' +
     (newStatus === 'confirmed'
-      ? 'confirmado.'
+      ? appt.getBool('deposit_required')
+        ? 'confirmado após o recebimento do sinal de R$ ' +
+          (appt.getFloat('deposit_amount') || 0).toFixed(2) +
+          '.'
+        : 'confirmado.'
       : newStatus === 'completed'
         ? 'marcado como concluído.'
         : 'cancelado pela loja.')
@@ -336,7 +761,7 @@ routerAdd('POST', '/backend/v1/appointments/update-status', (e) => {
     console.warn('[Appointments] Falha ao criar notificação: ' + err.message)
   }
 
-  // E-mail de confirmação (Gmail do owner, mesmo padrão de gmail_mailer.pb.js)
+  // E-mail de confirmação (Gmail do owner)
   let emailSent = false
   if (newStatus === 'confirmed') {
     try {
@@ -361,7 +786,10 @@ routerAdd('POST', '/backend/v1/appointments/update-status', (e) => {
         '    <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">' +
         '      Seu agendamento na loja <strong>' +
         storeName +
-        '</strong> foi <strong>confirmado</strong>.' +
+        '</strong> foi <strong>confirmado</strong>' +
+        (appt.getBool('deposit_required')
+          ? ' com sinal de R$ ' + (appt.getFloat('deposit_amount') || 0).toFixed(2) + ' recebido.'
+          : '.') +
         '    </p>' +
         '    <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0;">' +
         '      <p style="font-size: 14px; margin: 0 0 8px 0; color: #0f172a;"><strong>Serviço:</strong> ' +
@@ -399,14 +827,6 @@ routerAdd('POST', '/backend/v1/appointments/update-status', (e) => {
         is_html: true,
       })
       emailSent = !!(res && res.successful)
-      if (!emailSent) {
-        console.warn(
-          '[Appointments:confirmation] Falha para ' +
-            recipient +
-            ': ' +
-            (res ? res.error : 'desconhecido'),
-        )
-      }
     } catch (err) {
       console.error('[Appointments:confirmation] Erro ao disparar: ' + err.message)
     }

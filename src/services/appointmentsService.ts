@@ -1,5 +1,7 @@
 import pb from '@/lib/pocketbase/client'
 import type {
+  AppointmentDepositSettings,
+  AppointmentPixPayloadData,
   AppointmentRecord,
   AppointmentStatus,
   BookedSlot,
@@ -89,17 +91,79 @@ export async function getBookedSlots(storeId: string, from: string, to: string) 
   return res.booked || []
 }
 
+export interface BookAppointmentResponse {
+  message: string
+  appointment: {
+    id: string
+    date: string
+    start_time: string
+    end_time: string
+    status: AppointmentStatus
+    deposit_required?: boolean
+    deposit_percent?: number
+    deposit_amount?: number
+    deposit_status?: string
+  }
+  pix?: AppointmentPixPayloadData | null
+}
+
 export async function bookAppointment(input: {
   store_id: string
   service_id: string
   date: string
   start_time: string
   notes?: string
-}) {
-  return pb.send<{ message: string }>('/backend/v1/appointments/book', {
+}): Promise<BookAppointmentResponse> {
+  return pb.send<BookAppointmentResponse>('/backend/v1/appointments/book', {
     method: 'POST',
     body: input,
   })
+}
+
+export async function markDepositPaid(appointmentId: string) {
+  return pb.send<{ message: string; appointment: { id: string; deposit_status: string } }>(
+    '/backend/v1/appointments/mark-deposit-paid',
+    {
+      method: 'POST',
+      body: { appointment_id: appointmentId },
+    },
+  )
+}
+
+export async function getAppointmentPix(appointmentId: string): Promise<AppointmentPixPayloadData> {
+  return pb.send<AppointmentPixPayloadData>(
+    '/backend/v1/appointments/pix-payload?appointment_id=' + encodeURIComponent(appointmentId),
+    { method: 'GET' },
+  )
+}
+
+// ---- Configurações de Sinal e Chave Pix do Lojista ----
+
+export async function getAppointmentDepositSettings(
+  storeId: string,
+): Promise<AppointmentDepositSettings> {
+  return pb.send<AppointmentDepositSettings>(
+    '/backend/v1/appointments/deposit-settings?store_id=' + encodeURIComponent(storeId),
+    { method: 'GET' },
+  )
+}
+
+export async function saveAppointmentDepositSettings(data: {
+  store_id: string
+  deposit_enabled: boolean
+  deposit_percent: number
+  key_type?: string
+  pix_key?: string
+  receiver_name?: string
+  receiver_city?: string
+}): Promise<AppointmentDepositSettings & { message: string }> {
+  return pb.send<AppointmentDepositSettings & { message: string }>(
+    '/backend/v1/appointments/deposit-settings',
+    {
+      method: 'POST',
+      body: data,
+    },
+  )
 }
 
 // ---- Agenda ----

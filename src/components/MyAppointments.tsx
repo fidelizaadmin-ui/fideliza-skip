@@ -10,6 +10,8 @@ import {
   X,
   Sparkles,
   Info,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -193,6 +195,25 @@ export const MyAppointments: React.FC = () => {
                     <div className="space-y-1.5 flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         {renderStatusBadge(appt.status)}
+                        {appt.deposit_required &&
+                          (appt.deposit_status === 'confirmed' ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-[11px] gap-1">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              Sinal Confirmado (R$ {(appt.deposit_amount || 0).toFixed(2)})
+                            </Badge>
+                          ) : appt.deposit_status === 'paid_pending_confirmation' ? (
+                            <Badge className="bg-blue-100 text-blue-800 border-blue-300 font-bold text-[11px] gap-1">
+                              <Clock className="w-3 h-3 text-blue-600" />
+                              Sinal Pago: Aguardando Conferência (R${' '}
+                              {(appt.deposit_amount || 0).toFixed(2)})
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-bold text-[11px] gap-1">
+                              <AlertTriangle className="w-3 h-3 text-amber-700" />
+                              Sinal Pendente de Pagamento (R${' '}
+                              {(appt.deposit_amount || 0).toFixed(2)})
+                            </Badge>
+                          ))}
                         <span className="text-sm font-black text-slate-900">
                           {appt.service_name || 'Serviço'}
                         </span>
@@ -201,7 +222,7 @@ export const MyAppointments: React.FC = () => {
                             variant="outline"
                             className="text-emerald-700 border-emerald-200 bg-emerald-50 text-[11px] font-bold"
                           >
-                            R$ {appt.price.toFixed(2)}
+                            Total: R$ {appt.price.toFixed(2)}
                           </Badge>
                         ) : null}
                       </div>
