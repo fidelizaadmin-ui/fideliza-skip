@@ -1,39 +1,27 @@
 // pocketbase/hooks/paymentCredentials.pb.js
 // CRUD server-side das credenciais de pagamento (aba "Credenciais & Pix" do admin).
 //
-// Contexto do bug: os campos secretos (api_key, public_key, access_token, ...)
-// são "hidden" na collection — por regra do PocketBase, clientes autenticados
-// comuns (inclusive o usuário admin da regra de API) NÃO conseguem gravá-los,
-// então a credencial era criada sem a chave (e hoje nem chega lá, pois "required").
-// As rotas abaixo gravam os campos hidden no servidor (nível app), mascaram os
-// valores e garantem a exclusividade da credencial ativa por provedor.
-
-function maskSecret(raw) {
-  const str = String(raw || '').trim()
-  if (!str) return ''
-  if (str.length <= 8) return '****' + str.slice(-2)
-  return str.slice(0, 2) + '****...' + str.slice(-4)
-}
-
-function applyMaskedSnapshot(rec) {
-  const snapshot = {}
-  const secretFields = ['api_key', 'public_key', 'access_token', 'client_id', 'client_secret']
-  for (let i = 0; i < secretFields.length; i++) {
-    const value = String(rec.getString(secretFields[i]) || '').trim()
-    if (value) {
-      snapshot[secretFields[i]] = maskSecret(value)
-    }
-  }
-  rec.set('api_key_masked', maskSecret(rec.getString('api_key')))
-  rec.set('credentials_masked', snapshot)
-}
+// Contexto de arquitetura PocketBase JSVM:
+// Funções e variáveis no escopo do módulo NÃO persistem de forma confiável entre
+// VM pools. Toda função auxiliar deve ser inline dentro do callback da rota.
+//
+// Além disso, campos secretos (api_key, public_key, access_token, client_id, client_secret)
+// são hidden na collection. Para garantir segurança total, as rotas gravam os valores
+// no servidor via e.app, geram snapshot mascarado e NUNCA retornam o valor em texto limpo.
 
 // 1. Criar credencial
-// POST /backend/v1/payment-credentials { provider, name, api_key?, public_key?, access_token?, client_id?, client_secret?, is_active }
+// POST /backend/v1/payment-credentials
 routerAdd('POST', '/backend/v1/payment-credentials', (e) => {
   const auth = e.auth
   if (!auth || auth.getString('role') !== 'admin') {
     return e.json(403, { message: 'Apenas administradores podem gerenciar credenciais.' })
+  }
+
+  function maskValue(raw) {
+    const str = String(raw || '').trim()
+    if (!str) return ''
+    if (str.length <= 8) return '****' + str.slice(-2)
+    return str.slice(0, 2) + '****...' + str.slice(-4)
   }
 
   const body = (e.requestInfo() && e.requestInfo().body) || {}
@@ -50,9 +38,19 @@ routerAdd('POST', '/backend/v1/payment-credentials', (e) => {
   const clientId = String(body.client_id || '').trim()
   const clientSecret = String(body.client_secret || '').trim()
 
-  if (!apiKey && !publicKey && !accessToken && !clientId) {
+  const isMercadoPago =
+    provider.toLowerCase().indexOf('mercado') >= 0 || provider.toLowerCase().indexOf('pago') >= 0
+
+  if (isMercadoPago) {
+    if (!publicKey || !accessToken || !clientId || !clientSecret) {
+      return e.json(400, {
+        message:
+          'Para o Mercado Pago, preencha todos os 4 campos: Public Key, Access Token, Client ID e Client Secret.',
+      })
+    }
+  } else if (!apiKey && !publicKey && !accessToken && !clientId && !clientSecret) {
     return e.json(400, {
-      message: 'Informe ao menos uma credencial secreta (API Key, Public Key, Access Token ou Client ID).',
+      message: 'Informe a API Key do provedor de pagamento.',
     })
   }
 
@@ -73,22 +71,39 @@ routerAdd('POST', '/backend/v1/payment-credentials', (e) => {
   if (clientSecret) rec.set('client_secret', clientSecret)
   rec.set('is_active', !!body.is_active)
 
-  applyMaskedSnapshot(rec)
-
-  // Exclusividade da credencial ativa por provedor
-  if (rec.getBool('is_active')) {
-    const siblings = e.app.findRecordsByFilter(
-      'payment_credentials',
-      'is_active = true && provider = {:p}',
-      '-updated',
-      0,
-      0,
-      { p: provider },
-    )
-    for (let i = 0; i < siblings.length; i++) {
-      siblings[i].set('is_active', false)
-      e.app.save(siblings[i])
+  // Snapshot mascarado
+  const snapshot = {}
+  const secretFields = ['api_key', 'public_key', 'access_token', 'client_id', 'client_secret']
+  for (let i = 0; i < secretFields.length; i++) {
+    const val = String(rec.getString(secretFields[i]) || '').trim()
+    if (val) {
+      snapshot[secretFields[i]] = maskValue(val)
     }
+  }
+  const primaryMasked =
+    maskValue(rec.getString('api_key')) ||
+    maskValue(rec.getString('access_token')) ||
+    maskValue(rec.getString('public_key')) ||
+    maskValue(rec.getString('client_id'))
+  rec.set('api_key_masked', primaryMasked)
+  rec.set('credentials_masked', snapshot)
+
+  // Se ativado, desativa as outras credenciais ativas do mesmo provedor
+  if (rec.getBool('is_active')) {
+    try {
+      const siblings = e.app.findRecordsByFilter(
+        'payment_credentials',
+        'is_active = true && provider = {:p}',
+        '-updated',
+        0,
+        0,
+        { p: provider },
+      )
+      for (let i = 0; i < siblings.length; i++) {
+        siblings[i].set('is_active', false)
+        e.app.save(siblings[i])
+      }
+    } catch (_) {}
   }
 
   try {
@@ -117,7 +132,14 @@ routerAdd('PATCH', '/backend/v1/payment-credentials/{id}', (e) => {
     return e.json(403, { message: 'Apenas administradores podem gerenciar credenciais.' })
   }
 
-  const id = e.requestInfo().pathValue('id') || ''
+  function maskValue(raw) {
+    const str = String(raw || '').trim()
+    if (!str) return ''
+    if (str.length <= 8) return '****' + str.slice(-2)
+    return str.slice(0, 2) + '****...' + str.slice(-4)
+  }
+
+  const id = (e.request ? e.request.pathValue('id') : '') || ''
   let rec = null
   try {
     rec = e.app.findRecordById('payment_credentials', id)
@@ -139,21 +161,37 @@ routerAdd('PATCH', '/backend/v1/payment-credentials/{id}', (e) => {
     }
   }
 
-  applyMaskedSnapshot(rec)
+  // Snapshot mascarado atualizado
+  const snapshot = {}
+  for (let i = 0; i < secretFields.length; i++) {
+    const val = String(rec.getString(secretFields[i]) || '').trim()
+    if (val) {
+      snapshot[secretFields[i]] = maskValue(val)
+    }
+  }
+  const primaryMasked =
+    maskValue(rec.getString('api_key')) ||
+    maskValue(rec.getString('access_token')) ||
+    maskValue(rec.getString('public_key')) ||
+    maskValue(rec.getString('client_id'))
+  rec.set('api_key_masked', primaryMasked)
+  rec.set('credentials_masked', snapshot)
 
   if (rec.getBool('is_active')) {
-    const siblings = e.app.findRecordsByFilter(
-      'payment_credentials',
-      'is_active = true && provider = {:p} && id != {:id}',
-      '-updated',
-      0,
-      0,
-      { p: rec.getString('provider'), id: rec.id },
-    )
-    for (let i = 0; i < siblings.length; i++) {
-      siblings[i].set('is_active', false)
-      e.app.save(siblings[i])
-    }
+    try {
+      const siblings = e.app.findRecordsByFilter(
+        'payment_credentials',
+        'is_active = true && provider = {:p} && id != {:id}',
+        '-updated',
+        0,
+        0,
+        { p: rec.getString('provider'), id: rec.id },
+      )
+      for (let i = 0; i < siblings.length; i++) {
+        siblings[i].set('is_active', false)
+        e.app.save(siblings[i])
+      }
+    } catch (_) {}
   }
 
   try {
@@ -189,16 +227,41 @@ routerAdd('GET', '/backend/v1/payment-credentials', (e) => {
     rows = []
   }
 
-  const items = rows.map((r) => ({
-    id: r.id,
-    provider: r.getString('provider'),
-    name: r.getString('name'),
-    api_key_masked: r.getString('api_key_masked'),
-    credentials_masked: r.get('credentials_masked') || {},
-    is_active: r.getBool('is_active'),
-    created: r.getString('created'),
-    updated: r.getString('updated'),
-  }))
+  const items = rows.map((r) => {
+    let masked = {}
+    try {
+      const val = r.get('credentials_masked')
+      if (val && typeof val === 'object') {
+        masked = val
+      } else if (typeof val === 'string' && val.trim()) {
+        masked = JSON.parse(val)
+      }
+    } catch (_) {
+      masked = {}
+    }
+    let extra = {}
+    try {
+      const extraVal = r.get('extra_config')
+      if (extraVal && typeof extraVal === 'object') {
+        extra = extraVal
+      } else if (typeof extraVal === 'string' && extraVal.trim()) {
+        extra = JSON.parse(extraVal)
+      }
+    } catch (_) {
+      extra = {}
+    }
+    return {
+      id: r.id,
+      provider: r.getString('provider'),
+      name: r.getString('name'),
+      api_key_masked: r.getString('api_key_masked'),
+      credentials_masked: masked,
+      extra_config: extra,
+      is_active: r.getBool('is_active'),
+      created: r.getString('created'),
+      updated: r.getString('updated'),
+    }
+  })
 
   return e.json(200, { items: items })
 })
@@ -211,7 +274,7 @@ routerAdd('DELETE', '/backend/v1/payment-credentials/{id}', (e) => {
     return e.json(403, { message: 'Apenas administradores podem gerenciar credenciais.' })
   }
 
-  const id = e.requestInfo().pathValue('id') || ''
+  const id = (e.request ? e.request.pathValue('id') : '') || ''
   try {
     const rec = e.app.findRecordById('payment_credentials', id)
     e.app.delete(rec)

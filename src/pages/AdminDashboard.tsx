@@ -159,6 +159,12 @@ export default function AdminDashboard() {
   const [credCustomProvider, setCredCustomProvider] = useState('')
   const [credName, setCredName] = useState('')
   const [credApiKey, setCredApiKey] = useState('')
+  // Campos específicos do Mercado Pago
+  const [credMpPublicKey, setCredMpPublicKey] = useState('')
+  const [credMpAccessToken, setCredMpAccessToken] = useState('')
+  const [credMpClientId, setCredMpClientId] = useState('')
+  const [credMpClientSecret, setCredMpClientSecret] = useState('')
+  const [showMpSecrets, setShowMpSecrets] = useState(false)
   const [credExtraConfig, setCredExtraConfig] = useState('')
   const [credIsActive, setCredIsActive] = useState(true)
 
@@ -487,6 +493,11 @@ export default function AdminDashboard() {
       setCredName(cred.name)
       setCredApiKey('') // Nunca reexibida
       setShowApiKey(false)
+      setCredMpPublicKey('')
+      setCredMpAccessToken('')
+      setCredMpClientId('')
+      setCredMpClientSecret('')
+      setShowMpSecrets(false)
       setCredExtraConfig(
         cred.extra_config && Object.keys(cred.extra_config).length > 0
           ? JSON.stringify(cred.extra_config, null, 2)
@@ -500,6 +511,11 @@ export default function AdminDashboard() {
       setCredName('')
       setCredApiKey('')
       setShowApiKey(false)
+      setCredMpPublicKey('')
+      setCredMpAccessToken('')
+      setCredMpClientId('')
+      setCredMpClientSecret('')
+      setShowMpSecrets(false)
       setCredExtraConfig('')
       setCredIsActive(true)
     }
@@ -521,13 +537,35 @@ export default function AdminDashboard() {
       return
     }
 
-    if (!editingCred && !credApiKey.trim()) {
-      toast({
-        title: 'API Key obrigatória',
-        description: 'Informe a API Key do provedor de pagamento.',
-        variant: 'destructive',
-      })
-      return
+    const isMercadoPago =
+      finalProvider.toLowerCase().includes('mercado') ||
+      finalProvider.toLowerCase().includes('pago')
+
+    if (isMercadoPago) {
+      if (
+        !editingCred &&
+        (!credMpPublicKey.trim() ||
+          !credMpAccessToken.trim() ||
+          !credMpClientId.trim() ||
+          !credMpClientSecret.trim())
+      ) {
+        toast({
+          title: 'Campos do Mercado Pago obrigatórios',
+          description:
+            'Preencha os quatro campos: Public Key, Access Token, Client ID e Client Secret.',
+          variant: 'destructive',
+        })
+        return
+      }
+    } else {
+      if (!editingCred && !credApiKey.trim()) {
+        toast({
+          title: 'API Key obrigatória',
+          description: 'Informe a API Key do provedor de pagamento.',
+          variant: 'destructive',
+        })
+        return
+      }
     }
 
     let parsedExtra: Record<string, any> | undefined = undefined
@@ -554,7 +592,12 @@ export default function AdminDashboard() {
           is_active: credIsActive,
           extra_config: parsedExtra || {},
         }
-        if (credApiKey.trim()) {
+        if (isMercadoPago) {
+          if (credMpPublicKey.trim()) payload.public_key = credMpPublicKey.trim()
+          if (credMpAccessToken.trim()) payload.access_token = credMpAccessToken.trim()
+          if (credMpClientId.trim()) payload.client_id = credMpClientId.trim()
+          if (credMpClientSecret.trim()) payload.client_secret = credMpClientSecret.trim()
+        } else if (credApiKey.trim()) {
           payload.api_key = credApiKey.trim()
         }
         await updatePaymentCredential(editingCred.id, payload)
@@ -563,13 +606,21 @@ export default function AdminDashboard() {
           description: `Credencial "${credName}" foi salva.`,
         })
       } else {
-        await createPaymentCredential({
+        const createPayload: any = {
           provider: finalProvider,
           name: credName.trim(),
-          api_key: credApiKey.trim(),
           extra_config: parsedExtra || {},
           is_active: credIsActive,
-        })
+        }
+        if (isMercadoPago) {
+          createPayload.public_key = credMpPublicKey.trim()
+          createPayload.access_token = credMpAccessToken.trim()
+          createPayload.client_id = credMpClientId.trim()
+          createPayload.client_secret = credMpClientSecret.trim()
+        } else {
+          createPayload.api_key = credApiKey.trim()
+        }
+        await createPaymentCredential(createPayload)
         toast({
           title: 'Credencial cadastrada!',
           description: `Credencial "${credName}" para ${finalProvider} cadastrada com sucesso.`,
@@ -1635,7 +1686,7 @@ export default function AdminDashboard() {
                     <tr className="border-b bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
                       <th className="py-3 px-4">Provedor / Banco</th>
                       <th className="py-3 px-4">Identificação / Conta</th>
-                      <th className="py-3 px-4">API Key Mascarada</th>
+                      <th className="py-3 px-4">Credenciais Mascaradas</th>
                       <th className="py-3 px-4">Configuração Extra</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4">Última Atualização</th>
@@ -1662,12 +1713,43 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-3.5 px-4 font-semibold text-slate-800">{cred.name}</td>
                         <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600">
-                          <Badge
-                            variant="outline"
-                            className="font-mono bg-slate-50 border-slate-200 text-slate-700"
-                          >
-                            {cred.api_key_masked || '****...****'}
-                          </Badge>
+                          {cred.credentials_masked &&
+                          Object.keys(cred.credentials_masked).length > 0 ? (
+                            <div className="flex flex-col gap-1 max-w-[260px]">
+                              {Object.entries(cred.credentials_masked).map(([k, v]) => {
+                                const labels: Record<string, string> = {
+                                  public_key: 'Public Key',
+                                  access_token: 'Access Token',
+                                  client_id: 'Client ID',
+                                  client_secret: 'Client Secret',
+                                  api_key: 'API Key',
+                                }
+                                return (
+                                  <div
+                                    key={k}
+                                    className="flex items-center justify-between gap-2 text-[10px]"
+                                  >
+                                    <span className="text-slate-400 font-sans font-medium">
+                                      {labels[k] || k}:
+                                    </span>
+                                    <Badge
+                                      variant="outline"
+                                      className="font-mono bg-slate-50 border-slate-200 text-slate-700 text-[10px] py-0 px-1.5"
+                                    >
+                                      {v}
+                                    </Badge>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="font-mono bg-slate-50 border-slate-200 text-slate-700"
+                            >
+                              {cred.api_key_masked || '****...****'}
+                            </Badge>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 text-slate-500 text-[11px]">
                           {cred.extra_config && Object.keys(cred.extra_config).length > 0 ? (
@@ -2482,60 +2564,188 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {/* API Key com botão de olho */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-slate-700">
-                  {editingCred
-                    ? 'Nova API Key (deixe em branco para manter a atual)'
-                    : 'API Key do Provedor'}
-                </Label>
-                {editingCred?.api_key_masked && (
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    Atual: {editingCred.api_key_masked}
-                  </span>
-                )}
-              </div>
-              <div className="relative">
-                <Input
-                  type={showApiKey ? 'text' : 'password'}
-                  required={!editingCred}
-                  placeholder={editingCred ? '••••••••••••••••' : 'Cole sua API Key aqui'}
-                  value={credApiKey}
-                  onChange={(e) => setCredApiKey(e.target.value)}
-                  className="text-xs pr-10 font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-hidden"
-                  tabIndex={-1}
-                >
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Por motivos de segurança, a API Key completa é armazenada de forma protegida e nunca
-                será exposta novamente na tela.
-              </p>
-            </div>
+            {/* Campos condicionais: Mercado Pago (4 campos dedicados) vs Provedor Genérico (API Key) */}
+            {credProviderSelect === 'Mercado Pago' ? (
+              <div className="space-y-3 p-3 bg-amber-50/60 rounded-xl border border-amber-200">
+                <div className="flex items-center justify-between pb-1 border-b border-amber-200/60">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <p className="text-xs font-bold text-amber-900">Credenciais Mercado Pago</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMpSecrets(!showMpSecrets)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 hover:text-amber-950 focus:outline-hidden"
+                    tabIndex={-1}
+                  >
+                    {showMpSecrets ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                    <span>{showMpSecrets ? 'Ocultar campos' : 'Ver campos'}</span>
+                  </button>
+                </div>
 
-            {/* Dados extras opcionais (JSON) */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-700">
-                Dados Extras / Parâmetros Adicionais (Opcional - JSON)
-              </Label>
-              <Textarea
-                rows={2}
-                placeholder='Ex: {"client_secret": "xyz", "merchant_id": "12345"}'
-                value={credExtraConfig}
-                onChange={(e) => setCredExtraConfig(e.target.value)}
-                className="text-xs font-mono resize-none"
-              />
-              <p className="text-[10px] text-slate-400">
-                Chaves adicionais requeridas pelo gateway (ex: merchant id ou token secundário).
-              </p>
-            </div>
+                {/* 1. Public Key */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-700">Public Key</Label>
+                    {editingCred?.credentials_masked?.public_key && (
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Atual: {editingCred.credentials_masked.public_key}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type={showMpSecrets ? 'text' : 'password'}
+                    required={!editingCred}
+                    placeholder={
+                      editingCred?.credentials_masked?.public_key
+                        ? '•••••••••••••••• (deixe em branco para manter)'
+                        : 'Ex: APP_USR-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+                    }
+                    value={credMpPublicKey}
+                    onChange={(e) => setCredMpPublicKey(e.target.value)}
+                    className="text-xs font-mono bg-white"
+                  />
+                </div>
+
+                {/* 2. Access Token */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-700">Access Token</Label>
+                    {editingCred?.credentials_masked?.access_token && (
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Atual: {editingCred.credentials_masked.access_token}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type={showMpSecrets ? 'text' : 'password'}
+                    required={!editingCred}
+                    placeholder={
+                      editingCred?.credentials_masked?.access_token
+                        ? '•••••••••••••••• (deixe em branco para manter)'
+                        : 'Ex: APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxx'
+                    }
+                    value={credMpAccessToken}
+                    onChange={(e) => setCredMpAccessToken(e.target.value)}
+                    className="text-xs font-mono bg-white"
+                  />
+                </div>
+
+                {/* 3. Client ID */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-700">Client ID</Label>
+                    {editingCred?.credentials_masked?.client_id && (
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Atual: {editingCred.credentials_masked.client_id}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type={showMpSecrets ? 'text' : 'password'}
+                    required={!editingCred}
+                    placeholder={
+                      editingCred?.credentials_masked?.client_id
+                        ? '•••••••••••••••• (deixe em branco para manter)'
+                        : 'Ex: 1234567890123456'
+                    }
+                    value={credMpClientId}
+                    onChange={(e) => setCredMpClientId(e.target.value)}
+                    className="text-xs font-mono bg-white"
+                  />
+                </div>
+
+                {/* 4. Client Secret */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-700">Client Secret</Label>
+                    {editingCred?.credentials_masked?.client_secret && (
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Atual: {editingCred.credentials_masked.client_secret}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type={showMpSecrets ? 'text' : 'password'}
+                    required={!editingCred}
+                    placeholder={
+                      editingCred?.credentials_masked?.client_secret
+                        ? '•••••••••••••••• (deixe em branco para manter)'
+                        : 'Ex: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+                    }
+                    value={credMpClientSecret}
+                    onChange={(e) => setCredMpClientSecret(e.target.value)}
+                    className="text-xs font-mono bg-white"
+                  />
+                </div>
+
+                <p className="text-[11px] text-amber-800/80 pt-1">
+                  Obtenha estes dados no portal de desenvolvedores do Mercado Pago (Suas integrações
+                  &gt; Credenciais de produção).
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* API Key com botão de olho para provedores padrão */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-700">
+                      {editingCred
+                        ? 'Nova API Key (deixe em branco para manter a atual)'
+                        : 'API Key do Provedor'}
+                    </Label>
+                    {editingCred?.api_key_masked && (
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Atual: {editingCred.api_key_masked}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Input
+                      type={showApiKey ? 'text' : 'password'}
+                      required={!editingCred}
+                      placeholder={editingCred ? '••••••••••••••••' : 'Cole sua API Key aqui'}
+                      value={credApiKey}
+                      onChange={(e) => setCredApiKey(e.target.value)}
+                      className="text-xs pr-10 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-hidden"
+                      tabIndex={-1}
+                    >
+                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Por motivos de segurança, a API Key completa é armazenada de forma protegida e
+                    nunca será exposta novamente na tela.
+                  </p>
+                </div>
+
+                {/* Dados extras opcionais (JSON) */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">
+                    Dados Extras / Parâmetros Adicionais (Opcional - JSON)
+                  </Label>
+                  <Textarea
+                    rows={2}
+                    placeholder='Ex: {"merchant_id": "12345"}'
+                    value={credExtraConfig}
+                    onChange={(e) => setCredExtraConfig(e.target.value)}
+                    className="text-xs font-mono resize-none"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    Chaves adicionais requeridas pelo gateway (ex: merchant id ou token secundário).
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* Ativa / Inativa */}
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">

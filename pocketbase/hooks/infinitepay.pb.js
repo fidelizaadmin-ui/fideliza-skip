@@ -76,18 +76,31 @@ routerAdd('GET', '/backend/v1/subscriptions/payment-provider-info', (e) => {
     return e.json(401, { error: 'Autenticação necessária.' })
   }
 
-  // 1. Busca credencial ativa no banco (InfinitePay prioritária para checkout atual)
+  // 1. Busca credencial ativa no banco (InfinitePay prioritária para checkout atual, ou Mercado Pago / qualquer provedor ativo)
   let activeCredential = null
   try {
-    const activeList = e.app.findRecordsByFilter(
+    // Prioriza InfinitePay se estiver ativa (pois é o gateway que possui integração de checkout link direta no Fideliza),
+    // caso contrário pega a primeira ativa configurada pelo admin
+    const activeInfinite = e.app.findRecordsByFilter(
       'payment_credentials',
-      'is_active = true',
+      'is_active = true && (provider ~ "infinitepay" || provider ~ "InfinitePay")',
       '-updated',
       1,
       0,
     )
-    if (activeList && activeList.length > 0) {
-      activeCredential = activeList[0]
+    if (activeInfinite && activeInfinite.length > 0) {
+      activeCredential = activeInfinite[0]
+    } else {
+      const anyActive = e.app.findRecordsByFilter(
+        'payment_credentials',
+        'is_active = true',
+        '-updated',
+        1,
+        0,
+      )
+      if (anyActive && anyActive.length > 0) {
+        activeCredential = anyActive[0]
+      }
     }
   } catch (_) {}
 

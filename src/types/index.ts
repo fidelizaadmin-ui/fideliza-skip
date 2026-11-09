@@ -184,6 +184,7 @@ export interface PaymentCredentialRecord {
   api_key_masked?: string
   /** Somente leitura — snapshot mascarado de cada campo secreto preenchido */
   credentials_masked?: Record<string, string>
+  extra_config?: Record<string, any>
   is_active: boolean
   created: string
   updated: string

@@ -22,7 +22,7 @@ migrate(
     try {
       col.fields.removeByName('credentials_masked')
     } catch (_) {}
-    col.fields.add(new JsonField({ name: 'credentials_masked', required: false }))
+    col.fields.add(new JSONField({ name: 'credentials_masked', required: false }))
 
     app.save(col)
   },
