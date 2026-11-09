@@ -303,34 +303,39 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
         )}
 
         {showTriggerBar && (
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 shadow-xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
+          <div className="bg-gradient-to-r from-[#012D76] via-[#01358a] to-[#012D76] border border-[#0283FD]/40 rounded-2xl p-3 sm:p-3.5 shadow-md shadow-[#012D76]/20 flex items-center justify-between gap-3 text-white">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 text-white flex items-center justify-center shrink-0 font-bold shadow-xs">
                 {React.createElement(activeItem.icon, {
-                  className: cn('w-4 h-4', activeItem.iconColor),
+                  className: 'w-4 h-4 text-white',
                 })}
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <p className="text-[10px] sm:text-[11px] font-bold text-blue-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0283FD]" />
                   Seção Atual
                 </p>
-                <p className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                <p className="text-xs sm:text-sm font-black text-white truncate">
                   {activeItem.label}
                 </p>
               </div>
             </div>
 
-            <SheetTrigger asChild>
-              <Button
+            {activeItem.badge !== undefined && activeItem.badge !== null ? (
+              <Badge
                 variant="outline"
-                size="sm"
-                className="gap-2 rounded-xl border-slate-200 font-bold text-xs bg-slate-50 hover:bg-slate-100 shrink-0 text-slate-800"
-                aria-label="MENU"
+                className="bg-white/20 text-white border-white/30 text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0"
               >
-                <ThreeLinesMenuIcon className="text-slate-700" />
-                <span>MENU</span>
-              </Button>
-            </SheetTrigger>
+                {activeItem.badge}
+              </Badge>
+            ) : (
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-blue-100/90 bg-white/10 px-3 py-1 rounded-xl border border-white/15 shrink-0">
+                <span>Navegue pelo</span>
+                <span className="font-bold text-white bg-white/20 px-1.5 py-0.5 rounded text-[10px] tracking-wide">
+                  MENU
+                </span>
+              </div>
+            )}
           </div>
         )}
 
