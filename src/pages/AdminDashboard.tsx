@@ -39,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CollapsibleSidebar } from '@/components/CollapsibleSidebar'
 import {
   Dialog,
   DialogContent,
@@ -100,6 +101,9 @@ export default function AdminDashboard() {
   const isCollaborator = role === 'collaborator'
   const isAdmin = role === 'admin'
 
+  const [activeTab, setActiveTab] = useState<
+    'stores' | 'plans' | 'credentials' | 'collaborators' | 'reports'
+  >('stores')
   const [stores, setStores] = useState<StoreRecord[]>([])
   const [plans, setPlans] = useState<SubscriptionPlanRecord[]>([])
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([])
@@ -1173,45 +1177,85 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TABS: LOJAS, PLANOS, COLABORADORES, RELATÓRIO GLOBAL */}
-      <Tabs defaultValue="stores" className="space-y-6">
-        <TabsList className="bg-slate-200/70 p-1 rounded-xl">
-          <TabsTrigger value="stores" className="gap-2 text-xs sm:text-sm font-semibold">
-            <Store className="w-4 h-4" />
+      {/* MENU LATERAL RETRÁTIL DO ADMINISTRADOR (BARRA COM BOTÃO DE 3 TRAÇOS + GAVETA SHEET) */}
+      <div className="mb-6">
+        <CollapsibleSidebar
+          title={isCollaborator ? 'Painel de Assinaturas' : 'Menu Administrativo'}
+          subtitle={user?.name || (isCollaborator ? 'Colaborador' : 'Administrador')}
+          headerIcon={ShieldCheck}
+          headerBadge={isCollaborator ? 'Colaborador' : 'Admin'}
+          headerGradient="from-purple-50/70 to-white"
+          activeColorClass="bg-purple-600 text-white font-bold shadow-md shadow-purple-600/20"
+          activeKey={activeTab}
+          scrollTargetId="admin-tabs-section"
+          onSelect={(key) => setActiveTab(key as any)}
+          items={[
+            {
+              key: 'stores',
+              label: isCollaborator ? 'Assinaturas das Lojas' : 'Lojas & Aprovações',
+              shortLabel: 'Lojas',
+              icon: Store,
+              badge: isAdmin && pendingStores.length > 0 ? pendingStores.length : stores.length,
+              badgeColor:
+                isAdmin && pendingStores.length > 0
+                  ? 'bg-amber-500 text-white border-amber-600'
+                  : 'bg-slate-100 text-slate-700 border-slate-200',
+            },
+            {
+              key: 'plans',
+              label: 'Planos de Assinatura',
+              shortLabel: 'Planos',
+              icon: Layers,
+              badge: plans.length,
+              badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+            },
+            ...(isAdmin
+              ? [
+                  {
+                    key: 'credentials' as const,
+                    label: 'Credenciais & Pix',
+                    shortLabel: 'Credenciais',
+                    icon: Key,
+                    iconColor: 'text-emerald-600',
+                    badge: paymentCredentials.length + pixSettings.length,
+                    badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                  },
+                  {
+                    key: 'collaborators' as const,
+                    label: 'Colaboradores & Acesso',
+                    shortLabel: 'Colaboradores',
+                    icon: UserCog,
+                    iconColor: 'text-purple-600',
+                    badge: collaboratorsList.length,
+                    badgeColor: 'bg-purple-100 text-purple-700 border-purple-200',
+                  },
+                  {
+                    key: 'reports' as const,
+                    label: 'Relatório Global de Vendas',
+                    shortLabel: 'Relatório',
+                    icon: TrendingUp,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </div>
+
+      {/* CONTEÚDO PRINCIPAL (TABS COM TRIGGERS OCULTOS PARA ACESSIBILIDADE) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as any)}
+        className="space-y-6"
+        id="admin-tabs-section"
+      >
+        <TabsList className="sr-only">
+          <TabsTrigger value="stores">
             {isCollaborator ? 'Assinaturas das Lojas' : 'Lojas & Aprovações'}
-            {isAdmin && pendingStores.length > 0 && (
-              <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
-                {pendingStores.length}
-              </span>
-            )}
           </TabsTrigger>
-
-          <TabsTrigger value="plans" className="gap-2 text-xs sm:text-sm font-semibold">
-            <Layers className="w-4 h-4" />
-            Planos de Assinatura ({plans.length})
-          </TabsTrigger>
-
-          {/* Abas exclusivas do Administrador Geral */}
-          {isAdmin && (
-            <TabsTrigger value="credentials" className="gap-2 text-xs sm:text-sm font-semibold">
-              <Key className="w-4 h-4 text-emerald-600" />
-              Credenciais & Pix ({paymentCredentials.length + pixSettings.length})
-            </TabsTrigger>
-          )}
-
-          {isAdmin && (
-            <TabsTrigger value="collaborators" className="gap-2 text-xs sm:text-sm font-semibold">
-              <UserCog className="w-4 h-4 text-purple-600" />
-              Colaboradores ({collaboratorsList.length})
-            </TabsTrigger>
-          )}
-
-          {isAdmin && (
-            <TabsTrigger value="reports" className="gap-2 text-xs sm:text-sm font-semibold">
-              <TrendingUp className="w-4 h-4" />
-              Relatório Global de Vendas
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="plans">Planos de Assinatura ({plans.length})</TabsTrigger>
+          {isAdmin && <TabsTrigger value="credentials">Credenciais & Pix</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="collaborators">Colaboradores</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="reports">Relatório Global de Vendas</TabsTrigger>}
         </TabsList>
 
         {/* ======================================================== */}

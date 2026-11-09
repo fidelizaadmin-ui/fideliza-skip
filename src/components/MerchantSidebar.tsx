@@ -62,7 +62,10 @@ interface MerchantSidebarProps {
  * Ícone personalizado de 2 traços horizontais ("dois riscos"),
  * estilo hamburguer minimalista com 2 linhas.
  */
-export function TwoLinesMenuIcon({ className }: { className?: string }) {
+/**
+ * Ícone com 3 traços horizontais ("---"), hambúrguer clássico com 3 linhas.
+ */
+export function ThreeLinesMenuIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -74,11 +77,17 @@ export function TwoLinesMenuIcon({ className }: { className?: string }) {
       className={cn('w-4 h-4', className)}
       aria-hidden="true"
     >
-      <line x1="4" y1="8" x2="20" y2="8" />
-      <line x1="4" y1="16" x2="20" y2="16" />
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
     </svg>
   )
 }
+
+/**
+ * @deprecated Mantido para compatibilidade reversa caso algum arquivo ainda importe
+ */
+export const TwoLinesMenuIcon = ThreeLinesMenuIcon
 
 export function buildMerchantNavItems(options: {
   isMerchantSuspended?: boolean
@@ -296,8 +305,9 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
                 variant="outline"
                 size="sm"
                 className="gap-2 rounded-xl border-slate-200 font-bold text-xs bg-slate-50 hover:bg-slate-100 shrink-0 text-slate-800"
+                aria-label="Menu do Painel"
               >
-                <TwoLinesMenuIcon className="text-slate-700" />
+                <ThreeLinesMenuIcon className="text-slate-700" />
                 <span>Menu do Painel</span>
               </Button>
             </SheetTrigger>

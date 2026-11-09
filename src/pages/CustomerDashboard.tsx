@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CollapsibleSidebar, type CollapsibleSidebarItem } from '@/components/CollapsibleSidebar'
 import {
   Dialog,
   DialogContent,
@@ -385,7 +386,73 @@ export default function CustomerDashboard() {
         </div>
       )}
 
-      {/* TABS: MEUS CARTÕES / AGENDAMENTOS / SORTEIOS / HISTÓRICO / DADOS */}
+      {/* MENU LATERAL RETRÁTIL DO CLIENTE (BARRA COM BOTÃO DE 3 TRAÇOS + GAVETA SHEET) */}
+      <div className="mb-6">
+        <CollapsibleSidebar
+          title="Menu do Cliente"
+          subtitle={user?.name || 'Área do Cliente'}
+          headerIcon={User}
+          headerGradient="from-rose-50/70 to-white"
+          activeColorClass="bg-gradient-to-r from-rose-600 to-amber-600 text-white font-bold shadow-md shadow-rose-600/20"
+          activeKey={activeTab}
+          scrollTargetId="customer-tabs-section"
+          onSelect={(val) => {
+            setActiveTab(val)
+            setSearchParams({ tab: val })
+          }}
+          items={[
+            {
+              key: 'cards',
+              label: 'Meus Cartões de Fidelidade',
+              shortLabel: 'Cartões',
+              icon: CreditCard,
+              badge: cards.length,
+              badgeColor: 'bg-rose-100 text-rose-700 border-rose-200',
+            },
+            {
+              key: 'appointments',
+              label: 'Meus Agendamentos',
+              shortLabel: 'Agendamentos',
+              icon: CalendarIcon,
+              iconColor: 'text-blue-600',
+            },
+            {
+              key: 'giveaways',
+              label: 'Meus Prêmios e Sorteios',
+              shortLabel: 'Prêmios',
+              icon: Gift,
+              iconColor: 'text-rose-600',
+              badge: wonGiveaways.length,
+              badgeColor: 'bg-amber-100 text-amber-700 border-amber-200',
+            },
+            {
+              key: 'stores',
+              label: 'Lojas Fidelizadas',
+              shortLabel: 'Lojas',
+              icon: Store,
+              badge: enrolledStores.length,
+              badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+            },
+            {
+              key: 'history',
+              label: 'Histórico de Compras',
+              shortLabel: 'Histórico',
+              icon: Clock,
+              badge: purchases.length,
+              badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+            },
+            {
+              key: 'profile',
+              label: 'Meus Dados Cadastrais',
+              shortLabel: 'Dados',
+              icon: User,
+              iconColor: 'text-purple-600',
+            },
+          ]}
+        />
+      </div>
+
+      {/* CONTEÚDO PRINCIPAL (TABS COM TRIGGERS OCULTOS PARA MANTER ACESSIBILIDADE E SELEÇÃO) */}
       <Tabs
         value={activeTab}
         onValueChange={(val) => {
@@ -393,32 +460,17 @@ export default function CustomerDashboard() {
           setSearchParams({ tab: val })
         }}
         className="space-y-6"
+        id="customer-tabs-section"
       >
-        <TabsList className="bg-slate-200/70 p-1 rounded-xl flex-wrap h-auto">
-          <TabsTrigger value="cards" className="gap-2 text-xs sm:text-sm font-semibold">
-            <CreditCard className="w-4 h-4" />
-            Meus Cartões de Fidelidade ({cards.length})
-          </TabsTrigger>
-          <TabsTrigger value="appointments" className="gap-2 text-xs sm:text-sm font-semibold">
-            <CalendarIcon className="w-4 h-4 text-blue-600" />
-            Meus Agendamentos
-          </TabsTrigger>
-          <TabsTrigger value="giveaways" className="gap-2 text-xs sm:text-sm font-semibold">
-            <Gift className="w-4 h-4" />
+        <TabsList className="sr-only">
+          <TabsTrigger value="cards">Meus Cartões de Fidelidade ({cards.length})</TabsTrigger>
+          <TabsTrigger value="appointments">Meus Agendamentos</TabsTrigger>
+          <TabsTrigger value="giveaways">
             Meus Prêmios e Sorteios ({wonGiveaways.length})
           </TabsTrigger>
-          <TabsTrigger value="stores" className="gap-2 text-xs sm:text-sm font-semibold">
-            <Store className="w-4 h-4" />
-            Lojas Fidelizadas ({enrolledStores.length})
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2 text-xs sm:text-sm font-semibold">
-            <Clock className="w-4 h-4" />
-            Histórico
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="gap-2 text-xs sm:text-sm font-semibold">
-            <User className="w-4 h-4" />
-            Meus Dados
-          </TabsTrigger>
+          <TabsTrigger value="stores">Lojas Fidelizadas ({enrolledStores.length})</TabsTrigger>
+          <TabsTrigger value="history">Histórico</TabsTrigger>
+          <TabsTrigger value="profile">Meus Dados</TabsTrigger>
         </TabsList>
 
         {/* ======================================================== */}
