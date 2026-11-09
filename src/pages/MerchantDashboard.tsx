@@ -605,7 +605,7 @@ export default function MerchantDashboard() {
 
       setInfinitePayConfigured(true)
       if (result.checkout_url) {
-        const provName = result.provider || paymentProviderInfo?.provider || 'Checkout Online'
+        const provName = result.provider || paymentProviderInfo?.provider || 'Mercado Pago'
         toast({
           title: 'Redirecionando para o Checkout...',
           description: `Você será levado com segurança para a página de pagamento do ${provName}.`,
@@ -617,13 +617,16 @@ export default function MerchantDashboard() {
       }
     } catch (err: any) {
       console.error('Error starting checkout:', err)
-      // Se houver erro, ativa o fallback do PIX direto
-      setShowPixFallback(true)
-      fetchServerPixPayload()
+      // Extrai mensagem real de erro retornada pelo backend se houver
+      const detailedMessage =
+        err?.data?.error ||
+        err?.response?.error ||
+        err?.message ||
+        'Não foi possível iniciar o checkout.'
       toast({
-        title: 'Abertura do checkout alternativo',
-        description:
-          err.message || 'Tentando gerar PIX copia e cola direto com a chave do administrador.',
+        title: 'Erro ao gerar checkout',
+        description: detailedMessage,
+        variant: 'destructive',
       })
     } finally {
       setIsCreatingCheckout(false)

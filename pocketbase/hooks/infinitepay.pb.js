@@ -323,6 +323,22 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
 
     const mpWebhookUrl = pbInstanceUrl + '/webhook-mercadopago'
 
+    // Monta dados do pagador conforme especificação da Preferences API do Mercado Pago
+    const payerObj = {
+      name: customerName,
+      email: customerEmail,
+    }
+    const cleanDigitsPhone = (customerPhone || '').replace(/\D/g, '')
+    if (cleanDigitsPhone && cleanDigitsPhone.length >= 10) {
+      payerObj.phone = {
+        area_code: cleanDigitsPhone.slice(0, 2),
+        number: cleanDigitsPhone.slice(2),
+      }
+    }
+
+    // Valida se redirectUrl é HTTPS válida para retorno automático
+    const isHttpsRedirect = redirectUrl.indexOf('https://') === 0
+
     const preferencePayload = {
       items: [
         {
@@ -335,23 +351,8 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
           unit_price: Number(planPriceNumber.toFixed(2)),
         },
       ],
-      payer: {
-        name: customerName,
-        email: customerEmail,
-        phone: customerPhone
-          ? {
-              number: customerPhone.replace(/\D/g, ''),
-            }
-          : undefined,
-      },
+      payer: payerObj,
       external_reference: orderNsu,
-      back_urls: {
-        success: redirectUrl + '?order_nsu=' + orderNsu + '&provider=mercadopago&status=approved',
-        pending: redirectUrl + '?order_nsu=' + orderNsu + '&provider=mercadopago&status=pending',
-        failure: redirectUrl + '?order_nsu=' + orderNsu + '&provider=mercadopago&status=failure',
-      },
-      auto_return: 'approved',
-      notification_url: mpWebhookUrl,
       statement_descriptor: 'FIDELIZA',
       metadata: {
         store_id: store.id,
@@ -360,8 +361,24 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
       },
     }
 
+    if (isHttpsRedirect) {
+      preferencePayload.back_urls = {
+        success: redirectUrl + '?order_nsu=' + orderNsu + '&provider=mercadopago&status=approved',
+        pending: redirectUrl + '?order_nsu=' + orderNsu + '&provider=mercadopago&status=pending',
+        failure: redirectUrl + '?order_nsu=' + orderNsu + '&provider=mercadopago&status=failure',
+      }
+      preferencePayload.auto_return = 'approved'
+    }
+
+    if (mpWebhookUrl.indexOf('https://') === 0) {
+      preferencePayload.notification_url = mpWebhookUrl
+    }
+
+    const payloadString = JSON.stringify(preferencePayload)
+
     let mpRes = null
     try {
+      // No PocketBase JSVM, $http.send aceita 'body' como string JSON (ou 'data' para mapa)
       mpRes = $http.send({
         url: 'https://api.mercadopago.com/checkout/preferences',
         method: 'POST',
@@ -369,7 +386,7 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
           'Content-Type': 'application/json',
           Authorization: 'Bearer ' + mpAccessToken.trim(),
         },
-        data: JSON.stringify(preferencePayload),
+        body: payloadString,
         timeout: 30,
       })
     } catch (httpErr) {
@@ -377,36 +394,46 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
         '[MercadoPago:checkoutLink] Erro de rede ao conectar ao Mercado Pago: ' + httpErr.message,
       )
       return e.json(502, {
-        error: 'Não foi possível conectar ao Mercado Pago. Verifique sua conexão.',
+        error: 'Não foi possível conectar ao Mercado Pago: ' + httpErr.message,
       })
     }
 
-    if (mpRes.statusCode < 200 || mpRes.statusCode >= 300) {
+    const rawResponse = mpRes.raw || ''
+    const statusCode = mpRes.statusCode || 0
+
+    if (statusCode < 200 || statusCode >= 300) {
       console.error(
         '[MercadoPago:checkoutLink] Erro da API Mercado Pago (HTTP ' +
-          mpRes.statusCode +
+          statusCode +
           '): ' +
-          mpRes.rawText,
+          rawResponse,
       )
       let errorMessage = 'Falha ao gerar link de pagamento no Mercado Pago.'
-      try {
-        const errJson = JSON.parse(mpRes.rawText)
-        if (errJson && (errJson.message || errJson.error)) {
-          errorMessage = errJson.message || errJson.error
-        }
-      } catch (_) {}
+      const parsedError = mpRes.json || {}
+      if (parsedError && (parsedError.message || parsedError.error)) {
+        errorMessage = parsedError.message || parsedError.error
+      } else if (rawResponse) {
+        try {
+          const errJson = JSON.parse(rawResponse)
+          if (errJson && (errJson.message || errJson.error)) {
+            errorMessage = errJson.message || errJson.error
+          }
+        } catch (_) {}
+      }
       return e.json(400, {
         error: errorMessage,
-        details: mpRes.rawText,
+        details: rawResponse,
       })
     }
 
-    let mpData = {}
-    try {
-      mpData = JSON.parse(mpRes.rawText)
-    } catch (_) {
-      console.error('[MercadoPago:checkoutLink] Resposta inválida: ' + mpRes.rawText)
-      return e.json(500, { error: 'Resposta inválida recebida do Mercado Pago.' })
+    let mpData = mpRes.json
+    if (!mpData || typeof mpData !== 'object') {
+      try {
+        mpData = JSON.parse(rawResponse)
+      } catch (_) {
+        console.error('[MercadoPago:checkoutLink] Resposta inválida: ' + rawResponse)
+        return e.json(500, { error: 'Resposta inválida recebida do Mercado Pago.' })
+      }
     }
 
     const checkoutUrl = mpData.init_point || mpData.sandbox_init_point || ''
@@ -496,13 +523,13 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
   let res = null
   try {
     res = $http.send({
-      url: 'https://api.checkout.infinitepay.io/links',
+      url: 'https://api.checkout.infinitepay.io/v1/checkout',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Api-Key': infiniteApiKey.trim(),
       },
-      data: JSON.stringify(infinitePayPayload),
+      body: JSON.stringify(infinitePayPayload),
       timeout: 30,
     })
   } catch (httpErr) {
@@ -514,34 +541,43 @@ routerAdd('POST', '/backend/v1/subscriptions/checkout-link', (e) => {
     })
   }
 
-  if (res.statusCode < 200 || res.statusCode >= 300) {
+  const infiniteRaw = res.raw || ''
+  const infiniteStatus = res.statusCode || 0
+
+  if (infiniteStatus < 200 || infiniteStatus >= 300) {
     console.error(
       '[InfinitePay:checkoutLink] Erro da API InfinitePay (HTTP ' +
-        res.statusCode +
+        infiniteStatus +
         '): ' +
-        res.rawText,
+        infiniteRaw,
     )
     let errorMessage = 'Falha ao gerar link de pagamento na InfinitePay.'
-    try {
-      const errJson = JSON.parse(res.rawText)
-      if (errJson && (errJson.message || errJson.error)) {
-        errorMessage = errJson.message || errJson.error
-      }
-    } catch (_) {}
+    const parsedErr = res.json || {}
+    if (parsedErr && (parsedErr.message || parsedErr.error)) {
+      errorMessage = parsedErr.message || parsedErr.error
+    } else if (infiniteRaw) {
+      try {
+        const errJson = JSON.parse(infiniteRaw)
+        if (errJson && (errJson.message || errJson.error)) {
+          errorMessage = errJson.message || errJson.error
+        }
+      } catch (_) {}
+    }
     return e.json(400, {
       error: errorMessage,
-      details: res.rawText,
+      details: infiniteRaw,
     })
   }
 
-  let responseData = {}
-  try {
-    responseData = JSON.parse(res.rawText)
-  } catch (parseErr) {
-    console.error('[InfinitePay:checkoutLink] Falha ao analisar resposta: ' + res.rawText)
-    return e.json(500, { error: 'Resposta inválida recebida da InfinitePay.' })
+  let responseData = res.json
+  if (!responseData || typeof responseData !== 'object') {
+    try {
+      responseData = JSON.parse(infiniteRaw)
+    } catch (parseErr) {
+      console.error('[InfinitePay:checkoutLink] Falha ao analisar resposta: ' + infiniteRaw)
+      return e.json(500, { error: 'Resposta inválida recebida da InfinitePay.' })
+    }
   }
-
   const checkoutUrl =
     responseData.url ||
     responseData.checkout_url ||
@@ -771,7 +807,7 @@ routerAdd('POST', '/webhook-mercadopago', (e) => {
         })
 
         if (mpRes.statusCode >= 200 && mpRes.statusCode < 300) {
-          const pData = JSON.parse(mpRes.rawText)
+          const pData = mpRes.json || JSON.parse(mpRes.raw || '{}')
           const externalRef = pData.external_reference || ''
           const mpStatus = pData.status || '' // approved, pending, rejected, refunded, cancelled
           const paymentMethod = pData.payment_method_id || pData.payment_type_id || 'mercadopago'
@@ -1011,7 +1047,7 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
           timeout: 20,
         })
         if (mpRes.statusCode >= 200 && mpRes.statusCode < 300) {
-          const mpData = JSON.parse(mpRes.rawText)
+          const mpData = mpRes.json || JSON.parse(mpRes.raw || '{}')
           const isApproved = mpData.status === 'approved'
           if (isApproved && paymentRecord) {
             paymentRecord.set('status', 'paid')
@@ -1050,7 +1086,7 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
           timeout: 20,
         })
         if (searchRes.statusCode >= 200 && searchRes.statusCode < 300) {
-          const searchData = JSON.parse(searchRes.rawText)
+          const searchData = searchRes.json || JSON.parse(searchRes.raw || '{}')
           const results = searchData.results || []
           if (results.length > 0) {
             const latest = results[0]
@@ -1134,7 +1170,7 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
         'Content-Type': 'application/json',
         'X-Api-Key': apiKey.trim(),
       },
-      data: JSON.stringify(checkPayload),
+      body: JSON.stringify(checkPayload),
       timeout: 20,
     })
   } catch (httpErr) {
@@ -1146,11 +1182,13 @@ routerAdd('POST', '/backend/v1/subscriptions/payment-check', (e) => {
     })
   }
 
-  let resultData = {}
-  try {
-    resultData = JSON.parse(checkRes.rawText)
-  } catch (_) {
-    resultData = {}
+  let resultData = checkRes.json || {}
+  if (!resultData || typeof resultData !== 'object' || Object.keys(resultData).length === 0) {
+    try {
+      resultData = JSON.parse(checkRes.raw || '{}')
+    } catch (_) {
+      resultData = {}
+    }
   }
 
   const isPaid = Boolean(resultData.paid || resultData.status === 'paid')
