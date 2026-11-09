@@ -606,6 +606,7 @@ export async function checkInfinitePayPayment(params: {
   order_nsu?: string
   slug?: string
   transaction_nsu?: string
+  payment_id?: string
 }): Promise<PaymentCheckResponse> {
   const response = await pb.send<PaymentCheckResponse>('/backend/v1/subscriptions/payment-check', {
     method: 'POST',

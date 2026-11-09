@@ -585,7 +585,7 @@ export default function MerchantDashboard() {
     }
   }
 
-  // REAL INFINITEPAY CHECKOUT FLOW
+  // FLUXO DE CHECKOUT ONLINE (MERCADO PAGO OU INFINITEPAY)
   const handleStartInfinitePayCheckout = async () => {
     if (!store) return
     setIsCreatingCheckout(true)
@@ -596,7 +596,7 @@ export default function MerchantDashboard() {
       )
 
       if (!result.configured) {
-        // Se a chave InfinitePay não estiver configurada, fallback automático para PIX direto
+        // Se nenhum gateway online estiver configurado, fallback para PIX direto
         setInfinitePayConfigured(false)
         setShowPixFallback(true)
         fetchServerPixPayload()
@@ -605,17 +605,18 @@ export default function MerchantDashboard() {
 
       setInfinitePayConfigured(true)
       if (result.checkout_url) {
+        const provName = result.provider || paymentProviderInfo?.provider || 'Checkout Online'
         toast({
           title: 'Redirecionando para o Checkout...',
-          description: 'Você será levado com segurança para a página de pagamento da InfinitePay.',
+          description: `Você será levado com segurança para a página de pagamento do ${provName}.`,
         })
         // Redireciona na mesma janela para permitir retorno automático
         window.location.href = result.checkout_url
       } else {
-        throw new Error(result.error || 'URL de checkout não retornada pela InfinitePay.')
+        throw new Error(result.error || 'URL de checkout não retornada pelo processador.')
       }
     } catch (err: any) {
-      console.error('Error starting InfinitePay checkout:', err)
+      console.error('Error starting checkout:', err)
       // Se houver erro, ativa o fallback do PIX direto
       setShowPixFallback(true)
       fetchServerPixPayload()
@@ -3468,10 +3469,10 @@ export default function MerchantDashboard() {
                       Pagamento Rápido e Seguro
                     </div>
                     <p className="text-[11px] text-slate-600 leading-relaxed">
-                      Você será redirecionado para o ambiente seguro de pagamento da{' '}
-                      <strong>{paymentProviderInfo?.provider || 'InfinitePay'}</strong> com suporte
-                      a <strong>PIX</strong> e <strong>Cartão de Crédito</strong>. Assim que
-                      aprovado, sua loja é ativada automaticamente.
+                      Você será redirecionado para o ambiente seguro de pagamento do{' '}
+                      <strong>{paymentProviderInfo?.provider || 'Mercado Pago'}</strong> com suporte
+                      a <strong>PIX</strong>, <strong>Cartão de Crédito</strong> e saldo em conta.
+                      Assim que aprovado, sua loja é ativada automaticamente.
                     </p>
                   </div>
 
@@ -3489,7 +3490,7 @@ export default function MerchantDashboard() {
                     ) : (
                       <>
                         <CreditCard className="w-4 h-4" />
-                        Pagar com {paymentProviderInfo?.provider || 'InfinitePay'}
+                        Pagar com {paymentProviderInfo?.provider || 'Mercado Pago'}
                       </>
                     )}
                   </Button>

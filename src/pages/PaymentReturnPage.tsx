@@ -20,11 +20,14 @@ export default function PaymentReturnPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  const orderNsu = searchParams.get('order_nsu') || ''
-  const slug = searchParams.get('slug') || ''
-  const captureMethod = searchParams.get('capture_method') || ''
+  const orderNsu = searchParams.get('order_nsu') || searchParams.get('external_reference') || ''
+  const slug = searchParams.get('slug') || searchParams.get('preference_id') || ''
+  const captureMethod = searchParams.get('capture_method') || searchParams.get('payment_type') || ''
   const receiptUrl = searchParams.get('receipt_url') || ''
   const transactionNsu = searchParams.get('transaction_nsu') || ''
+  const paymentId = searchParams.get('payment_id') || ''
+  const providerParam = searchParams.get('provider') || ''
+  const statusParam = searchParams.get('status') || searchParams.get('collection_status') || ''
 
   const [isLoading, setIsLoading] = useState(true)
   const [checkResult, setCheckResult] = useState<PaymentCheckResponse | null>(null)
@@ -35,7 +38,7 @@ export default function PaymentReturnPage() {
     let isMounted = true
 
     const verifyStatus = async () => {
-      if (!orderNsu && !slug && !transactionNsu) {
+      if (!orderNsu && !slug && !transactionNsu && !paymentId) {
         setIsLoading(false)
         return
       }
@@ -45,6 +48,7 @@ export default function PaymentReturnPage() {
           order_nsu: orderNsu || undefined,
           slug: slug || undefined,
           transaction_nsu: transactionNsu || undefined,
+          payment_id: paymentId || undefined,
         })
         if (isMounted) {
           setCheckResult(res)
@@ -113,7 +117,9 @@ export default function PaymentReturnPage() {
           <CardDescription className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed">
             {isPaid
               ? 'Sua assinatura foi renovada e sua loja está 100% ativa no Fideliza!'
-              : 'Recebemos o retorno da InfinitePay. Caso tenha acabado de pagar via PIX ou cartão, a confirmação pode levar alguns segundos para ser computada.'}
+              : providerParam === 'mercadopago'
+                ? 'Recebemos o retorno do Mercado Pago. Caso tenha acabado de pagar via PIX ou cartão, a confirmação pode levar alguns instantes para ser computada.'
+                : 'Recebemos o retorno do processador de pagamento. Caso tenha acabado de pagar via PIX ou cartão, a confirmação pode levar alguns instantes para ser computada.'}
           </CardDescription>
         </CardHeader>
 
@@ -177,7 +183,7 @@ export default function PaymentReturnPage() {
             <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5 leading-relaxed">
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                O webhook da InfinitePay sincroniza automaticamente sua assinatura em segundo plano.
+                O sistema sincroniza automaticamente sua assinatura com o provedor em segundo plano.
                 Ao retornar para o painel do lojista, o status será atualizado.
               </div>
             </div>
