@@ -82,6 +82,13 @@ export default function StorePage() {
 
         setStore(storeData)
 
+        // Assegurar visualização no topo assim que os dados da loja forem carregados
+        try {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior })
+        } catch {
+          window.scrollTo(0, 0)
+        }
+
         // Se a loja estiver suspensa no portal público, não carregar o resto
         if (storeData.suspend_public) {
           setIsLoading(false)
