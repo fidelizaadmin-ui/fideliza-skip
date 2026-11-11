@@ -341,9 +341,9 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
             </div>
           </div>
 
-          {/* Tipo de Chave + Digite a chave Pix */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            <div className="sm:col-span-1">
+          {/* Tipo de Chave + Digite a chave Pix — lado a lado na mesma linha */}
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-2.5">
+            <div>
               <Label className="text-[10px] font-semibold text-slate-600">Tipo de Chave</Label>
               <Select
                 value={keyType}
@@ -363,7 +363,7 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
               </Select>
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <Label className="text-[10px] font-semibold text-slate-600 flex items-center justify-between">
                 <span>{hasPixKey ? 'Alterar Chave Pix (opcional)' : 'Digite a Chave Pix'}</span>
                 <span className="flex items-center gap-1 text-[10px] text-slate-400">
