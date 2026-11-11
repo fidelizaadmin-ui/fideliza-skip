@@ -772,6 +772,13 @@ export default function MerchantDashboard() {
     }
   }
 
+  // NAVEGA PARA A SEÇÃO "DADOS DA LOJA" (usada nos avisos "Cadastre sua loja primeiro")
+  const handleGoToStoreTab = () => {
+    setActiveTab('store')
+    const el = document.getElementById('tabs-section')
+    el?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   // FIDELITY PLAN SAVE HANDLER
   const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -780,6 +787,15 @@ export default function MerchantDashboard() {
         title: 'Cadastre sua loja primeiro',
         description: 'Você precisa ter uma loja cadastrada antes de criar seu plano de fidelidade.',
         variant: 'destructive',
+        action: (
+          <Button
+            size="sm"
+            onClick={handleGoToStoreTab}
+            className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg"
+          >
+            Cadastrar Loja
+          </Button>
+        ),
       })
       return
     }
@@ -1385,6 +1401,13 @@ export default function MerchantDashboard() {
                     Preencha os dados da sua loja na aba "Dados da Loja" para habilitar o registro
                     de compras.
                   </p>
+                  <button
+                    type="button"
+                    onClick={handleGoToStoreTab}
+                    className="text-sm font-bold text-rose-600 hover:text-rose-700 underline underline-offset-4 decoration-rose-300 hover:decoration-rose-500 transition-colors"
+                  >
+                    Ir para Dados da Loja →
+                  </button>
                 </Card>
               ) : !plan ? (
                 <Card className="rounded-3xl p-8 text-center max-w-lg mx-auto">
@@ -2368,7 +2391,11 @@ export default function MerchantDashboard() {
             {/* TAB: GALERIA DE FOTOS */}
             {/* ======================================================== */}
             <TabsContent value="gallery" className="space-y-6">
-              <StoreGalleryManager store={store} isMerchantSuspended={isMerchantSuspended} />
+              <StoreGalleryManager
+                store={store}
+                isMerchantSuspended={isMerchantSuspended}
+                onGoToStoreTab={handleGoToStoreTab}
+              />
             </TabsContent>
 
             {/* ======================================================== */}
@@ -3123,6 +3150,13 @@ export default function MerchantDashboard() {
                     Preencha os dados da sua loja na aba "Dados da Loja" para habilitar a gestão de
                     agendamentos.
                   </p>
+                  <button
+                    type="button"
+                    onClick={handleGoToStoreTab}
+                    className="text-sm font-bold text-rose-600 hover:text-rose-700 underline underline-offset-4 decoration-rose-300 hover:decoration-rose-500 transition-colors"
+                  >
+                    Ir para Dados da Loja →
+                  </button>
                 </Card>
               )}
             </TabsContent>

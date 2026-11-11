@@ -41,12 +41,14 @@ interface StoreGalleryManagerProps {
   store: StoreRecord | null
   isMerchantSuspended?: boolean
   onPhotosCountChange?: (count: number) => void
+  onGoToStoreTab?: () => void
 }
 
 export const StoreGalleryManager: React.FC<StoreGalleryManagerProps> = ({
   store,
   isMerchantSuspended = false,
   onPhotosCountChange,
+  onGoToStoreTab,
 }) => {
   const [photos, setPhotos] = useState<StoreGalleryPhotoRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -219,6 +221,15 @@ export const StoreGalleryManager: React.FC<StoreGalleryManagerProps> = ({
           Preencha os dados da sua loja para habilitar o envio de fotos dos seus produtos e serviços
           na galeria.
         </p>
+        {onGoToStoreTab && (
+          <button
+            type="button"
+            onClick={onGoToStoreTab}
+            className="mt-4 text-sm font-bold text-rose-600 hover:text-rose-700 underline underline-offset-4 decoration-rose-300 hover:decoration-rose-500 transition-colors"
+          >
+            Ir para Dados da Loja →
+          </button>
+        )}
       </Card>
     )
   }
