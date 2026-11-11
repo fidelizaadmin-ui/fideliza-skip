@@ -18,8 +18,10 @@ import {
   EyeOff,
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import { BrandLogo } from '@/components/BrandLogo'
 import { useSystemSettings } from '@/contexts/SystemSettingsContext'
+import { getRememberMePreference, setRememberMePreference } from '@/lib/sessionPersistence'
 
 export default function Register() {
   // O cadastro aceita apenas Cliente e Lojista (contas admin são promovidas pelo painel /admin).
@@ -37,6 +39,8 @@ export default function Register() {
 
   const [isLoading, setIsLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  const [rememberMe, setRememberMe] = useState<boolean>(getRememberMePreference())
 
   const { register } = useAuth()
   const { systemName } = useSystemSettings()
@@ -90,7 +94,9 @@ export default function Register() {
         password,
         role: selectedRole,
         phone: phone.trim(),
+        remember: rememberMe,
       })
+      setRememberMePreference(rememberMe)
 
       if (user?.role === 'merchant') {
         navigate('/lojista')
@@ -270,6 +276,25 @@ export default function Register() {
                   </button>
                 </div>
               </div>
+
+              <label
+                htmlFor="register-remember-me"
+                className="flex items-center gap-2 cursor-pointer select-none py-1"
+              >
+                <Checkbox
+                  id="register-remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => {
+                    const value = checked === true
+                    setRememberMe(value)
+                    setRememberMePreference(value)
+                  }}
+                  className="data-[state=checked]:bg-rose-600 data-[state=checked]:border-rose-600"
+                />
+                <span className="text-xs font-semibold text-slate-700">
+                  Permanecer logado neste dispositivo
+                </span>
+              </label>
 
               <Button
                 type="submit"

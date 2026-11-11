@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import pb from '@/lib/pocketbase/client'
+import {
+  applySessionPersistence,
+  clearRememberMePreference,
+  getRememberMePreference,
+  installDualAuthStore,
+} from '@/lib/sessionPersistence'
 import type { UserRecord, UserRole } from '@/types'
 
 interface AuthContextType {
@@ -7,7 +13,7 @@ interface AuthContextType {
   role: UserRole | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, pass: string) => Promise<UserRecord>
+  login: (email: string, pass: string, remember?: boolean) => Promise<UserRecord>
   register: (params: {
     email: string
     password: string
@@ -15,6 +21,7 @@ interface AuthContextType {
     role: UserRole
     phone?: string
     document?: string
+    remember?: boolean
   }) => Promise<{ user: UserRecord; verificationSent: boolean }>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -62,16 +69,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   useEffect(() => {
+    // Garante o store de dupla persistência mesmo se o import cedo não rodou.
+    installDualAuthStore()
+
     syncUser()
     setIsLoading(false)
 
-    // Ao iniciar, se logado, tenta um refresh silencioso para trazer dados mais frescos (ex: verified)
+    // Ao iniciar, se logado, tenta um refresh silencioso para trazer dados mais frescos (ex: verified).
+    // Se o token expirou (400 de token inválido), NÃO desloga: apenas marca como "expirado"
+    // — o usuário continua logado em dados em cache e pode renovar na próxima interação.
     if (pb.authStore.isValid) {
       pb.collection('users')
         .authRefresh()
         .then(() => syncUser())
-        .catch(() => {
-          /* ignore refresh errors on boot */
+        .catch((refreshErr: any) => {
+          console.warn('authRefresh falhou no boot:', refreshErr?.status, refreshErr?.message)
+          if (refreshErr?.status === 401 || refreshErr?.status === 400) {
+            // Token revogado/senha alterada — não há como renovar; encerra a sessão.
+            pb.authStore.clear()
+          }
+          // Erro de rede/offline: mantém a sessão (o app continua com os dados do authStore).
         })
     }
 
@@ -79,14 +96,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       syncUser()
     })
 
-    // Sincroniza quando a janela/aba ganha foco (ex: usuário clicou no link de verificação em outra aba)
+    // Sincroniza quando a janela/aba ganha foco (ex: usuário clicou no link de verificação em outra aba).
+    // Se o token expirou, tenta renovar silenciosamente — com "Permanecer logado" o usuário
+    // não deve precisar digitar e-mail/senha de novo ao voltar depois de dias.
     const handleFocus = () => {
       if (pb.authStore.isValid) {
         pb.collection('users')
           .authRefresh()
           .then(() => syncUser())
-          .catch(() => {
-            /* ignore refresh errors on focus */
+          .catch((refreshErr: any) => {
+            if (refreshErr?.status === 401 || refreshErr?.status === 400) {
+              // Token revogado (senha alterada etc.) — não há como renovar; encerra a sessão.
+              pb.authStore.clear()
+            }
+            /* erro de rede/offline: mantém a sessão */
           })
       }
     }
@@ -99,7 +122,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const login = async (email: string, pass: string): Promise<UserRecord> => {
+  const login = async (email: string, pass: string, remember?: boolean): Promise<UserRecord> => {
+    // "Permanecer logado": define onde a sessão vai viver ANTES do auth gravar o token.
+    const rememberMe = remember ?? getRememberMePreference()
+    applySessionPersistence(rememberMe)
     const authData = await pb.collection('users').authWithPassword(email.trim(), pass)
     const rec = authData.record as any
     const userData: UserRecord = {
@@ -126,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: UserRole
     phone?: string
     document?: string
+    remember?: boolean
   }): Promise<{ user: UserRecord; verificationSent: boolean }> => {
     const { email, password, name, role, phone, document } = params
     const customerCode = role === 'customer' ? generateCustomerCode() : undefined
@@ -177,12 +204,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 3. Auto log in
-    const loggedUser = await login(cleanEmail, password)
+    const loggedUser = await login(cleanEmail, password, params.remember)
     return { user: loggedUser, verificationSent }
   }
 
   const logout = () => {
+    // Remove o token de TODOS os storages (localStorage e sessionStorage).
     pb.authStore.clear()
+    clearRememberMePreference()
     setUser(null)
   }
 

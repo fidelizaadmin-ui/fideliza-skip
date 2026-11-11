@@ -19,7 +19,9 @@ import {
   KeyRound,
   Mail,
 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { getRememberMePreference, setRememberMePreference } from '@/lib/sessionPersistence'
 import {
   Dialog,
   DialogContent,
@@ -43,6 +45,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState<boolean>(getRememberMePreference())
   const [isLoading, setIsLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -62,7 +65,7 @@ export default function Login() {
     setIsLoading(true)
 
     try {
-      const loggedUser = await login(email, password)
+      const loggedUser = await login(email, password, rememberMe)
       // Redireciona com base no papel do usuário autenticado ou selecionado
       if (
         loggedUser.role === 'admin' ||
@@ -230,6 +233,25 @@ export default function Login() {
                   </button>
                 </div>
               </div>
+
+              <label
+                htmlFor="remember-me"
+                className="flex items-center gap-2 cursor-pointer select-none py-1"
+              >
+                <Checkbox
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => {
+                    const value = checked === true
+                    setRememberMe(value)
+                    setRememberMePreference(value)
+                  }}
+                  className="data-[state=checked]:bg-rose-600 data-[state=checked]:border-rose-600"
+                />
+                <span className="text-xs font-semibold text-slate-700">
+                  Permanecer logado neste dispositivo
+                </span>
+              </label>
 
               <Button
                 type="submit"
