@@ -146,7 +146,7 @@ export default function CustomerDashboard() {
   const totalSpentAll = cards.reduce((acc, c) => acc + (c.total_spent || 0), 0)
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
+    <div className="fideliza-panel container mx-auto px-4 py-8 max-w-7xl flex-1">
       {/* HEADER & DIGITAL ID BANNER */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-center">
         {/* User Welcome */}

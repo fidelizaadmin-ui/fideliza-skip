@@ -456,3 +456,73 @@
 .brand-border {
   border-color: var(--brand-primary);
 }
+
+/* ============================================================
+   CARDS DOS PAINÉIS AUTENTICADOS (/cliente, /lojista, /admin)
+   A partir da v0.0.85, os cards das áreas autenticadas usam o
+   mesmo tom claro derivado do tema ativo das telas de login/
+   cadastro (--brand-card / --brand-card-border), com os campos de
+   interação em BRANCO dentro dos cards. O estilo é aplicado via
+   classe .fideliza-panel no contêiner raiz de cada painel — sem
+   editar card por card. Trocar o tema em Configurações muda a cor
+   dos cards de todas as páginas junto.
+   ============================================================ */
+
+/* Cartão de login/cadastro (mesma variável, forma utilitária) */
+.brand-panel-card {
+  background-color: hsl(var(--brand-card));
+  border-color: hsl(var(--brand-card-border));
+}
+
+/* Cards dos painéis: Card shadcn (bg-card) e superfícies bg-white */
+.fideliza-panel .bg-card {
+  background-color: hsl(var(--brand-card));
+  border-color: hsl(var(--brand-card-border));
+}
+
+.fideliza-panel .bg-white {
+  background-color: hsl(var(--brand-card));
+  border-color: hsl(var(--brand-card-border));
+}
+
+/* Campos de interação sempre BRANCOS dentro dos cards dos painéis
+   (Input, Textarea, Select nativo e SelectTrigger do Radix) */
+.fideliza-panel input,
+.fideliza-panel textarea,
+.fideliza-panel select,
+.fideliza-panel [role='combobox'],
+.fideliza-panel .bg-card input,
+.fideliza-panel .bg-card textarea,
+.fideliza-panel .bg-card select,
+.fideliza-panel .bg-card [role='combobox'],
+.fideliza-panel .bg-white input,
+.fideliza-panel .bg-white textarea,
+.fideliza-panel .bg-white select,
+.fideliza-panel .bg-white [role='combobox'] {
+  background-color: #ffffff;
+}
+
+/* Texto dos cards volta ao padrão escuro do sistema (text-card-foreground
+   é slate-950/900 escuro) — o tinting do card não deve tingir o texto. */
+.fideliza-panel .bg-card,
+.fideliza-panel .bg-white {
+  color: hsl(var(--card-foreground));
+}
+
+/* Superfície BRANCA por design (linhas de agendamento, campo de URL,
+   badge, aviso de seção suspensa, selects de filtro): fica fora do
+   tinting azul dos cards de seção */
+.fideliza-panel .fideliza-panel-white {
+  background-color: #ffffff !important;
+  color: hsl(var(--card-foreground));
+}
+
+/* Campo que É o próprio elemento com classe bg-white (ex. Inputs e
+   SelectTriggers com "bg-white" explícito no código dos painéis):
+   mantém branco, vencendo o tinting do card acima */
+.fideliza-panel input.bg-white,
+.fideliza-panel textarea.bg-white,
+.fideliza-panel select.bg-white,
+.fideliza-panel [role='combobox'].bg-white {
+  background-color: #ffffff;
+}

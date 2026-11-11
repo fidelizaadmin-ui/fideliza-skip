@@ -1073,7 +1073,7 @@ export default function MerchantDashboard() {
   const totalRedeemedNum = purchases.filter((p) => p.type === 'redemption').length
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
+    <div className="fideliza-panel container mx-auto px-4 py-8 max-w-7xl flex-1">
       {/* SUSPENSION WARNING BANNER (When store is overdue or cancelled) */}
       {hasOverdueSub && (
         <div
@@ -2075,7 +2075,7 @@ export default function MerchantDashboard() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-stretch gap-2 pt-1">
-                      <div className="flex-1 flex items-center bg-white border border-indigo-200 rounded-xl px-3 py-2 shadow-inner text-xs font-mono text-slate-800 break-all select-all">
+                      <div className="flex-1 flex items-center fideliza-panel-white border border-indigo-200 rounded-xl px-3 py-2 shadow-inner text-xs font-mono text-slate-800 break-all select-all">
                         <span className="text-slate-400 select-none mr-1 hidden sm:inline">
                           URL:
                         </span>
@@ -2155,7 +2155,7 @@ export default function MerchantDashboard() {
                         </Button>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 flex items-center bg-white rounded-xl border border-indigo-200 px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
+                        <div className="flex-1 flex items-center fideliza-panel-white rounded-xl border border-indigo-200 px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
                           <span className="text-xs font-mono text-slate-400 select-none">
                             dominio.com/
                           </span>
@@ -2701,7 +2701,7 @@ export default function MerchantDashboard() {
                         Período em Meses
                       </Label>
                       <Select value={reportPeriodMonths} onValueChange={setReportPeriodMonths}>
-                        <SelectTrigger className="text-xs rounded-xl bg-white border-slate-200">
+                        <SelectTrigger className="text-xs rounded-xl bg-white fideliza-panel-white border-slate-200">
                           <SelectValue placeholder="Selecione o período" />
                         </SelectTrigger>
                         <SelectContent>
@@ -2721,7 +2721,7 @@ export default function MerchantDashboard() {
                         Tipo de Movimentação
                       </Label>
                       <Select value={reportTypeFilter} onValueChange={setReportTypeFilter}>
-                        <SelectTrigger className="text-xs rounded-xl bg-white border-slate-200">
+                        <SelectTrigger className="text-xs rounded-xl bg-white fideliza-panel-white border-slate-200">
                           <SelectValue placeholder="Selecione a operação" />
                         </SelectTrigger>
                         <SelectContent>

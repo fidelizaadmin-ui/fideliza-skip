@@ -962,7 +962,7 @@ export default function AdminDashboard() {
   })
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
+    <div className="fideliza-panel container mx-auto px-4 py-8 max-w-7xl flex-1">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>

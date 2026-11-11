@@ -212,7 +212,7 @@ export const SystemSettingsEditor: React.FC = () => {
                   className={`relative text-left rounded-2xl border p-3 transition-all ${
                     isSelected
                       ? 'border-[var(--brand-primary)] ring-2 ring-[var(--brand-secondary)] bg-[var(--brand-soft)]'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                      : 'border-slate-200 bg-white fideliza-panel-white hover:border-slate-300 hover:bg-slate-50'
                   }`}
                   aria-pressed={isSelected}
                 >

@@ -559,7 +559,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs shrink-0">
+            <div className="flex items-center gap-3 bg-white fideliza-panel-white p-3 rounded-2xl border border-slate-200/80 shadow-xs shrink-0">
               <div className="text-right">
                 <span className="block text-xs font-bold text-slate-800">
                   {isEnabled ? 'Agendamentos Ativados' : 'Agendamentos Desativados'}
@@ -652,7 +652,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                   <span className="text-xs font-bold text-slate-700">Filtrar por:</span>
 
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[150px] h-8 text-xs bg-white rounded-xl">
+                    <SelectTrigger className="w-[150px] h-8 text-xs bg-white fideliza-panel-white rounded-xl">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -668,7 +668,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                     type="date"
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-[160px] h-8 text-xs bg-white rounded-xl"
+                    className="w-[160px] h-8 text-xs bg-white fideliza-panel-white rounded-xl"
                   />
 
                   {(statusFilter !== 'all' || dateFilter) && (
@@ -720,7 +720,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                     return (
                       <div
                         key={appt.id}
-                        className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                        className="bg-white fideliza-panel-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
                       >
                         <div className="space-y-1.5 flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -891,7 +891,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                   {services.map((srv) => (
                     <div
                       key={srv.id}
-                      className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between gap-3"
+                      className="bg-white fideliza-panel-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between gap-3"
                     >
                       <div className="space-y-1.5">
                         <div className="flex items-start justify-between gap-2">
@@ -1007,7 +1007,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                   {periodsDraft.map((period, idx) => (
                     <div
                       key={idx}
-                      className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3"
+                      className="bg-white fideliza-panel-white border border-slate-200 rounded-2xl p-3 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3"
                     >
                       <div className="flex flex-wrap items-center gap-2.5 flex-1">
                         <span className="text-xs font-bold text-slate-400 w-6">#{idx + 1}</span>
