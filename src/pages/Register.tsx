@@ -40,6 +40,7 @@ export default function Register() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const { register } = useAuth()
+  const { systemName } = useSystemSettings()
   const navigate = useNavigate()
 
   const formatPhoneNumber = (value: string) => {
