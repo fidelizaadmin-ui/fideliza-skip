@@ -9,7 +9,8 @@ import {
   updateSubscriptionPlan,
   getAllPurchases,
   getCustomersAndCollaborators,
-  promoteToCollaborator,
+  promoteUser,
+  type PromotableRole,
   demoteToCustomer,
   getPaymentCredentials,
   createPaymentCredential,
@@ -119,6 +120,7 @@ export default function AdminDashboard() {
   const [collaboratorsList, setCollaboratorsList] = useState<UserRecord[]>([])
   const [searchUserTerm, setSearchUserTerm] = useState('')
   const [userToPromote, setUserToPromote] = useState<UserRecord | null>(null)
+  const [promoteTargetRole, setPromoteTargetRole] = useState<PromotableRole | null>(null)
   const [userToDemote, setUserToDemote] = useState<UserRecord | null>(null)
   const [isUpdatingRole, setIsUpdatingRole] = useState(false)
 
@@ -225,7 +227,7 @@ export default function AdminDashboard() {
         setPaymentCredentials(credsData)
         setPixSettings(pixData)
         setCustomersCount(usersData.customers.length)
-      } else {
+      } else if (isCollaborator) {
         // Colaborador carrega APENAS lojas e planos de assinatura
         const [storesData, plansData] = await Promise.all([getAllStores(), getSubscriptionPlans()])
 
@@ -247,19 +249,26 @@ export default function AdminDashboard() {
     }
   }
 
-  // COLLABORATOR PROMOTION & DEMOTION HANDLERS
+  // COLLABORATOR/ADMIN PROMOTION & DEMOTION HANDLERS
   const handlePromoteConfirm = async () => {
-    if (!userToPromote) return
+    if (!userToPromote || !promoteTargetRole) return
     setIsUpdatingRole(true)
     try {
-      const updated = await promoteToCollaborator(userToPromote.id)
+      const updated = await promoteUser(userToPromote.id, promoteTargetRole)
       setCustomersList((prev) => prev.filter((u) => u.id !== userToPromote.id))
       setCollaboratorsList((prev) => [updated, ...prev])
       toast({
-        title: 'Cliente promovido a Colaborador!',
-        description: `${userToPromote.name || userToPromote.email} agora tem permissão para gerenciar assinaturas.`,
+        title:
+          promoteTargetRole === 'admin'
+            ? 'Cliente promovido a Administrador!'
+            : 'Cliente promovido a Colaborador!',
+        description:
+          promoteTargetRole === 'admin'
+            ? `${userToPromote.name || userToPromote.email} agora tem acesso total ao painel administrativo. A conta deverá fazer login novamente para ver o novo acesso.`
+            : `${userToPromote.name || userToPromote.email} agora tem permissão para gerenciar assinaturas. A conta deverá fazer login novamente para ver o novo acesso.`,
       })
       setUserToPromote(null)
+      setPromoteTargetRole(null)
     } catch (err: any) {
       toast({
         title: 'Erro ao promover usuário',
@@ -2064,9 +2073,9 @@ export default function AdminDashboard() {
                     Colaboradores do Administrador
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Promova clientes para atuarem como colaboradores administrativos com permissão
-                    para gerenciar exclusivamente assinaturas e planos (sem permissão para excluir
-                    lojas).
+                    Promova clientes para atuarem como <strong>Colaboradores</strong> (gerenciam
+                    exclusivamente assinaturas e planos, sem acessar Configurações nem credenciais)
+                    ou como <strong>Administradores</strong> (acesso total ao painel).
                   </p>
                 </div>
               </div>
@@ -2076,10 +2085,10 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-purple-600" />
-                    Colaboradores Atuais ({collaboratorsList.length})
+                    Administradores e Colaboradores ({collaboratorsList.length})
                   </h4>
                   <Badge variant="outline" className="text-[10px] text-purple-700 bg-purple-50">
-                    Acesso a Assinaturas e Planos
+                    Acesso ao Painel Administrativo
                   </Badge>
                 </div>
 
@@ -2114,9 +2123,15 @@ export default function AdminDashboard() {
                             <p className="text-[10px] text-slate-400">{colab.document || '-'}</p>
                           </td>
                           <td className="py-3 px-4">
-                            <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-semibold gap-1">
-                              <ShieldCheck className="w-3 h-3" /> Colaborador
-                            </Badge>
+                            {colab.role === 'admin' ? (
+                              <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] font-semibold gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Administrador
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-semibold gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Colaborador
+                              </Badge>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <Button
@@ -2153,8 +2168,8 @@ export default function AdminDashboard() {
                       Clientes Cadastrados ({customersList.length})
                     </h4>
                     <p className="text-[11px] text-slate-500">
-                      Escolha um cliente da base para promover ao papel de colaborador
-                      administrativo.
+                      Escolha um cliente da base para promover ao papel de Administrador (acesso
+                      total) ou Colaborador (acesso restrito).
                     </p>
                   </div>
 
@@ -2203,14 +2218,31 @@ export default function AdminDashboard() {
                               {cust.customer_code || cust.document || '-'}
                             </td>
                             <td className="py-2.5 px-4 text-right">
-                              <Button
-                                size="sm"
-                                onClick={() => setUserToPromote(cust)}
-                                className="text-xs h-7 px-3 bg-purple-600 hover:bg-purple-700 text-white font-bold gap-1"
-                              >
-                                <UserCheck className="w-3.5 h-3.5" />
-                                Promover a Colaborador
-                              </Button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setUserToPromote(cust)
+                                    setPromoteTargetRole('admin')
+                                  }}
+                                  className="text-xs h-7 px-3 bg-purple-600 hover:bg-purple-700 text-white font-bold gap-1"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5" />
+                                  Promover a Administrador
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setUserToPromote(cust)
+                                    setPromoteTargetRole('collaborator')
+                                  }}
+                                  className="text-xs h-7 px-3 border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800 font-bold gap-1"
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                  Promover a Colaborador
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -2500,30 +2532,54 @@ export default function AdminDashboard() {
         <DialogContent className="max-w-md rounded-2xl p-6">
           <DialogHeader>
             <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center mb-2">
-              <UserCheck className="w-6 h-6" />
+              {promoteTargetRole === 'admin' ? (
+                <ShieldCheck className="w-6 h-6" />
+              ) : (
+                <UserCheck className="w-6 h-6" />
+              )}
             </div>
             <DialogTitle className="text-lg font-black text-slate-900">
-              Promover a Colaborador do Administrador?
+              {promoteTargetRole === 'admin'
+                ? 'Promover a Administrador?'
+                : 'Promover a Colaborador do Administrador?'}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 leading-relaxed">
               Você está promovendo o cliente{' '}
               <strong>"{userToPromote?.name || userToPromote?.email}"</strong> (
-              {userToPromote?.email}) para o papel de <strong>Colaborador</strong>.
+              {userToPromote?.email}) para o papel de{' '}
+              <strong>{promoteTargetRole === 'admin' ? 'Administrador' : 'Colaborador'}</strong>.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-purple-900 text-xs space-y-1 my-2">
-            <p className="font-bold">Permissões que serão concedidas:</p>
-            <ul className="list-disc pl-4 space-y-0.5 text-purple-800 text-[11px]">
-              <li>Acesso ao painel administrativo de assinaturas</li>
-              <li>Ajustar status de planos e assinaturas de lojas (Trial, Pago, Vencimento)</li>
-              <li>Confirmar pagamentos de mensalidades</li>
-              <li>Editar e criar valores de planos de assinatura</li>
-            </ul>
-            <p className="font-bold text-rose-600 pt-1 text-[11px]">
-              O colaborador NÃO poderá excluir lojas nem aprovar/recusar cadastros de lojas.
-            </p>
-          </div>
+          {promoteTargetRole === 'admin' ? (
+            <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-purple-900 text-xs space-y-1 my-2">
+              <p className="font-bold">Permissões que serão concedidas:</p>
+              <ul className="list-disc pl-4 space-y-0.5 text-purple-800 text-[11px]">
+                <li>Acesso TOTAL ao painel administrativo (/admin)</li>
+                <li>Aprovar, recusar e excluir lojas</li>
+                <li>Configurações do sistema, incluindo logo, tema e marca</li>
+                <li>Credenciais de pagamento e chaves Pix (acesso às chaves)</li>
+                <li>Promover e reverter outros usuários</li>
+              </ul>
+              <p className="font-bold text-rose-600 pt-1 text-[11px]">
+                Esta conta terá as mesmas funções que você. Confirme apenas se tiver certeza.
+              </p>
+            </div>
+          ) : (
+            <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-purple-900 text-xs space-y-1 my-2">
+              <p className="font-bold">Permissões que serão concedidas:</p>
+              <ul className="list-disc pl-4 space-y-0.5 text-purple-800 text-[11px]">
+                <li>Acesso ao painel administrativo de assinaturas</li>
+                <li>Ajustar status de planos e assinaturas de lojas (Trial, Pago, Vencimento)</li>
+                <li>Confirmar pagamentos de mensalidades</li>
+                <li>Editar e criar valores de planos de assinatura</li>
+              </ul>
+              <p className="font-bold text-rose-600 pt-1 text-[11px]">
+                O colaborador NÃO terá acesso às Configurações, às credenciais de pagamento nem
+                poderá excluir lojas ou aprovar/recusar cadastros.
+              </p>
+            </div>
+          )}
 
           <DialogFooter className="pt-2 flex gap-2">
             <Button
@@ -2542,7 +2598,11 @@ export default function AdminDashboard() {
               onClick={handlePromoteConfirm}
               className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
             >
-              {isUpdatingRole ? 'Promovendo...' : 'Confirmar Promoção'}
+              {isUpdatingRole
+                ? 'Promovendo...'
+                : promoteTargetRole === 'admin'
+                  ? 'Confirmar Promoção a Administrador'
+                  : 'Confirmar Promoção a Colaborador'}
             </Button>
           </DialogFooter>
         </DialogContent>

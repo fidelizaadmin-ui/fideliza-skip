@@ -261,15 +261,10 @@ export default function Login() {
         <div className="text-center text-xs text-slate-600">
           Ainda não tem conta?{' '}
           <Link
-            to={`/cadastro?tipo=${selectedRole}`}
+            to={selectedRole === 'merchant' ? '/cadastro?tipo=merchant' : '/cadastro'}
             className="font-bold text-rose-600 hover:text-rose-700 underline underline-offset-2"
           >
-            Cadastre-se como{' '}
-            {selectedRole === 'admin'
-              ? 'administrador'
-              : selectedRole === 'merchant'
-                ? 'lojista'
-                : 'cliente'}
+            Cadastre-se como {selectedRole === 'merchant' ? 'lojista' : 'cliente'}
           </Link>
         </div>
       </div>

@@ -10,7 +10,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Store,
   CreditCard,
-  ShieldCheck,
   AlertCircle,
   Loader2,
   CheckCircle2,
@@ -23,10 +22,11 @@ import { BrandLogo } from '@/components/BrandLogo'
 import { useSystemSettings } from '@/contexts/SystemSettingsContext'
 
 export default function Register() {
+  // O cadastro aceita apenas Cliente e Lojista (contas admin são promovidas pelo painel /admin).
   const [searchParams] = useSearchParams()
   const initialRole = (searchParams.get('tipo') as UserRole) || 'customer'
   const [selectedRole, setSelectedRole] = useState<UserRole>(
-    ['customer', 'merchant', 'admin'].includes(initialRole) ? initialRole : 'customer',
+    initialRole === 'merchant' ? 'merchant' : 'customer',
   )
 
   const [name, setName] = useState('')
@@ -34,7 +34,6 @@ export default function Register() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [phone, setPhone] = useState('')
-  const [adminToken, setAdminToken] = useState('')
 
   const [isLoading, setIsLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -82,13 +81,6 @@ export default function Register() {
       return
     }
 
-    if (selectedRole === 'admin' && adminToken.trim() !== 'FIDELIZA_ADMIN_2026') {
-      setErrorMsg(
-        'Código de convite de administrador inválido. Use FIDELIZA_ADMIN_2026 ou entre com o admin já criado.',
-      )
-      return
-    }
-
     setIsLoading(true)
 
     try {
@@ -100,9 +92,7 @@ export default function Register() {
         phone: phone.trim(),
       })
 
-      if (user?.role === 'admin') {
-        navigate('/admin')
-      } else if (user?.role === 'merchant') {
+      if (user?.role === 'merchant') {
         navigate('/lojista')
       } else {
         navigate('/cliente')
@@ -157,7 +147,7 @@ export default function Register() {
               }}
               className="w-full"
             >
-              <TabsList className="grid grid-cols-3 w-full bg-slate-100 p-1 rounded-xl">
+              <TabsList className="grid grid-cols-2 w-full bg-slate-100 p-1 rounded-xl">
                 <TabsTrigger
                   value="customer"
                   className="text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-xs flex items-center gap-1"
@@ -171,13 +161,6 @@ export default function Register() {
                 >
                   <Store className="w-3.5 h-3.5" />
                   Lojista
-                </TabsTrigger>
-                <TabsTrigger
-                  value="admin"
-                  className="text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-xs flex items-center gap-1"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Admin
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -201,16 +184,6 @@ export default function Register() {
                 <span>
                   Cadastre sua loja, escolha seu plano de fidelidade (selos, pontos ou cashback) e
                   ganhe <strong>dias de teste grátis</strong>.
-                </span>
-              </div>
-            )}
-
-            {selectedRole === 'admin' && (
-              <div className="mb-4 bg-purple-50 border border-purple-200 text-purple-800 text-xs p-3 rounded-xl flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 shrink-0 text-purple-600" />
-                <span>
-                  Acesso de gestão global para aprovar lojas, definir planos e acompanhar métricas.
-                  (Código de convite: <code>FIDELIZA_ADMIN_2026</code>)
                 </span>
               </div>
             )}
@@ -298,23 +271,6 @@ export default function Register() {
                 </div>
               </div>
 
-              {selectedRole === 'admin' && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="token" className="text-xs font-bold text-purple-700">
-                    Código de Convite de Administrador
-                  </Label>
-                  <Input
-                    id="token"
-                    type="text"
-                    required
-                    placeholder="FIDELIZA_ADMIN_2026"
-                    value={adminToken}
-                    onChange={(e) => setAdminToken(e.target.value)}
-                    className="rounded-xl border-purple-200 focus-visible:ring-purple-500 font-mono text-xs"
-                  />
-                </div>
-              )}
-
               <Button
                 type="submit"
                 disabled={isLoading}
@@ -328,12 +284,7 @@ export default function Register() {
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Finalizar Cadastro como{' '}
-                    {selectedRole === 'admin'
-                      ? 'Admin'
-                      : selectedRole === 'merchant'
-                        ? 'Lojista'
-                        : 'Cliente'}
+                    Finalizar Cadastro como {selectedRole === 'merchant' ? 'Lojista' : 'Cliente'}
                   </>
                 )}
               </Button>
@@ -345,7 +296,7 @@ export default function Register() {
         <div className="text-center text-xs text-slate-600">
           Já tem uma conta?{' '}
           <Link
-            to={`/login?tipo=${selectedRole}`}
+            to={`/login`}
             className="font-bold text-rose-600 hover:text-rose-700 underline underline-offset-2"
           >
             Faça login aqui

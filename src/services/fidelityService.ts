@@ -555,15 +555,31 @@ export async function getCustomersAndCollaborators(): Promise<{
   }
 }
 
-export async function promoteToCollaborator(userId: string): Promise<UserRecord> {
+export type PromotableRole = 'admin' | 'collaborator'
+
+/**
+ * Promove um usuário a Administrador (acesso total ao /admin) ou Colaborador
+ * (acesso restrito). Requer sessão de admin (a regra de update da coleção
+ * users valida a permissão no backend).
+ */
+export async function promoteUser(userId: string, role: PromotableRole): Promise<UserRecord> {
   const authRecord = pb.authStore.record
   if (authRecord?.role !== 'admin') {
-    throw new Error('Apenas administradores podem promover usuários a colaborador.')
+    throw new Error(
+      'Apenas administradores podem promover usuários. Solicite ao administrador da loja.',
+    )
+  }
+  if (authRecord?.id === userId) {
+    throw new Error('Você não pode promover a si mesmo.')
   }
 
   return await pb.collection('users').update<UserRecord>(userId, {
-    role: 'collaborator',
+    role,
   })
+}
+
+export async function promoteToCollaborator(userId: string): Promise<UserRecord> {
+  return promoteUser(userId, 'collaborator')
 }
 
 export async function demoteToCustomer(userId: string): Promise<UserRecord> {
