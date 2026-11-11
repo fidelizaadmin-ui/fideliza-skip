@@ -54,6 +54,7 @@ const EMPTY_SNAPSHOT: Snapshot = {
   theme: DEFAULT_THEME,
   logoUrl: null,
   iconUrl: null,
+  heroImageUrl: null,
 }
 
 const SystemSettingsContext = createContext<SystemSettingsContextValue>({

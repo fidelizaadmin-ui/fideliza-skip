@@ -748,8 +748,9 @@ export async function getPaymentCredentials(): Promise<PaymentCredentialRecord[]
     )
     return res.items || []
   } catch (error) {
-    console.error('Error fetching payment credentials:', error)
-    throw error
+    // Tolerante a falhas: sem credenciais o painel segue abrindo (lista vazia).
+    console.warn('Não foi possível carregar as credenciais de pagamento:', error)
+    return []
   }
 }
 
