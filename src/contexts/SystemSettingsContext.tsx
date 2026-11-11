@@ -14,6 +14,7 @@ type SystemSettingsRecord = {
   theme: string
   logo?: string
   icon?: string
+  hero_image?: string
 }
 
 interface Snapshot {
@@ -22,6 +23,7 @@ interface Snapshot {
   theme: string
   logoUrl: string | null
   iconUrl: string | null
+  heroImageUrl: string | null
 }
 
 interface SystemSettingsContextValue {
@@ -33,6 +35,8 @@ interface SystemSettingsContextValue {
   logoUrl: string | null
   /** URL do ícone personalizado (null = ícone/favicon padrão) */
   iconUrl: string | null
+  /** URL da imagem de fundo do hero da página inicial (null = imagem padrão) */
+  heroImageUrl: string | null
   /** Id do registro único de system_settings (null se ainda não existe) */
   recordId: string | null
   /** Atualiza o estado local (após o admin salvar no backend) */
@@ -57,6 +61,7 @@ const SystemSettingsContext = createContext<SystemSettingsContextValue>({
   theme: DEFAULT_THEME,
   logoUrl: null,
   iconUrl: null,
+  heroImageUrl: null,
   recordId: null,
   applySettings: () => {},
   refresh: async () => {},
@@ -100,13 +105,14 @@ async function fetchSnapshot(): Promise<Snapshot | null> {
     theme: rec.theme || DEFAULT_THEME,
     logoUrl: rec.logo ? pb.files.getURL(rec, rec.logo) : null,
     iconUrl: rec.icon ? pb.files.getURL(rec, rec.icon) : null,
+    heroImageUrl: rec.hero_image ? pb.files.getURL(rec, rec.hero_image) : null,
   }
 }
 
 /**
  * Carrega as configurações do sistema no bootstrap do app.
  * Se o banco estiver vazio/indisponível, cai no padrão seguro:
- * nome "Fideliza" + tema azul + logo/ícone padrão — sem quebrar nada.
+ * nome "Fideliza" + tema azul + logo/ícone/hero padrão — sem quebrar nada.
  */
 export function SystemSettingsProvider({ children }: { children: React.ReactNode }) {
   const [snap, setSnap] = useState<Snapshot>(EMPTY_SNAPSHOT)
@@ -165,6 +171,7 @@ export function SystemSettingsProvider({ children }: { children: React.ReactNode
         theme: snap.theme,
         logoUrl: snap.logoUrl,
         iconUrl: snap.iconUrl,
+        heroImageUrl: snap.heroImageUrl,
         recordId: snap.recordId,
         applySettings,
         refresh,

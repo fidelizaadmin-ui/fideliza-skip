@@ -7,23 +7,40 @@ import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Loader2, Upload, RotateCcw, Save, Image as ImageIcon } from 'lucide-react'
 
-type ImageKind = 'logo' | 'icon'
+type ImageKind = 'logo' | 'icon' | 'hero'
 
-const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml']
+const ACCEPTED_TYPES: Record<ImageKind, string[]> = {
+  logo: ['image/png', 'image/jpeg', 'image/svg+xml'],
+  icon: ['image/png', 'image/jpeg', 'image/svg+xml'],
+  hero: ['image/png', 'image/jpeg', 'image/webp'],
+}
+
+const ACCEPT_ATTRS: Record<ImageKind, string> = {
+  logo: '.png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml',
+  icon: '.png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml',
+  hero: '.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp',
+}
+
 const MAX_BYTES = 5 * 1024 * 1024
 
 /**
- * Upload de logo (marca horizontal) e ícone (quadrado/favicon) do sistema.
- * Só é montado dentro do editor de Configurações (visível apenas ao admin).
+ * Upload de logo (marca horizontal), ícone (quadrado/favicon) e imagem de fundo
+ * do hero da página inicial. Só é montado dentro do editor de Configurações
+ * (visível apenas ao admin).
  */
 export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ recordId }) => {
-  const { logoUrl, iconUrl, refresh } = useSystemSettings()
+  const { logoUrl, iconUrl, heroImageUrl, refresh } = useSystemSettings()
   const { toast } = useToast()
 
-  const [pending, setPending] = useState<Record<ImageKind, File | null>>({ logo: null, icon: null })
+  const [pending, setPending] = useState<Record<ImageKind, File | null>>({
+    logo: null,
+    icon: null,
+    hero: null,
+  })
   const [previews, setPreviews] = useState<Record<ImageKind, string | null>>({
     logo: null,
     icon: null,
+    hero: null,
   })
   const [busy, setBusy] = useState<ImageKind | null>(null)
 
@@ -33,8 +50,10 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
 
   useEffect(() => {
     return () => {
-      if (previewsRef.current.logo) URL.revokeObjectURL(previewsRef.current.logo)
-      if (previewsRef.current.icon) URL.revokeObjectURL(previewsRef.current.icon)
+      ;(Object.keys(previewsRef.current) as ImageKind[]).forEach((k) => {
+        const url = previewsRef.current[k]
+        if (url) URL.revokeObjectURL(url)
+      })
     }
   }, [])
 
@@ -43,10 +62,13 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
     e.target.value = ''
     if (!file) return
 
-    if (!ACCEPTED_TYPES.includes(file.type)) {
+    if (!ACCEPTED_TYPES[kind].includes(file.type)) {
       toast({
         title: 'Formato não aceito',
-        description: 'Envie uma imagem PNG, JPG ou SVG.',
+        description:
+          kind === 'hero'
+            ? 'Envie uma imagem JPG, PNG ou WEBP.'
+            : 'Envie uma imagem PNG, JPG ou SVG.',
         variant: 'destructive',
       })
       return
@@ -97,11 +119,9 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
       await refresh()
       clearPending(kind)
       toast({
-        title: restore ? 'Padrão restaurado' : kind === 'logo' ? 'Logo salva!' : 'Ícone salvo!',
+        title: restore ? 'Padrão restaurado' : FIELD_TITLES[kind].savedTitle,
         description: restore
-          ? kind === 'logo'
-            ? 'A logo voltou ao padrão do Fideliza.'
-            : 'O ícone voltou ao padrão do Fideliza.'
+          ? FIELD_TITLES[kind].restoredDesc
           : 'A nova imagem já está em uso no sistema.',
         className: 'bg-emerald-600 text-white border-emerald-700',
       })
@@ -117,13 +137,41 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
     }
   }
 
+  const currentUrls: Record<ImageKind, string | null> = {
+    logo: logoUrl,
+    icon: iconUrl,
+    hero: heroImageUrl,
+  }
+
+  const FIELD_TITLES: Record<ImageKind, { savedTitle: string; restoredDesc: string }> = {
+    logo: {
+      savedTitle: 'Logo salva!',
+      restoredDesc: 'A logo voltou ao padrão do Fideliza.',
+    },
+    icon: {
+      savedTitle: 'Ícone salvo!',
+      restoredDesc: 'O ícone voltou ao padrão do Fideliza.',
+    },
+    hero: {
+      savedTitle: 'Imagem de fundo salva!',
+      restoredDesc: 'A imagem de fundo do hero voltou ao padrão do Fideliza.',
+    },
+  }
+
   const renderField = (kind: ImageKind) => {
     const isLogo = kind === 'logo'
-    const title = isLogo ? 'Logo do Sistema' : 'Ícone do Sistema'
+    const isHero = kind === 'hero'
+    const title = isLogo
+      ? 'Logo do Sistema'
+      : isHero
+        ? 'Imagem de Fundo do Hero'
+        : 'Ícone do Sistema'
     const description = isLogo
       ? 'Marca horizontal exibida na navbar, rodapé, login, cadastro, cartão do cliente e páginas de e-mail/senha.'
-      : 'Ícone quadrado usado no favicon da aba e no lugar da caixa de presente nas marcas pequenas.'
-    const currentUrl = isLogo ? logoUrl : iconUrl
+      : isHero
+        ? "Foto exibida como marca d'água no fundo do topo (hero) da página inicial, atrás dos títulos e da busca."
+        : 'Ícone quadrado usado no favicon da aba e no lugar da caixa de presente nas marcas pequenas.'
+    const currentUrl = currentUrls[kind]
     const previewUrl = previews[kind]
     const shown = previewUrl ?? currentUrl
     const isBusy = busy === kind
@@ -142,7 +190,13 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
             }`}
           >
             {shown ? (
-              <img src={shown} alt={title} className="max-w-full max-h-full object-contain p-2" />
+              <img
+                src={shown}
+                alt={title}
+                className={
+                  isHero ? 'w-full h-full object-cover' : 'max-w-full max-h-full object-contain p-2'
+                }
+              />
             ) : (
               <ImageIcon className="w-6 h-6 text-slate-300" />
             )}
@@ -162,7 +216,7 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
             Escolher arquivo
             <input
               type="file"
-              accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml"
+              accept={ACCEPT_ATTRS[kind]}
               className="sr-only"
               onChange={(e) => handlePick(kind, e)}
               disabled={isBusy}
@@ -210,7 +264,9 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
             </Button>
           )}
         </div>
-        <p className="text-[10px] text-slate-400">PNG, JPG ou SVG — máximo 5 MB.</p>
+        <p className="text-[10px] text-slate-400">
+          {isHero ? 'JPG, PNG ou WEBP — máximo 5 MB.' : 'PNG, JPG ou SVG — máximo 5 MB.'}
+        </p>
       </div>
     )
   }
@@ -222,7 +278,7 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
           <span className="w-8 h-8 rounded-xl bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center">
             <ImageIcon className="w-4 h-4" />
           </span>
-          Logo e Ícone
+          Logo, Ícone e Imagem de Fundo
         </CardTitle>
         <CardDescription className="text-xs text-slate-500">
           Substitua a marca padrão do Fideliza por imagens próprias.
@@ -231,6 +287,7 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
       <CardContent className="grid gap-8 md:grid-cols-2">
         {renderField('logo')}
         {renderField('icon')}
+        {renderField('hero')}
       </CardContent>
     </Card>
   )

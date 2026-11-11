@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T13:00:59.918Z",
+  "generatedAt": "2026-11-11T13:36:38.692Z",
   "collections": [
     {
       "name": "users",
@@ -1460,6 +1460,12 @@
         },
         {
           "name": "icon",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "hero_image",
           "type": "file",
           "required": false,
           "system": false
