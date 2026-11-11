@@ -934,8 +934,8 @@ export default function AdminDashboard() {
     const ownerPhone = s.expand?.owner_id?.phone?.toLowerCase() || ''
     const ownerDoc = s.expand?.owner_id?.document?.toLowerCase() || ''
     const matchesSearch =
-      s.name.toLowerCase().includes(term) ||
-      s.category.toLowerCase().includes(term) ||
+      s.name?.toLowerCase().includes(term) ||
+      s.category?.toLowerCase().includes(term) ||
       (s.address && s.address.toLowerCase().includes(term)) ||
       ownerName.includes(term) ||
       ownerEmail.includes(term) ||
