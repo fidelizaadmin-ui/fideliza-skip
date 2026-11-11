@@ -342,15 +342,15 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
           </div>
 
           {/* Tipo de Chave + Digite a chave Pix — lado a lado na mesma linha */}
-          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-2.5">
-            <div>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5 items-start">
+            <div className="min-w-0 w-full">
               <Label className="text-[10px] font-semibold text-slate-600">Tipo de Chave</Label>
               <Select
                 value={keyType}
                 onValueChange={(val: AppointmentPixKeyType) => setKeyType(val)}
                 disabled={isSaving || isMerchantSuspended}
               >
-                <SelectTrigger className="rounded-xl h-10 text-xs bg-slate-50">
+                <SelectTrigger className="rounded-xl h-10 w-full min-w-0 text-xs bg-slate-50">
                   <SelectValue placeholder="Tipo de chave" />
                 </SelectTrigger>
                 <SelectContent>
@@ -363,8 +363,8 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
               </Select>
             </div>
 
-            <div>
-              <Label className="text-[10px] font-semibold text-slate-600 flex items-center justify-between">
+            <div className="min-w-0 w-full">
+              <Label className="text-[10px] font-semibold text-slate-600 flex flex-wrap items-center justify-between gap-x-2">
                 <span>{hasPixKey ? 'Alterar Chave Pix (opcional)' : 'Digite a Chave Pix'}</span>
                 <span className="flex items-center gap-1 text-[10px] text-slate-400">
                   <Lock className="w-2.5 h-2.5" /> Protegido com máscara
@@ -387,7 +387,7 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
                             : 'Chave aleatória (32 caracteres)'
                 }
                 disabled={isSaving || isMerchantSuspended}
-                className="rounded-xl h-10 text-xs font-mono"
+                className="rounded-xl h-10 w-full min-w-0 text-xs font-mono"
               />
             </div>
           </div>
