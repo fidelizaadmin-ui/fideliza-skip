@@ -142,7 +142,7 @@ export default function Register() {
           </div>
         </div>
 
-        <Card className="border-slate-200/80 shadow-xl shadow-slate-200/50 rounded-3xl">
+        <Card className="bg-[hsl(var(--brand-card))] border-[hsl(var(--brand-card-border))] shadow-xl shadow-slate-200/50 rounded-3xl">
           <CardHeader className="pb-3">
             <Tabs
               value={selectedRole}
@@ -215,7 +215,7 @@ export default function Register() {
                   }
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="rounded-xl border-slate-200 focus-visible:ring-rose-500"
+                  className="rounded-xl border-slate-200 bg-white focus-visible:ring-rose-500"
                 />
               </div>
 
@@ -230,7 +230,7 @@ export default function Register() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-xl border-slate-200 focus-visible:ring-rose-500"
+                  className="rounded-xl border-slate-200 bg-white focus-visible:ring-rose-500"
                 />
               </div>
 
@@ -246,7 +246,7 @@ export default function Register() {
                   maxLength={15}
                   value={phone}
                   onChange={handlePhoneChange}
-                  className="rounded-xl border-slate-200 focus-visible:ring-rose-500"
+                  className="rounded-xl border-slate-200 bg-white focus-visible:ring-rose-500"
                 />
               </div>
 
@@ -263,7 +263,7 @@ export default function Register() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="rounded-xl border-slate-200 focus-visible:ring-rose-500 pr-10"
+                    className="rounded-xl border-slate-200 bg-white focus-visible:ring-rose-500 pr-10"
                   />
                   <button
                     type="button"

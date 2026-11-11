@@ -22,6 +22,9 @@
   --primary: 217 98% 24%;
   --primary-foreground: 0 0% 100%;
   --ring: 210 98% 50%;
+  /* Cards de login/cadastro: tom claro derivado do primary do tema */
+  --brand-card: 210 100% 94%;
+  --brand-card-border: 210 90% 84%;
 }
 
 [data-brand-theme='verde'] {
@@ -33,6 +36,8 @@
   --primary: 165 94% 20%;
   --primary-foreground: 0 0% 100%;
   --ring: 160 84% 39%;
+  --brand-card: 152 60% 93%;
+  --brand-card-border: 152 55% 83%;
 }
 
 [data-brand-theme='roxo'] {
@@ -44,6 +49,8 @@
   --primary: 263 67% 35%;
   --primary-foreground: 0 0% 100%;
   --ring: 258 90% 66%;
+  --brand-card: 263 80% 95%;
+  --brand-card-border: 263 60% 86%;
 }
 
 [data-brand-theme='laranja'] {
@@ -55,6 +62,8 @@
   --primary: 21 90% 41%;
   --primary-foreground: 0 0% 100%;
   --ring: 25 95% 53%;
+  --brand-card: 30 100% 93%;
+  --brand-card-border: 30 90% 84%;
 }
 
 [data-brand-theme='vermelho'] {
@@ -66,6 +75,8 @@
   --primary: 0 71% 35%;
   --primary-foreground: 0 0% 100%;
   --ring: 0 84% 60%;
+  --brand-card: 0 85% 95%;
+  --brand-card-border: 0 70% 86%;
 }
 
 [data-brand-theme='grafite'] {
@@ -77,6 +88,8 @@
   --primary: 215 28% 17%;
   --primary-foreground: 0 0% 100%;
   --ring: 215 16% 47%;
+  --brand-card: 215 25% 93%;
+  --brand-card-border: 215 20% 84%;
 }
 
 /* ============================================================
