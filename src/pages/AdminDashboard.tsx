@@ -94,6 +94,7 @@ import {
 import { formatPhoneNumber, formatDocumentWithLabel } from '@/lib/documentValidation'
 import { useToast } from '@/hooks/use-toast'
 import { SystemSettingsEditor } from '@/components/SystemSettingsEditor'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function AdminDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -3464,7 +3465,9 @@ export default function AdminDashboard() {
       {/* ======================================================== */}
       {isAdmin && (
         <TabsContent value="settings" className="space-y-4">
-          <SystemSettingsEditor />
+          <ErrorBoundary title="Erro ao carregar as Configurações" compact>
+            <SystemSettingsEditor />
+          </ErrorBoundary>
         </TabsContent>
       )}
     </div>

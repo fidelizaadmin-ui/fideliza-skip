@@ -21,6 +21,7 @@ import StorePage from './pages/StorePage'
 import { AuthProvider } from './contexts/AuthContext'
 import { SystemSettingsProvider } from './contexts/SystemSettingsContext'
 import { CompleteDocumentDialog } from './components/CompleteDocumentDialog'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
@@ -41,7 +42,14 @@ const App = () => (
               <Route path="/cadastro" element={<Register />} />
               <Route path="/confirmar-email" element={<ConfirmVerificationPage />} />
               <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
-              <Route path="/admin" element={<AdminDashboard />} />
+              <Route
+                path="/admin"
+                element={
+                  <ErrorBoundary title="Erro no painel do administrador">
+                    <AdminDashboard />
+                  </ErrorBoundary>
+                }
+              />
               <Route path="/lojista" element={<MerchantDashboard />} />
               <Route path="/cliente" element={<CustomerDashboard />} />
               <Route path="/planos" element={<PlansPage />} />
