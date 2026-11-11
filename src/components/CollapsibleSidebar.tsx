@@ -103,9 +103,9 @@ export function CollapsibleSidebar<T extends string = string>({
   return (
     <div className={cn('w-full', className)}>
       <Sheet open={open} onOpenChange={setOpen}>
-        {/* BOTÃO FIXO NA LATERAL SUPERIOR ESQUERDA DA TELA (SEMPRE VISÍVEL NO TOPO, ACIMA DE QUALQUER CONTEÚDO E DO CABEÇALHO) */}
+        {/* BOTÃO MENU NA BARRA SUPERIOR DO PAINEL (LINHA DO TOPO, À ESQUERDA — MESMA ALTURA DO ÍCONE DO USUÁRIO NA NAVBAR) */}
         {showFixedTriggerButton && (
-          <div className="fixed top-20 left-4 z-50 pointer-events-auto">
+          <div className="flex items-center justify-start mb-3">
             <SheetTrigger asChild>
               <Button
                 type="button"
