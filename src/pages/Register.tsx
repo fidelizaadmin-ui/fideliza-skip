@@ -19,7 +19,8 @@ import {
   EyeOff,
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Logo } from '@/components/Logo'
+import { BrandLogo } from '@/components/BrandLogo'
+import { useSystemSettings } from '@/contexts/SystemSettingsContext'
 
 export default function Register() {
   const [searchParams] = useSearchParams()
@@ -123,14 +124,14 @@ export default function Register() {
         {/* Brand header */}
         <div className="text-center space-y-3">
           <div className="flex justify-center">
-            <Logo variant="full" theme="light" size="lg" />
+            <BrandLogo theme="light" size="lg" />
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               Criar Nova Conta
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">
-              Junte-se ao Fideliza e comece a acumular ou criar seus programas
+              Junte-se ao {systemName} e comece a acumular ou criar seus programas
             </p>
           </div>
         </div>

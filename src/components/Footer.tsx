@@ -1,16 +1,19 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, Store, ShieldCheck, CreditCard } from 'lucide-react'
-import { Logo } from '@/components/Logo'
+import { BrandLogo } from '@/components/BrandLogo'
+import { useSystemSettings } from '@/contexts/SystemSettingsContext'
 
 export const Footer: React.FC = () => {
+  const { systemName } = useSystemSettings()
+
   return (
     <footer className="border-t border-slate-800 bg-[#0A192F] text-slate-300 mt-auto">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="space-y-3 md:col-span-1">
-            <Logo variant="horizontal" theme="dark" size="sm" showTagline={false} />
+            <BrandLogo theme="dark" size="sm" showTagline={false} />
             <p className="text-xs text-slate-400 leading-relaxed pt-1">
               A plataforma completa de fidelidade que conecta lojas e clientes através de selos
               digitais, pontos e cashback em tempo real.
@@ -101,7 +104,9 @@ export const Footer: React.FC = () => {
 
         <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span>© {new Date().getFullYear()} Fideliza. Todos os direitos reservados.</span>
+            <span>
+              © {new Date().getFullYear()} {systemName}. Todos os direitos reservados.
+            </span>
             <span className="hidden sm:inline text-slate-600">•</span>
             <span className="text-slate-300">Desenvolvido por Angelo Design</span>
           </p>

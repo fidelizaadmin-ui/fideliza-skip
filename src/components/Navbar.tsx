@@ -29,7 +29,7 @@ import {
   markAllNotificationsAsRead,
 } from '@/services/fidelityService'
 import type { NotificationRecord } from '@/types'
-import { Logo } from '@/components/Logo'
+import { BrandLogo } from '@/components/BrandLogo'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 import { cn } from '@/lib/utils'
 
@@ -135,7 +135,7 @@ export const Navbar: React.FC = () => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Brand */}
         <Link to="/" className="flex items-center group transition-transform hover:scale-[1.02]">
-          <Logo variant="horizontal" theme="light" size="sm" showTagline={false} />
+          <BrandLogo theme="light" size="sm" showTagline={false} />
         </Link>
 
         {/* Center navigation links */}

@@ -1,0 +1,106 @@
+/* ============================================================
+   TEMAS PRÉ-DEFINIDOS DO SISTEMA (escolhidos no painel admin)
+   Aplicados via atributo data-brand-theme no <html>.
+   Cada tema define --brand-primary / --brand-secondary e as
+   classes utilitárias de marca usadas por botões/links/cards.
+   ============================================================ */
+
+/* ---- PADRÃO: Azul Profundo (tokens default, sem atributo ou tema azul) ---- */
+:root,
+html[data-brand-theme='azul'] {
+  --brand-primary: #012d76;
+  --brand-secondary: #0283fd;
+  --brand-primary-hover: #012464;
+  --brand-secondary-hover: #0270d9;
+  --brand-soft: rgba(2, 131, 253, 0.12);
+}
+
+html[data-brand-theme='verde'] {
+  --brand-primary: #065f46;
+  --brand-secondary: #10b981;
+  --brand-primary-hover: #064e3b;
+  --brand-secondary-hover: #059669;
+  --brand-soft: rgba(16, 185, 129, 0.12);
+}
+
+html[data-brand-theme='roxo'] {
+  --brand-primary: #4c1d95;
+  --brand-secondary: #8b5cf6;
+  --brand-primary-hover: #5b21b6;
+  --brand-secondary-hover: #7c3aed;
+  --brand-soft: rgba(139, 92, 246, 0.12);
+}
+
+html[data-brand-theme='laranja'] {
+  --brand-primary: #c2410c;
+  --brand-secondary: #f97316;
+  --brand-primary-hover: #9a3412;
+  --brand-secondary-hover: #ea580c;
+  --brand-soft: rgba(249, 115, 22, 0.12);
+}
+
+html[data-brand-theme='vermelho'] {
+  --brand-primary: #991b1b;
+  --brand-secondary: #ef4444;
+  --brand-primary-hover: #7f1d1d;
+  --brand-secondary-hover: #dc2626;
+  --brand-soft: rgba(239, 68, 68, 0.12);
+}
+
+html[data-brand-theme='grafite'] {
+  --brand-primary: #1e293b;
+  --brand-secondary: #64748b;
+  --brand-primary-hover: #0f172a;
+  --brand-secondary-hover: #475569;
+  --brand-soft: rgba(100, 116, 139, 0.12);
+}
+
+/* ============================================================
+   Classes utilitárias de marca (variam conforme o tema ativo)
+   ============================================================ */
+
+.brand-primary-btn {
+  background-color: var(--brand-primary);
+  color: #fff;
+  font-weight: 700;
+  transition: background-color 0.2s ease;
+}
+.brand-primary-btn:hover {
+  background-color: var(--brand-primary-hover);
+}
+
+.brand-primary-bg {
+  background-color: var(--brand-primary);
+}
+.brand-secondary-bg {
+  background-color: var(--brand-secondary);
+}
+
+.brand-primary-text {
+  color: var(--brand-primary);
+}
+.brand-secondary-text {
+  color: var(--brand-secondary);
+}
+
+.brand-gradient {
+  background-image: linear-gradient(to right, var(--brand-primary), var(--brand-secondary));
+}
+.brand-gradient-text {
+  background-image: linear-gradient(to right, var(--brand-primary), var(--brand-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-ring {
+  --tw-ring-color: var(--brand-secondary);
+}
+
+.brand-soft-bg {
+  background-color: var(--brand-soft);
+}
+
+.brand-border {
+  border-color: var(--brand-primary);
+}

@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Logo } from '@/components/Logo'
+import { BrandLogo } from '@/components/BrandLogo'
 import pb from '@/lib/pocketbase/client'
 
 export default function Login() {
@@ -129,7 +129,7 @@ export default function Login() {
         {/* Brand header */}
         <div className="text-center space-y-3">
           <div className="flex justify-center">
-            <Logo variant="full" theme="light" size="lg" />
+            <BrandLogo theme="light" size="lg" />
           </div>
           <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1">
             Selecione seu perfil e faça login com seu e-mail e senha

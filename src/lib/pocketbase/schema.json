@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-10T11:09:39.647Z",
+  "generatedAt": "2026-11-11T11:35:06.926Z",
   "collections": [
     {
       "name": "users",
@@ -1413,6 +1413,47 @@
         "CREATE INDEX idx_store_gallery_photos_store ON store_gallery_photos (store)",
         "CREATE INDEX idx_store_gallery_photos_created ON store_gallery_photos (store, created)"
       ]
+    },
+    {
+      "name": "system_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "update": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "system_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "theme",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["azul", "verde", "roxo", "laranja", "vermelho", "grafite"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_system_settings_singleton ON system_settings (id)"]
     }
   ]
 }

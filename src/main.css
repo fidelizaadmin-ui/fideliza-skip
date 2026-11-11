@@ -7,6 +7,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Temas de marca pré-definidos (Configurações do admin) */
+@import './styles/temas.css';
+
 @layer base {
   :root {
     /* Identidade visual padrão Fideliza */
