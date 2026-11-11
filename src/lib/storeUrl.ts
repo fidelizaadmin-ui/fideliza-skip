@@ -1,17 +1,48 @@
 /**
- * Monta a URL pública individual da loja (/loja/:slug) a partir do domínio
+ * Monta a URL pública individual da loja (/:slug) a partir do domínio
  * em que o usuário está navegando no momento (window.location.origin).
  *
- * Assim, quando o app é acessado pela URL alternativa cadastrada no Alias
- * (domínio próprio), os links de divulgação exibidos/copiados no painel do
- * lojista usam esse mesmo domínio — nunca uma URL fixa do sistema.
+ * O link individual é o domínio seguido diretamente do slug escolhido pelo
+ * lojista (ex.: https://dominio/minha-loja). Assim, quando o app é acessado
+ * pela URL alternativa cadastrada no Alias (domínio próprio), os links de
+ * divulgação exibidos/copiados no painel do lojista usam esse mesmo domínio —
+ * nunca uma URL fixa do sistema.
  */
 export function getStorePublicUrl(slug?: string | null): string {
-  const safeSlug = (slug || '').trim() || 'loja'
+  const safeSlug = (slug || '').trim()
   if (typeof window === 'undefined') {
-    return `/loja/${safeSlug}`
+    return `/${safeSlug}`
   }
-  return `${window.location.origin}/loja/${safeSlug}`
+  return `${window.location.origin}/${safeSlug}`
+}
+
+/**
+ * Primeiros segmentos de caminho reservados às rotas fixas do sistema.
+ * Um lojista não pode escolher um slug igual a nenhum deles, senão a rota
+ * fixa (que tem precedência sobre a rota dinâmica /:slug) esconderia a loja.
+ */
+export const RESERVED_STORE_SLUGS = [
+  'loja',
+  'lojas',
+  'admin',
+  'lojista',
+  'cliente',
+  'login',
+  'cadastro',
+  'planos',
+  'como-funciona',
+  'pagamento-retorno',
+  'redefinir-senha',
+  'confirmar-email',
+  'portal',
+  'api',
+  'assets',
+] as const
+
+export function isReservedStoreSlug(slug: string): boolean {
+  return RESERVED_STORE_SLUGS.includes(
+    slug.trim().toLowerCase() as (typeof RESERVED_STORE_SLUGS)[number],
+  )
 }
 
 /**

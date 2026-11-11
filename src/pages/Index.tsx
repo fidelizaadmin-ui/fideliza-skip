@@ -111,9 +111,9 @@ export default function Index() {
   }
 
   const handleOpenStore = (store: StoreRecord) => {
-    // Navega diretamente para a página individual da loja (/loja/:slug)
+    // Navega diretamente para a página individual da loja (/:slug)
     const targetSlug = store.slug || store.id
-    navigate(`/loja/${targetSlug}`)
+    navigate(`/${targetSlug}`)
   }
 
   const handleToggleFidelity = async () => {

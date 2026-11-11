@@ -99,6 +99,31 @@ export function sanitizeStoreSlug(raw: string): string {
 }
 
 /**
+ * Segmentos reservados às rotas fixas do sistema — um slug de loja não pode
+ * colidir com eles, pois as rotas fixas têm precedência sobre a rota /:slug.
+ */
+export function isReservedStoreSlug(slug: string): boolean {
+  const RESERVED = [
+    'loja',
+    'lojas',
+    'admin',
+    'lojista',
+    'cliente',
+    'login',
+    'cadastro',
+    'planos',
+    'como-funciona',
+    'pagamento-retorno',
+    'redefinir-senha',
+    'confirmar-email',
+    'portal',
+    'api',
+    'assets',
+  ]
+  return RESERVED.includes((slug || '').trim().toLowerCase())
+}
+
+/**
  * Busca loja pelo slug (ou ID como fallback resiliente)
  */
 export async function getStoreBySlug(slugOrId: string): Promise<StoreRecord | null> {
@@ -136,6 +161,7 @@ export async function isStoreSlugAvailable(
 ): Promise<boolean> {
   const clean = sanitizeStoreSlug(slug)
   if (!clean || clean.length < 2) return false
+  if (isReservedStoreSlug(clean)) return false
   try {
     let filter = `slug = "${clean}"`
     if (excludeStoreId) {

@@ -2121,7 +2121,7 @@ export default function MerchantDashboard() {
                       <div className="flex items-center justify-between gap-2">
                         <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                           <Share2 className="w-3.5 h-3.5 text-indigo-600" />
-                          Personalizar Link Individual da Loja (/loja/seu-link)
+                          Personalizar Link Individual da Loja (/seu-link)
                         </Label>
                         <Button
                           type="button"
@@ -2137,7 +2137,7 @@ export default function MerchantDashboard() {
                       <div className="flex items-center gap-2">
                         <div className="flex-1 flex items-center bg-white rounded-xl border border-indigo-200 px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
                           <span className="text-xs font-mono text-slate-400 select-none">
-                            /loja/
+                            dominio.com/
                           </span>
                           <input
                             type="text"

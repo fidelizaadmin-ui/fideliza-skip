@@ -18,6 +18,7 @@ import ConfirmVerificationPage from './pages/ConfirmVerificationPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import PaymentReturnPage from './pages/PaymentReturnPage'
 import StorePage from './pages/StorePage'
+import { Navigate, useParams } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { SystemSettingsProvider } from './contexts/SystemSettingsContext'
 import { CompleteDocumentDialog } from './components/CompleteDocumentDialog'
@@ -25,6 +26,15 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
+
+/**
+ * Compatibilidade: endereços antigos no formato /loja/:slug continuam
+ * funcionando e redirecionam para o novo formato /:slug (sem "/loja").
+ */
+const LegacyStoreRedirect = () => {
+  const { slug } = useParams<{ slug: string }>()
+  return <Navigate to={`/${slug ?? ''}`} replace />
+}
 
 const App = () => (
   <BrowserRouter>
@@ -55,7 +65,11 @@ const App = () => (
               <Route path="/planos" element={<PlansPage />} />
               <Route path="/como-funciona" element={<HowItWorksPage />} />
               <Route path="/pagamento-retorno" element={<PaymentReturnPage />} />
-              <Route path="/loja/:slug" element={<StorePage />} />
+              {/* Compatibilidade com links antigos: /loja/slug → /slug */}
+              <Route path="/loja/:slug" element={<LegacyStoreRedirect />} />
+              {/* Rota dinâmica do link individual: vem por último para que
+                  as rotas fixas do sistema tenham precedência sobre /:slug */}
+              <Route path="/:slug" element={<StorePage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
