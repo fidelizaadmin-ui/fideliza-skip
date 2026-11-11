@@ -35,6 +35,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { getStorePublicUrl } from '@/lib/storeUrl'
 
 interface StoreGalleryManagerProps {
   store: StoreRecord | null
@@ -254,7 +255,9 @@ export const StoreGalleryManager: React.FC<StoreGalleryManagerProps> = ({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(`/loja/${store.slug}`, '_blank')}
+                  onClick={() =>
+                    window.open(getStorePublicUrl(store.slug), '_blank', 'noopener,noreferrer')
+                  }
                   className="rounded-xl text-xs font-semibold border-slate-300"
                 >
                   <ExternalLink className="w-3.5 h-3.5 mr-1.5 text-slate-600" />

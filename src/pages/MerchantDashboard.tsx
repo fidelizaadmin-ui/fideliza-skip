@@ -104,6 +104,7 @@ import { StoreGalleryManager } from '@/components/StoreGalleryManager'
 import { MerchantSidebar, type MerchantTabKey } from '@/components/MerchantSidebar'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { getStorePublicUrl, copyTextToClipboard } from '@/lib/storeUrl'
 import { formatCPF, formatCNPJ, cleanDocument } from '@/lib/documentValidation'
 import { formatWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 import { generateSalesReportPDF } from '@/lib/pdfReport'
@@ -370,21 +371,21 @@ export default function MerchantDashboard() {
     }
   }
 
-  const fullStorePublicUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/loja/${storeSlug || store?.slug || 'loja'}`
-      : `/loja/${storeSlug || store?.slug || 'loja'}`
+  // URL de divulgação montada dinamicamente a partir do domínio atual do
+  // navegador (window.location.origin) — assim, ao acessar o painel pela URL
+  // alternativa cadastrada no Alias, o link copiado usa esse mesmo domínio.
+  const fullStorePublicUrl = getStorePublicUrl(storeSlug || store?.slug)
 
   const handleCopyStoreLink = async () => {
-    try {
-      await navigator.clipboard.writeText(fullStorePublicUrl)
+    const ok = await copyTextToClipboard(fullStorePublicUrl)
+    if (ok) {
       setCopiedStoreLink(true)
       toast({
         title: 'Link copiado com sucesso!',
         description: 'Compartilhe com seus clientes via WhatsApp, redes sociais ou cartões.',
       })
       setTimeout(() => setCopiedStoreLink(false), 2500)
-    } catch {
+    } else {
       toast({
         title: 'Erro ao copiar',
         description: 'Copie manualmente o link destacado.',
