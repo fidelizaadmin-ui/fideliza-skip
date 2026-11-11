@@ -178,52 +178,55 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
   }
 
   return (
-    <Card className="rounded-3xl border border-slate-200/80 shadow-xs bg-linear-to-br from-white to-slate-50/60 overflow-hidden">
-      <CardHeader className="p-5 sm:p-6 border-b border-slate-100">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-700 shrink-0 mt-0.5">
-              <QrCode className="w-5 h-5" />
+    <>
+      {/* Card 1: Cobrança de Sinal por Pix (ativação + porcentagem) */}
+      <Card className="rounded-3xl border border-slate-200/80 shadow-xs bg-linear-to-br from-white to-slate-50/60 overflow-hidden">
+        <CardHeader className="p-5 sm:p-6 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-700 shrink-0 mt-0.5">
+                <QrCode className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base sm:text-lg font-black text-slate-900">
+                    Cobrança de Sinal por Pix
+                  </CardTitle>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    Novo
+                  </span>
+                </div>
+                <CardDescription className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Exija o pagamento antecipado de uma porcentagem do serviço para reservar o
+                  horário. O cliente paga via Pix copia e cola diretamente na sua conta e você
+                  confirma antes de validar a agenda.
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base sm:text-lg font-black text-slate-900">
-                  Cobrança de Sinal por Pix
-                </CardTitle>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  Novo
+
+            <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs shrink-0 self-start sm:self-center">
+              <div className="text-right">
+                <span className="block text-xs font-bold text-slate-800">
+                  {depositEnabled ? 'Sinal Ativado' : 'Sinal Desativado'}
+                </span>
+                <span className="block text-[11px] text-slate-500">
+                  {depositEnabled
+                    ? `${depositPercent}% no agendamento`
+                    : 'Agendamento sem pagamento'}
                 </span>
               </div>
-              <CardDescription className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Exija o pagamento antecipado de uma porcentagem do serviço para reservar o horário.
-                O cliente paga via Pix copia e cola diretamente na sua conta e você confirma antes
-                de validar a agenda.
-              </CardDescription>
+              <Switch
+                checked={depositEnabled}
+                disabled={isSaving || isLoading || isMerchantSuspended}
+                onCheckedChange={handleToggle}
+                className="data-[state=checked]:bg-emerald-600"
+              />
             </div>
           </div>
+        </CardHeader>
 
-          <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs shrink-0 self-start sm:self-center">
-            <div className="text-right">
-              <span className="block text-xs font-bold text-slate-800">
-                {depositEnabled ? 'Sinal Ativado' : 'Sinal Desativado'}
-              </span>
-              <span className="block text-[11px] text-slate-500">
-                {depositEnabled ? `${depositPercent}% no agendamento` : 'Agendamento sem pagamento'}
-              </span>
-            </div>
-            <Switch
-              checked={depositEnabled}
-              disabled={isSaving || isLoading || isMerchantSuspended}
-              onCheckedChange={handleToggle}
-              className="data-[state=checked]:bg-emerald-600"
-            />
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-5 sm:p-6 space-y-5">
-        {/* Bloco de Porcentagem */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="p-5 sm:p-6 space-y-5">
+          {/* Bloco de Porcentagem */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -276,70 +279,70 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
               </strong>
             </p>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Dados do Recebedor */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
-            <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-emerald-600" />
-              Nome e Cidade no Pix
-            </Label>
-            <p className="text-[11px] text-slate-500">
-              Aparecem para o cliente no comprovante de pagamento Pix oficial.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              <div>
-                <Label className="text-[10px] font-semibold text-slate-600">
-                  Nome do Recebedor
-                </Label>
-                <Input
-                  value={receiverName}
-                  maxLength={25}
-                  placeholder="Nome ou Loja"
-                  onChange={(e) => setReceiverName(e.target.value)}
-                  disabled={isSaving || isMerchantSuspended}
-                  className="rounded-xl h-9 text-xs"
-                />
+      {/* Card 2: Cadastrar PIX (Nome do Recebedor, Cidade, Tipo de Chave, Chave Pix + salvar) */}
+      <Card className="rounded-3xl border border-slate-200/80 shadow-xs bg-linear-to-br from-white to-slate-50/60 overflow-hidden">
+        <CardHeader className="p-5 sm:p-6 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-700 shrink-0 mt-0.5">
+                <KeyRound className="w-5 h-5" />
               </div>
               <div>
-                <Label className="text-[10px] font-semibold text-slate-600 flex items-center gap-1">
-                  <Building2 className="w-3 h-3" /> Cidade
-                </Label>
-                <Input
-                  value={receiverCity}
-                  maxLength={15}
-                  placeholder="SAO PAULO"
-                  onChange={(e) => setReceiverCity(e.target.value)}
-                  disabled={isSaving || isMerchantSuspended}
-                  className="rounded-xl h-9 text-xs uppercase"
-                />
+                <CardTitle className="text-base sm:text-lg font-black text-slate-900">
+                  Cadastrar PIX
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Cadastre a chave Pix de recebimento do lojista. O valor do sinal é pago
+                  diretamente na sua conta. A chave é protegida e nunca exibida por completo.
+                </CardDescription>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Cadastro da Chave Pix */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <Label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <KeyRound className="w-4 h-4 text-emerald-600" />
-                Chave Pix de Recebimento do Lojista
-              </Label>
-              <p className="text-[11px] text-slate-500">
-                O valor do sinal é pago diretamente na sua conta. A chave é protegida e nunca
-                exibida por completo.
-              </p>
             </div>
 
             {hasPixKey && (
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 self-start sm:self-auto">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 self-start sm:self-auto shrink-0">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 Chave ativa: <span className="font-mono">{pixKeyMasked || '••••••••'}</span>
               </div>
             )}
           </div>
+        </CardHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+        <CardContent className="p-5 sm:p-6 space-y-4">
+          {/* Nome do Recebedor + Cidade */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <Label className="text-[10px] font-semibold text-slate-600 flex items-center gap-1">
+                <UserCheck className="w-3 h-3 text-emerald-600" /> Nome do Recebedor
+              </Label>
+              <Input
+                value={receiverName}
+                maxLength={25}
+                placeholder="Nome ou Loja"
+                onChange={(e) => setReceiverName(e.target.value)}
+                disabled={isSaving || isMerchantSuspended}
+                className="rounded-xl h-10 text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold text-slate-600 flex items-center gap-1">
+                <Building2 className="w-3 h-3 text-emerald-600" /> Cidade
+              </Label>
+              <Input
+                value={receiverCity}
+                maxLength={15}
+                placeholder="SAO PAULO"
+                onChange={(e) => setReceiverCity(e.target.value)}
+                disabled={isSaving || isMerchantSuspended}
+                className="rounded-xl h-10 text-xs uppercase"
+              />
+            </div>
+          </div>
+
+          {/* Tipo de Chave + Digite a chave Pix */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div className="sm:col-span-1">
               <Label className="text-[10px] font-semibold text-slate-600">Tipo de Chave</Label>
               <Select
@@ -389,7 +392,8 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          {/* Rodapé: aviso + botão salvar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
             <div className="text-[11px] text-slate-500 leading-relaxed">
               {depositEnabled && !hasPixKey && !pixKey.trim() ? (
                 <span className="text-amber-600 font-semibold flex items-center gap-1">
@@ -414,8 +418,8 @@ export const AppointmentDepositConfigCard: React.FC<AppointmentDepositConfigCard
               {isSaving ? 'Salvando...' : 'Salvar Configurações de Sinal'}
             </Button>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </>
   )
 }
