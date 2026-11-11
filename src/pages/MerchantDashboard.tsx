@@ -97,6 +97,7 @@ import {
   getStoreImageUrl,
   sanitizeStoreSlug,
   isStoreSlugAvailable,
+  isReservedStoreSlug,
   generateUniqueStoreSlug,
 } from '@/services/fidelityService'
 import { AppointmentsManager } from '@/components/AppointmentsManager'
@@ -142,6 +143,7 @@ export default function MerchantDashboard() {
   const [storeSlug, setStoreSlug] = useState('')
   const [slugChecking, setSlugChecking] = useState(false)
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
+  const [slugReserved, setSlugReserved] = useState(false)
   const [slugError, setSlugError] = useState<string | null>(null)
   const [copiedStoreLink, setCopiedStoreLink] = useState(false)
   const [storeLogo, setStoreLogo] = useState('')
@@ -326,6 +328,7 @@ export default function MerchantDashboard() {
     const sanitized = sanitizeStoreSlug(val)
     setStoreSlug(sanitized)
     setSlugAvailable(null)
+    setSlugReserved(false)
     setSlugError(null)
   }
 
@@ -334,15 +337,25 @@ export default function MerchantDashboard() {
     if (!clean || clean.length < 2) {
       setSlugError('O link deve conter pelo menos 2 caracteres alfanuméricos.')
       setSlugAvailable(false)
+      setSlugReserved(false)
       return
     }
+    // Slug reservado do sistema (admin, login, cadastro, portal etc.) — nem
+    // consulta o banco, o resultado é imediato e não muda durante a verificação.
+    if (isReservedStoreSlug(clean)) {
+      setSlugReserved(true)
+      setSlugAvailable(false)
+      setSlugError('Este nome é reservado do sistema, escolha outro.')
+      return
+    }
+    setSlugReserved(false)
     setSlugChecking(true)
     setSlugError(null)
     try {
       const avail = await isStoreSlugAvailable(clean, store?.id)
       setSlugAvailable(avail)
       if (!avail) {
-        setSlugError('Este link já está em uso por outro estabelecimento. Escolha outro.')
+        setSlugError('Este link já está em uso por outra loja. Escolha outro.')
       }
     } catch {
       setSlugError('Não foi possível verificar a disponibilidade no momento.')
@@ -404,6 +417,13 @@ export default function MerchantDashboard() {
     if (!finalSlug) {
       finalSlug = await generateUniqueStoreSlug(storeName, store?.id)
       setStoreSlug(finalSlug)
+    } else if (isReservedStoreSlug(finalSlug)) {
+      toast({
+        title: 'Nome reservado do sistema',
+        description: 'Este nome é reservado do sistema, escolha outro para o link da loja.',
+        variant: 'destructive',
+      })
+      return
     } else {
       const isAvail = await isStoreSlugAvailable(finalSlug, store?.id)
       if (!isAvail) {
@@ -2153,26 +2173,34 @@ export default function MerchantDashboard() {
                           variant="outline"
                           size="sm"
                           onClick={handleVerifySlugAvailability}
-                          disabled={slugChecking || !storeSlug}
-                          className="text-xs h-9 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-100/60"
+                          disabled={slugChecking || !storeSlug || storeSlug === (store?.slug ?? '')}
+                          className="text-xs h-9 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-100/60 shrink-0 whitespace-nowrap"
                         >
                           {slugChecking ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                              Verificando...
+                            </>
                           ) : (
-                            'Verificar'
+                            'Verificar Disponibilidade'
                           )}
                         </Button>
                       </div>
-                      {slugError && (
+                      {slugError && !slugReserved && (
                         <p className="text-[11px] text-rose-600 flex items-center gap-1 font-medium">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          {slugError}
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />✗ {slugError}
                         </p>
                       )}
-                      {slugAvailable === true && !slugError && (
+                      {slugReserved && (
+                        <p className="text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />✗ Este nome é reservado do
+                          sistema, escolha outro
+                        </p>
+                      )}
+                      {slugAvailable === true && !slugError && !slugReserved && (
                         <p className="text-[11px] text-emerald-700 flex items-center gap-1 font-medium">
-                          <Check className="w-3.5 h-3.5 shrink-0" />
-                          Link disponível e pronto para uso!
+                          <Check className="w-3.5 h-3.5 shrink-0" />✓ Link disponível e pronto para
+                          uso!
                         </p>
                       )}
                       <p className="text-[10px] text-slate-500">
