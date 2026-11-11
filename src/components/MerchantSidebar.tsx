@@ -337,14 +337,7 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
               >
                 {activeItem.badge}
               </Badge>
-            ) : (
-              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-blue-100/90 bg-white/10 px-3 py-1 rounded-xl border border-white/15 shrink-0">
-                <span>Navegue pelo</span>
-                <span className="font-bold text-white bg-white/20 px-1.5 py-0.5 rounded text-[10px] tracking-wide">
-                  MENU
-                </span>
-              </div>
-            )}
+            ) : null}
           </div>
         )}
 
