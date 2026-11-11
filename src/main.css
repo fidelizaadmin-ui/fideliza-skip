@@ -3,12 +3,12 @@
 /* CHANGE THE FONT BELOW TO WHATEVER YOU WANT */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
 
+/* Temas de marca pré-definidos (Configurações do admin) */
+@import './styles/temas.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Temas de marca pré-definidos (Configurações do admin) */
-@import './styles/temas.css';
 
 @layer base {
   :root {

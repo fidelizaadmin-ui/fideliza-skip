@@ -89,9 +89,11 @@ import {
   FileText,
   User,
   Info,
+  Settings,
 } from 'lucide-react'
 import { formatPhoneNumber, formatDocumentWithLabel } from '@/lib/documentValidation'
 import { useToast } from '@/hooks/use-toast'
+import { SystemSettingsEditor } from '@/components/SystemSettingsEditor'
 
 export default function AdminDashboard() {
   const { user, role, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -102,7 +104,7 @@ export default function AdminDashboard() {
   const isAdmin = role === 'admin'
 
   const [activeTab, setActiveTab] = useState<
-    'stores' | 'plans' | 'credentials' | 'collaborators' | 'reports'
+    'stores' | 'plans' | 'credentials' | 'collaborators' | 'reports' | 'settings'
   >('stores')
   const [stores, setStores] = useState<StoreRecord[]>([])
   const [plans, setPlans] = useState<SubscriptionPlanRecord[]>([])
@@ -1235,6 +1237,13 @@ export default function AdminDashboard() {
                     shortLabel: 'Relatório',
                     icon: TrendingUp,
                   },
+                  {
+                    key: 'settings' as const,
+                    label: 'Configurações do Sistema',
+                    shortLabel: 'Configurações',
+                    icon: Settings,
+                    iconColor: 'text-slate-600',
+                  },
                 ]
               : []),
           ]}
@@ -1256,6 +1265,7 @@ export default function AdminDashboard() {
           {isAdmin && <TabsTrigger value="credentials">Credenciais & Pix</TabsTrigger>}
           {isAdmin && <TabsTrigger value="collaborators">Colaboradores</TabsTrigger>}
           {isAdmin && <TabsTrigger value="reports">Relatório Global de Vendas</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="settings">Configurações do Sistema</TabsTrigger>}
         </TabsList>
 
         {/* ======================================================== */}
@@ -3448,6 +3458,15 @@ export default function AdminDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ======================================================== */}
+      {/* TAB 6: CONFIGURAÇÕES DO SISTEMA (SOMENTE ADMIN)          */}
+      {/* ======================================================== */}
+      {isAdmin && (
+        <TabsContent value="settings" className="space-y-4">
+          <SystemSettingsEditor />
+        </TabsContent>
+      )}
     </div>
   )
 }

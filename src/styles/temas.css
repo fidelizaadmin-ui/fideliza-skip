@@ -1,62 +1,401 @@
 /* ============================================================
-   TEMAS PRÉ-DEFINIDOS DO SISTEMA (escolhidos no painel admin)
-   Aplicados via atributo data-brand-theme no <html>.
-   Cada tema define --brand-primary / --brand-secondary e as
-   classes utilitárias de marca usadas por botões/links/cards.
-   ============================================================ */
+   TEMAS PRÉ-DEFINIDOS DO SISTEMA (escolhidos em /admin → Configurações)
+   ------------------------------------------------------------
+   Cada tema define:
+   - --brand-* (hex): identidade visual usada por BrandLogo, botões
+     .brand-primary-btn e demais utilitários .brand-*;
+   - --primary / --ring / --primary-foreground (HSL): tokens shadcn,
+     para que componentes ui/ sigam o tema;
+   - remapeamento das escalas Tailwind blue-* / indigo-* (usadas como
+     cor de destaque em todo o app) para a paleta do tema, de modo que
+     a troca de tema fique visível em toda a interface.
+   O atributo data-brand-theme é aplicado no <html> por applyThemeToDocument().
+    ============================================================ */
 
-/* ---- PADRÃO: Azul Profundo (tokens default, sem atributo ou tema azul) ---- */
 :root,
-html[data-brand-theme='azul'] {
+[data-brand-theme='azul'] {
   --brand-primary: #012d76;
   --brand-secondary: #0283fd;
   --brand-primary-hover: #012464;
   --brand-secondary-hover: #0270d9;
   --brand-soft: rgba(2, 131, 253, 0.12);
+  --primary: 217 98% 24%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 210 98% 50%;
 }
 
-html[data-brand-theme='verde'] {
+[data-brand-theme='verde'] {
   --brand-primary: #065f46;
   --brand-secondary: #10b981;
   --brand-primary-hover: #064e3b;
   --brand-secondary-hover: #059669;
   --brand-soft: rgba(16, 185, 129, 0.12);
+  --primary: 165 94% 20%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 160 84% 39%;
 }
 
-html[data-brand-theme='roxo'] {
+[data-brand-theme='roxo'] {
   --brand-primary: #4c1d95;
   --brand-secondary: #8b5cf6;
   --brand-primary-hover: #5b21b6;
   --brand-secondary-hover: #7c3aed;
   --brand-soft: rgba(139, 92, 246, 0.12);
+  --primary: 263 67% 35%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 258 90% 66%;
 }
 
-html[data-brand-theme='laranja'] {
+[data-brand-theme='laranja'] {
   --brand-primary: #c2410c;
   --brand-secondary: #f97316;
   --brand-primary-hover: #9a3412;
   --brand-secondary-hover: #ea580c;
   --brand-soft: rgba(249, 115, 22, 0.12);
+  --primary: 21 90% 41%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 25 95% 53%;
 }
 
-html[data-brand-theme='vermelho'] {
+[data-brand-theme='vermelho'] {
   --brand-primary: #991b1b;
   --brand-secondary: #ef4444;
   --brand-primary-hover: #7f1d1d;
   --brand-secondary-hover: #dc2626;
   --brand-soft: rgba(239, 68, 68, 0.12);
+  --primary: 0 71% 35%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 0 84% 60%;
 }
 
-html[data-brand-theme='grafite'] {
+[data-theme='grafite'] {
   --brand-primary: #1e293b;
   --brand-secondary: #64748b;
   --brand-primary-hover: #0f172a;
   --brand-secondary-hover: #475569;
   --brand-soft: rgba(100, 116, 139, 0.12);
+  --primary: 215 28% 17%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 215 16% 47%;
 }
 
 /* ============================================================
-   Classes utilitárias de marca (variam conforme o tema ativo)
+   REMAPEAMENTO DAS ESCALAS DE DESTAQUE POR TEMA
+   As classes blue-* e indigo-* do Tailwind eram usadas como cor de
+   destaque institucional (azul Fideliza). Agora variam com o tema:
+   cada tom é dividido em 3 níveis (claro / médio / escuro).
+   ============================================================ */
+
+/* ---------- VERDE ---------- */
+[data-theme='verde'] {
+  --tw-blue-50: 240 253 250;
+  --tw-blue-100: 209 250 229;
+  --tw-blue-200: 167 243 208;
+  --tw-blue-300: 110 231 183;
+  --tw-blue-400: 52 211 153;
+  --tw-blue-500: 16 185 129;
+  --tw-blue-600: 5 150 105;
+  --tw-blue-700: 4 120 87;
+  --tw-blue-800: 6 95 70;
+  --tw-blue-900: 6 78 59;
+  --tw-blue-950: 2 44 34;
+  --tw-indigo-50: 236 253 245;
+  --tw-indigo-100: 209 250 229;
+  --tw-indigo-200: 167 243 208;
+  --tw-indigo-300: 110 231 183;
+  --tw-indigo-400: 52 211 153;
+  --tw-indigo-500: 16 185 129;
+  --tw-indigo-600: 5 150 105;
+  --tw-indigo-700: 4 120 87;
+  --tw-indigo-800: 6 95 70;
+  --tw-indigo-900: 6 78 59;
+  --tw-indigo-950: 2 44 34;
+}
+
+/* ---------- ROXO ---------- */
+[data-theme='roxo'] {
+  --tw-blue-50: 245 243 255;
+  --tw-blue-100: 237 233 254;
+  --tw-blue-200: 221 214 254;
+  --tw-blue-300: 196 181 253;
+  --tw-blue-400: 167 139 250;
+  --tw-blue-500: 139 92 246;
+  --tw-blue-600: 124 58 237;
+  --tw-blue-700: 109 40 217;
+  --tw-blue-800: 91 33 182;
+  --tw-blue-900: 76 29 149;
+  --tw-blue-950: 46 16 101;
+  --tw-indigo-50: 245 243 255;
+  --tw-indigo-100: 237 233 254;
+  --tw-indigo-200: 221 214 254;
+  --tw-indigo-300: 196 181 253;
+  --tw-indigo-400: 167 139 250;
+  --tw-indigo-500: 139 92 246;
+  --tw-indigo-600: 124 58 237;
+  --tw-indigo-700: 109 40 217;
+  --tw-indigo-800: 91 33 182;
+  --tw-indigo-900: 76 29 149;
+  --tw-indigo-950: 46 16 101;
+}
+
+/* ---------- LARANJA ---------- */
+[data-theme='laranja'] {
+  --tw-blue-50: 255 247 237;
+  --tw-blue-100: 255 237 213;
+  --tw-blue-200: 254 215 170;
+  --tw-blue-300: 253 186 116;
+  --tw-blue-400: 251 146 60;
+  --tw-blue-500: 249 115 22;
+  --tw-blue-600: 234 88 12;
+  --tw-blue-700: 194 65 12;
+  --tw-blue-800: 154 52 18;
+  --tw-blue-900: 124 45 18;
+  --tw-blue-950: 67 20 7;
+  --tw-indigo-50: 255 247 237;
+  --tw-indigo-100: 255 237 213;
+  --tw-indigo-200: 254 215 170;
+  --tw-indigo-300: 253 186 116;
+  --tw-indigo-400: 251 146 60;
+  --tw-indigo-500: 249 115 22;
+  --tw-indigo-600: 234 88 12;
+  --tw-indigo-700: 194 65 12;
+  --tw-indigo-800: 154 52 18;
+  --tw-indigo-900: 124 45 18;
+  --tw-indigo-950: 67 20 7;
+}
+
+/* ---------- VERMELHO ESCURO ---------- */
+[data-theme='vermelho'] {
+  --tw-blue-50: 254 242 242;
+  --tw-blue-100: 254 226 226;
+  --tw-blue-200: 254 202 202;
+  --tw-blue-300: 252 165 165;
+  --tw-blue-400: 248 113 113;
+  --tw-blue-500: 239 68 68;
+  --tw-blue-600: 220 38 38;
+  --tw-blue-700: 185 28 28;
+  --tw-blue-800: 153 27 27;
+  --tw-blue-900: 127 29 29;
+  --tw-blue-950: 69 10 10;
+  --tw-indigo-50: 254 242 242;
+  --tw-indigo-100: 254 226 226;
+  --tw-indigo-200: 254 202 202;
+  --tw-indigo-300: 252 165 165;
+  --tw-indigo-400: 248 113 113;
+  --tw-indigo-500: 239 68 68;
+  --tw-indigo-600: 220 38 38;
+  --tw-indigo-700: 185 28 28;
+  --tw-indigo-800: 153 27 27;
+  --tw-indigo-900: 127 29 29;
+  --tw-indigo-950: 69 10 10;
+}
+
+/* ---------- GRAFITE ---------- */
+[data-theme='grafite'] {
+  --tw-blue-50: 248 250 252;
+  --tw-blue-100: 241 245 249;
+  --tw-blue-200: 226 232 240;
+  --tw-blue-300: 203 213 225;
+  --tw-blue-400: 148 163 184;
+  --tw-blue-500: 100 116 139;
+  --tw-blue-600: 71 85 105;
+  --tw-blue-700: 51 65 85;
+  --tw-blue-800: 30 41 59;
+  --tw-blue-900: 15 23 42;
+  --tw-blue-950: 2 6 23;
+  --tw-indigo-50: 248 250 252;
+  --tw-indigo-100: 241 245 249;
+  --tw-indigo-200: 226 232 240;
+  --tw-indigo-300: 203 213 225;
+  --tw-indigo-400: 148 163 184;
+  --tw-indigo-500: 100 116 139;
+  --tw-indigo-600: 71 85 105;
+  --tw-indigo-700: 51 65 85;
+  --tw-indigo-800: 30 41 59;
+  --tw-indigo-900: 15 23 42;
+  --tw-indigo-950: 2 6 23;
+}
+
+/* ============================================================
+   APLICANDO O REMAPEAMENTO ÀS CLASSES DO TAILWIND
+   (as classes são geradas estaticamente pelo Tailwind; aqui
+   substituímos as cores fixas pelas variáveis do tema)
+   ============================================================ */
+[data-theme='verde'] .text-blue-500,
+[data-theme='roxo'] .text-blue-500,
+[data-theme='laranja'] .text-blue-500,
+[data-theme='vermelho'] .text-blue-500,
+[data-theme='grafite'] .text-blue-500 {
+  color: rgb(var(--tw-blue-500));
+}
+[data-theme='verde'] .text-blue-600,
+[data-theme='roxo'] .text-blue-600,
+[data-theme='laranja'] .text-blue-600,
+[data-theme='vermelho'] .text-blue-600,
+[data-theme='grafite'] .text-blue-600 {
+  color: rgb(var(--tw-blue-600));
+}
+[data-theme='verde'] .text-blue-700,
+[data-theme='roxo'] .text-blue-700,
+[data-theme='laranja'] .text-blue-700,
+[data-theme='vermelho'] .text-blue-700,
+[data-theme='grafite'] .text-blue-700 {
+  color: rgb(var(--tw-blue-700));
+}
+[data-theme='verde'] .text-blue-800,
+[data-theme='roxo'] .text-blue-800,
+[data-theme='laranja'] .text-blue-800,
+[data-theme='vermelho'] .text-blue-800,
+[data-theme='grafite'] .text-blue-800 {
+  color: rgb(var(--tw-blue-800));
+}
+[data-theme='verde'] .text-blue-900,
+[data-theme='roxo'] .text-blue-900,
+[data-theme='laranja'] .text-blue-900,
+[data-theme='vermelho'] .text-blue-900,
+[data-theme='grafite'] .text-blue-900 {
+  color: rgb(var(--tw-blue-900));
+}
+[data-theme='verde'] .text-indigo-600,
+[data-theme='roxo'] .text-indigo-600,
+[data-theme='laranja'] .text-indigo-600,
+[data-theme='vermelho'] .text-indigo-600,
+[data-theme='grafite'] .text-indigo-600 {
+  color: rgb(var(--tw-indigo-600));
+}
+[data-theme='verde'] .text-indigo-700,
+[data-theme='roxo'] .text-indigo-700,
+[data-theme='laranja'] .text-indigo-700,
+[data-theme='vermelho'] .text-indigo-700,
+[data-theme='grafite'] .text-indigo-700 {
+  color: rgb(var(--tw-indigo-700));
+}
+
+[data-theme='verde'] .bg-blue-50,
+[data-theme='roxo'] .bg-blue-50,
+[data-theme='laranja'] .bg-blue-50,
+[data-theme='vermelho'] .bg-blue-50,
+[data-theme='grafite'] .bg-blue-50 {
+  background-color: rgb(var(--tw-blue-50));
+}
+[data-theme='verde'] .bg-blue-100,
+[data-theme='roxo'] .bg-blue-100,
+[data-theme='laranja'] .bg-blue-100,
+[data-theme='vermelho'] .bg-blue-100,
+[data-theme='grafite'] .bg-blue-100 {
+  background-color: rgb(var(--tw-blue-100));
+}
+[data-theme='verde'] .bg-blue-500,
+[data-theme='roxo'] .bg-blue-500,
+[data-theme='laranja'] .bg-blue-500,
+[data-theme='vermelho'] .bg-blue-500,
+[data-theme='grafite'] .bg-blue-500 {
+  background-color: rgb(var(--tw-blue-500));
+}
+[data-theme='verde'] .bg-blue-600,
+[data-theme='roxo'] .bg-blue-600,
+[data-theme='laranja'] .bg-blue-600,
+[data-theme='vermelho'] .bg-blue-600,
+[data-theme='grafite'] .bg-blue-600 {
+  background-color: rgb(var(--tw-blue-600));
+}
+[data-theme='verde'] .bg-blue-700,
+[data-theme='roxo'] .bg-blue-700,
+[data-theme='laranja'] .bg-blue-700,
+[data-theme='vermelho'] .bg-blue-700,
+[data-theme='grafite'] .bg-blue-700 {
+  background-color: rgb(var(--tw-blue-700));
+}
+[data-theme='verde'] .bg-indigo-600,
+[data-theme='roxo'] .bg-indigo-600,
+[data-theme='laranja'] .bg-indigo-600,
+[data-theme='vermelho'] .bg-indigo-600,
+[data-theme='grafite'] .bg-indigo-600 {
+  background-color: rgb(var(--tw-indigo-600));
+}
+
+[data-theme='verde'] .border-blue-200,
+[data-theme='roxo'] .border-blue-200,
+[data-theme='laranja'] .border-blue-200,
+[data-theme='vermelho'] .border-blue-200,
+[data-theme='grafite'] .border-blue-200 {
+  border-color: rgb(var(--tw-blue-200));
+}
+[data-theme='verde'] .border-blue-300,
+[data-theme='roxo'] .border-blue-300,
+[data-theme='laranja'] .border-blue-300,
+[data-theme='vermelho'] .border-blue-300,
+[data-theme='grafite'] .border-blue-300 {
+  border-color: rgb(var(--tw-blue-300));
+}
+[data-theme='verde'] .border-indigo-200,
+[data-theme='roxo'] .border-indigo-200,
+[data-theme='laranja'] .border-indigo-200,
+[data-theme='vermelho'] .border-indigo-200,
+[data-theme='grafite'] .border-indigo-200 {
+  border-color: rgb(var(--tw-indigo-200));
+}
+
+[data-theme='verde'] .ring-blue-500,
+[data-theme='roxo'] .ring-blue-500,
+[data-theme='laranja'] .ring-blue-500,
+[data-theme='vermelho'] .ring-blue-500,
+[data-theme='grafite'] .ring-blue-500 {
+  --tw-ring-color: rgb(var(--tw-blue-500));
+}
+[data-theme='verde'] .ring-indigo-500,
+[data-theme='roxo'] .ring-indigo-500,
+[data-theme='laranja'] .ring-indigo-500,
+[data-theme='vermelho'] .ring-indigo-500,
+[data-theme='grafite'] .ring-indigo-500 {
+  --tw-ring-color: rgb(var(--tw-indigo-500));
+}
+
+[data-theme='verde'] .hover\:bg-blue-50:hover,
+[data-theme='roxo'] .hover\:bg-blue-50:hover,
+[data-theme='laranja'] .hover\:bg-blue-50:hover,
+[data-theme='vermelho'] .hover\:bg-blue-50:hover,
+[data-theme='grafite'] .hover\:bg-blue-50:hover {
+  background-color: rgb(var(--tw-blue-50));
+}
+[data-theme='verde'] .hover\:bg-blue-100:hover,
+[data-theme='roxo'] .hover\:bg-blue-100:hover,
+[data-theme='laranja'] .hover\:bg-blue-100:hover,
+[data-theme='vermelho'] .hover\:bg-blue-100:hover,
+[data-theme='grafite'] .hover\:bg-blue-100:hover {
+  background-color: rgb(var(--tw-blue-100));
+}
+[data-theme='verde'] .hover\:bg-blue-600:hover,
+[data-theme='roxo'] .hover\:bg-blue-600:hover,
+[data-theme='laranja'] .hover\:bg-blue-600:hover,
+[data-theme='vermelho'] .hover\:bg-blue-600:hover,
+[data-theme='grafite'] .hover\:bg-blue-600:hover {
+  background-color: rgb(var(--tw-blue-600));
+}
+[data-theme='verde'] .hover\:bg-blue-700:hover,
+[data-theme='roxo'] .hover\:bg-blue-700:hover,
+[data-theme='laranja'] .hover\:bg-blue-700:hover,
+[data-theme='vermelho'] .hover\:bg-blue-700:hover,
+[data-theme='grafite'] .hover\:bg-blue-700:hover {
+  background-color: rgb(var(--tw-blue-700));
+}
+[data-theme='verde'] .hover\:text-blue-600:hover,
+[data-theme='roxo'] .hover\:text-blue-600:hover,
+[data-theme='laranja'] .hover\:text-blue-600:hover,
+[data-theme='vermelho'] .hover\:text-blue-600:hover,
+[data-theme='grafite'] .hover\:text-blue-600:hover {
+  color: rgb(var(--tw-blue-600));
+}
+[data-theme='verde'] .hover\:text-blue-700:hover,
+[data-theme='roxo'] .hover\:text-blue-700:hover,
+[data-theme='laranja'] .hover\:text-blue-700:hover,
+[data-theme='vermelho'] .hover\:text-blue-700:hover,
+[data-theme='grafite'] .hover\:text-blue-700:hover {
+  color: rgb(var(--tw-blue-700));
+}
+
+/* ============================================================
+   CLASSES UTILITÁRIAS DE MARCA
    ============================================================ */
 
 .brand-primary-btn {
