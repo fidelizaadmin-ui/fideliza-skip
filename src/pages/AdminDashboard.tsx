@@ -440,7 +440,7 @@ export default function AdminDashboard() {
   const handleApproveSubscriptionPayment = async () => {
     if (!storeToEditSub) return
     const plan = plans.find((p) => p.id === (subPlanChoice || storeToEditSub.subscription_plan_id))
-    const intervalMonths = plan?.billing_interval_months || 1
+    const intervalMonths = Number(plan?.billing_interval_months) || 1
     const nextExpiry = calculateNextExpiry(storeToEditSub.subscription_expires_at, intervalMonths)
 
     try {
@@ -1623,7 +1623,7 @@ export default function AdminDashboard() {
                   <CardHeader className="p-6 bg-slate-50/80 border-b border-slate-100">
                     <div className="flex items-center justify-between mb-1">
                       <Badge className="bg-purple-100 text-purple-800 border-purple-200 font-bold uppercase text-[10px]">
-                        {p.slug}
+                        {p.slug || '—'}
                       </Badge>
                       <Button
                         variant="ghost"
@@ -1635,10 +1635,15 @@ export default function AdminDashboard() {
                       </Button>
                     </div>
 
-                    <CardTitle className="text-xl font-black text-slate-900">{p.name}</CardTitle>
+                    <CardTitle className="text-xl font-black text-slate-900">
+                      {p.name || 'Plano sem nome'}
+                    </CardTitle>
                     <div className="mt-2">
                       <span className="text-3xl font-black text-slate-900">
-                        R$ {Number(p.price).toFixed(2).replace('.', ',')}
+                        R${' '}
+                        {Number(p.price ?? 0)
+                          .toFixed(2)
+                          .replace('.', ',')}
                       </span>
                       <span className="text-xs text-slate-500 ml-1">
                         /{' '}
@@ -1650,7 +1655,7 @@ export default function AdminDashboard() {
 
                     <div className="mt-3 flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 font-bold">
                       <Clock className="w-3.5 h-3.5 shrink-0" />
-                      <span>{p.trial_days} dias de teste grátis</span>
+                      <span>{p.trial_days ?? 0} dias de teste grátis</span>
                     </div>
                   </CardHeader>
 
@@ -1778,11 +1783,11 @@ export default function AdminDashboard() {
                         <td className="py-3.5 px-4 font-bold text-slate-900">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center font-black text-xs">
-                              {cred.provider.charAt(0).toUpperCase()}
+                              {cred.provider?.charAt(0)?.toUpperCase() || '?'}
                             </div>
                             <div>
                               <p className="font-extrabold text-slate-900">{cred.provider}</p>
-                              {cred.provider.toLowerCase().includes('infinitepay') && (
+                              {(cred.provider || '').toLowerCase().includes('infinitepay') && (
                                 <span className="text-[10px] text-emerald-600 font-semibold">
                                   Integração ativa no checkout
                                 </span>
@@ -3349,7 +3354,7 @@ export default function AdminDashboard() {
                 <SelectContent>
                   {plans.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} - R$ {Number(p.price).toFixed(2)}
+                      {p.name || 'Plano sem nome'} - R$ {Number(p.price ?? 0).toFixed(2)}
                     </SelectItem>
                   ))}
                 </SelectContent>

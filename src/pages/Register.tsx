@@ -109,10 +109,19 @@ export default function Register() {
       }
     } catch (err: any) {
       console.error('Registration error:', err)
+      const raw = err?.data?.data?.email?.message || err?.message || ''
+      // Erro técnico de unicidade do PocketBase ("Value must be unique.") vira mensagem clara.
+      const isUnique =
+        /unique/i.test(raw) ||
+        err?.status === 400 ||
+        err?.response?.status === 400 ||
+        JSON.stringify(err?.response?.data || err?.data?.data || {})
+          .toLowerCase()
+          .includes('unique')
       setErrorMsg(
-        err?.data?.data?.email?.message ||
-          err?.message ||
-          'Não foi possível criar sua conta. Verifique se o e-mail já não está cadastrado.',
+        isUnique
+          ? 'Este e-mail já está cadastrado. Faça login ou use outro e-mail.'
+          : raw || 'Não foi possível criar sua conta. Verifique os dados e tente novamente.',
       )
     } finally {
       setIsLoading(false)

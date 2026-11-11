@@ -132,16 +132,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email.trim()
 
     // 1. Create user
-    await pb.collection('users').create({
-      email: cleanEmail,
-      password,
-      passwordConfirm: password,
-      name: name.trim(),
-      role,
-      customer_code: customerCode,
-      phone: phone?.trim(),
-      document: document?.trim(),
-    })
+    try {
+      await pb.collection('users').create({
+        email: cleanEmail,
+        password,
+        passwordConfirm: password,
+        name: name.trim(),
+        role,
+        customer_code: customerCode,
+        phone: phone?.trim(),
+        document: document?.trim(),
+      })
+    } catch (createErr: any) {
+      // Erro 400 de unicidade (e-mail já cadastrado): mensagem clara em vez do erro técnico
+      // "Value must be unique." do PocketBase.
+      const status = createErr?.response?.status
+      const payload = JSON.stringify(createErr?.response?.data || {}).toLowerCase()
+      const isUniqueError =
+        status === 400 &&
+        (payload.includes('unique') || payload.includes('"email"') || payload.includes('valid'))
+      if (isUniqueError) {
+        throw new Error('Este e-mail já está cadastrado. Faça login ou use outro e-mail.')
+      }
+      throw createErr
+    }
 
     // 2. Disparar e-mail de verificação via Gmail do owner (endpoint customizado ou fallback nativo)
     let verificationSent = false
