@@ -11,6 +11,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { useNavbarMenuSlot } from '@/hooks/use-navbar-menu-slot'
+import { NavbarSlotPortal } from '@/components/NavbarSlotPortal'
 
 /**
  * Ícone com 3 traços horizontais ("---"), hambúrguer clássico com 3 linhas.
@@ -61,6 +63,7 @@ export interface CollapsibleSidebarProps<T extends string = string> {
   className?: string
   scrollTargetId?: string
   showCurrentSectionBar?: boolean
+  /** @deprecated O botão fixo fora da barra superior foi removido — o MENU agora vive na navbar */
   showFixedTriggerButton?: boolean
 }
 
@@ -83,6 +86,9 @@ export function CollapsibleSidebar<T extends string = string>({
 }: CollapsibleSidebarProps<T>) {
   const [open, setOpen] = React.useState(false)
 
+  // Slot do botão MENU na barra superior (Navbar), ao lado do ícone do usuário
+  const { slotEl, missing } = useNavbarMenuSlot()
+
   const activeItem = items.find((i) => i.key === activeKey) || items[0]
 
   const handleSelect = (key: T, disabled?: boolean) => {
@@ -103,25 +109,23 @@ export function CollapsibleSidebar<T extends string = string>({
   return (
     <div className={cn('w-full', className)}>
       <Sheet open={open} onOpenChange={setOpen}>
-        {/* BOTÃO MENU NA BARRA SUPERIOR DO PAINEL (LINHA DO TOPO, À ESQUERDA — MESMA ALTURA DO ÍCONE DO USUÁRIO NA NAVBAR) */}
-        {showFixedTriggerButton && (
-          <div className="flex items-center justify-start mb-3">
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 px-3.5 gap-2 rounded-xl bg-white/95 backdrop-blur-md border-slate-300 shadow-md hover:shadow-lg font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
-                aria-label={triggerButtonText}
-              >
-                <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
-                <span>{triggerButtonText}</span>
-              </Button>
-            </SheetTrigger>
-          </div>
-        )}
+        {/* BOTÃO MENU: renderizado dentro da barra superior (Navbar), à esquerda do usuário */}
+        <NavbarSlotPortal slotEl={slotEl} missing={missing}>
+          <SheetTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 px-3 gap-2 rounded-xl bg-white border-slate-300 shadow-sm font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-slate-50 active:scale-95 transition-all"
+              aria-label={triggerButtonText}
+            >
+              <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
+              <span>{triggerButtonText}</span>
+            </Button>
+          </SheetTrigger>
+        </NavbarSlotPortal>
 
-        {/* Barra de Seção Atual (azul da marca, sem botão MENU: o toggle fica só no botão fixo do topo) */}
+        {/* Barra de Seção Atual (azul da marca, sem botão MENU: o toggle fica só na navbar) */}
         {showCurrentSectionBar && (
           <div className="bg-gradient-to-r from-[#012D76] via-[#01358a] to-[#012D76] border border-[#0283FD]/40 rounded-2xl p-3 sm:p-3.5 shadow-md shadow-[#012D76]/20 flex items-center justify-between gap-3 text-white">
             <div className="flex items-center gap-3 min-w-0">

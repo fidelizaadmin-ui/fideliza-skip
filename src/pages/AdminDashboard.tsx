@@ -1585,11 +1585,25 @@ export default function AdminDashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((p) => {
-              const features = Array.isArray(p.features)
-                ? p.features
-                : typeof p.features === 'string' && p.features.startsWith('[')
-                  ? JSON.parse(p.features)
-                  : []
+              // JSON.parse protegido: features malformado não pode derrubar o painel /admin
+              let features: string[] = []
+              if (Array.isArray(p.features)) {
+                features = p.features as string[]
+              } else if (typeof p.features === 'string' && p.features.trim().startsWith('[')) {
+                try {
+                  const parsed = JSON.parse(p.features as string)
+                  if (Array.isArray(parsed)) {
+                    features = parsed.filter((f): f is string => typeof f === 'string')
+                  }
+                } catch {
+                  console.warn('features de plano com JSON inválido, ignorando:', p.slug)
+                }
+              } else if (typeof p.features === 'string' && p.features.trim() !== '') {
+                features = (p.features as string)
+                  .split('\n')
+                  .map((f) => f.trim())
+                  .filter(Boolean)
+              }
 
               return (
                 <Card

@@ -156,6 +156,8 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center gap-2 sm:gap-3">
           {isAuthenticated && user ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Slot do botão MENU do painel (admin/lojista/cliente portalizam aqui) */}
+              <div id="navbar-menu-slot" className="flex items-center" />
               {/* Sino de Notificações para todos os usuários logados */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

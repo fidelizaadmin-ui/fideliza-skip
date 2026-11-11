@@ -23,6 +23,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { useNavbarMenuSlot } from '@/hooks/use-navbar-menu-slot'
+import { NavbarSlotPortal } from '@/components/NavbarSlotPortal'
 
 export type MerchantTabKey =
   | 'pos'
@@ -58,6 +60,7 @@ interface MerchantSidebarProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   showTriggerBar?: boolean
+  /** @deprecated O botão fixo fora da barra superior foi removido — o MENU agora vive na navbar */
   showFixedTriggerButton?: boolean
 }
 
@@ -193,6 +196,9 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
     }
   }
 
+  // Slot do botão MENU na barra superior (Navbar), ao lado do ícone do usuário
+  const { slotEl, missing } = useNavbarMenuSlot()
+
   const items = React.useMemo(
     () =>
       buildMerchantNavItems({
@@ -293,23 +299,21 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
   return (
     <div className={cn('w-full', className)}>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        {/* BOTÃO FIXO NA LATERAL SUPERIOR ESQUERDA DA TELA (SEMPRE VISÍVEL NO TOPO, ACIMA DE QUALQUER CONTEÚDO E DO CABEÇALHO) */}
-        {showFixedTriggerButton && (
-          <div className="fixed top-20 left-4 z-50 pointer-events-auto">
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 px-3.5 gap-2 rounded-xl bg-white/95 backdrop-blur-md border-slate-300 shadow-md hover:shadow-lg font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
-                aria-label="MENU"
-              >
-                <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
-                <span>MENU</span>
-              </Button>
-            </SheetTrigger>
-          </div>
-        )}
+        {/* BOTÃO MENU: renderizado dentro da barra superior (Navbar), à esquerda do usuário */}
+        <NavbarSlotPortal slotEl={slotEl} missing={missing}>
+          <SheetTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 px-3 gap-2 rounded-xl bg-white border-slate-300 shadow-sm font-bold text-xs text-slate-800 hover:text-slate-950 hover:bg-slate-50 active:scale-95 transition-all"
+              aria-label="Abrir menu"
+            >
+              <ThreeLinesMenuIcon className="w-4 h-4 text-slate-800 shrink-0" />
+              <span>MENU</span>
+            </Button>
+          </SheetTrigger>
+        </NavbarSlotPortal>
 
         {showTriggerBar && (
           <div className="bg-gradient-to-r from-[#012D76] via-[#01358a] to-[#012D76] border border-[#0283FD]/40 rounded-2xl p-3 sm:p-3.5 shadow-md shadow-[#012D76]/20 flex items-center justify-between gap-3 text-white">
