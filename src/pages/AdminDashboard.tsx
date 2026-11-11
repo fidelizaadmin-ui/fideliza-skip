@@ -2303,6 +2303,17 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
         )}
+
+        {/* ======================================================== */}
+        {/* TAB 6: CONFIGURAÇÕES DO SISTEMA (SOMENTE ADMIN)          */}
+        {/* ======================================================== */}
+        {isAdmin && (
+          <TabsContent value="settings" className="space-y-4">
+            <ErrorBoundary title="Erro ao carregar as Configurações" compact>
+              <SystemSettingsEditor />
+            </ErrorBoundary>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* MODAL: EDIT/CREATE SUBSCRIPTION PLAN */}
@@ -3459,17 +3470,6 @@ export default function AdminDashboard() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* ======================================================== */}
-      {/* TAB 6: CONFIGURAÇÕES DO SISTEMA (SOMENTE ADMIN)          */}
-      {/* ======================================================== */}
-      {isAdmin && (
-        <TabsContent value="settings" className="space-y-4">
-          <ErrorBoundary title="Erro ao carregar as Configurações" compact>
-            <SystemSettingsEditor />
-          </ErrorBoundary>
-        </TabsContent>
-      )}
     </div>
   )
 }
