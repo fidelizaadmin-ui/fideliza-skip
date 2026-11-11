@@ -92,6 +92,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { formatPhoneNumber, formatDocumentWithLabel } from '@/lib/documentValidation'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { useToast } from '@/hooks/use-toast'
 import { SystemSettingsEditor } from '@/components/SystemSettingsEditor'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -351,7 +352,8 @@ export default function AdminDashboard() {
 
   // DELETE STORE HANDLER
   const handleDeleteStore = async () => {
-    if (!storeToDelete) return
+    const target = storeToDelete
+    if (!target) return
     if (!isAdmin) {
       toast({
         title: 'Acesso negado',
@@ -363,21 +365,27 @@ export default function AdminDashboard() {
     }
     setIsDeletingStore(true)
     try {
-      await pb.collection('stores').delete(storeToDelete.id)
-      setStores((prev) => prev.filter((s) => s.id !== storeToDelete.id))
+      await pb.collection('stores').delete(target.id)
+      setStores((prev) => prev.filter((s) => s.id !== target.id))
       toast({
         title: 'Loja excluída permanentemente',
-        description: `A loja "${storeToDelete.name}" foi removida do sistema. O lojista deverá solicitar um novo acesso ou cadastrar uma nova loja.`,
+        description: `A loja "${target.name || 'sem nome'}" foi removida do sistema. O lojista deverá solicitar um novo acesso ou cadastrar uma nova loja.`,
       })
       setStoreToDelete(null)
     } catch (err: any) {
       console.error('Error deleting store:', err)
+      // Erro tratado com toast: NUNCA derrubar a tela /admin para o ErrorBoundary.
+      // setStoreToDelete fica no finally: o modal fecha mesmo se o toast lançar.
       toast({
         title: 'Erro ao excluir loja',
-        description: err.message || 'Não foi possível excluir a loja.',
+        description:
+          getErrorMessage(err) ||
+          err?.message ||
+          'Não foi possível excluir a loja. Verifique se há registros vinculados e tente novamente.',
         variant: 'destructive',
       })
     } finally {
+      setStoreToDelete(null)
       setIsDeletingStore(false)
     }
   }
@@ -936,7 +944,7 @@ export default function AdminDashboard() {
     const matchesSearch =
       s.name?.toLowerCase().includes(term) ||
       s.category?.toLowerCase().includes(term) ||
-      (s.address && s.address.toLowerCase().includes(term)) ||
+      (s.address && s.address?.toLowerCase().includes(term)) ||
       ownerName.includes(term) ||
       ownerEmail.includes(term) ||
       ownerPhone.includes(term) ||
@@ -1334,16 +1342,18 @@ export default function AdminDashboard() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              st.name.charAt(0)
+                              st.name?.charAt(0) || '?'
                             )}
                           </div>
                           <div>
-                            <p className="font-extrabold text-sm text-slate-900">{st.name}</p>
+                            <p className="font-extrabold text-sm text-slate-900">
+                              {st.name || '(Loja sem nome)'}
+                            </p>
                             <Badge
                               variant="outline"
                               className="text-[10px] py-0 px-1.5 font-semibold"
                             >
-                              {st.category}
+                              {st.category || '—'}
                             </Badge>
                           </div>
                         </div>
@@ -2450,10 +2460,10 @@ export default function AdminDashboard() {
               Excluir Loja Permanentemente?
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 leading-relaxed">
-              Você está prestes a excluir a loja <strong>"{storeToDelete?.name}"</strong>. Esta ação
-              é irreversível: a loja será removida imediatamente do portal público e a conta do
-              lojista ficará sem loja vinculada, obrigando-o a solicitar um novo acesso ou cadastrar
-              uma nova loja.
+              Você está prestes a excluir a loja{' '}
+              <strong>"{storeToDelete?.name || 'sem nome'}"</strong>. Esta ação é irreversível: a
+              loja será removida imediatamente do portal público e a conta do lojista ficará sem
+              loja vinculada, obrigando-o a solicitar um novo acesso ou cadastrar uma nova loja.
             </DialogDescription>
           </DialogHeader>
 
