@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useSystemSettings } from '@/contexts/SystemSettingsContext'
 import { Button } from '@/components/ui/button'
@@ -27,13 +27,16 @@ export const SystemBrandImagesCard: React.FC<{ recordId: string | null }> = ({ r
   })
   const [busy, setBusy] = useState<ImageKind | null>(null)
 
-  // Libera as URLs temporárias de pré-visualização
+  // Guarda as pré-visualizações atuais para liberá-las só ao desmontar
+  const previewsRef = useRef(previews)
+  previewsRef.current = previews
+
   useEffect(() => {
     return () => {
-      if (previews.logo) URL.revokeObjectURL(previews.logo)
-      if (previews.icon) URL.revokeObjectURL(previews.icon)
+      if (previewsRef.current.logo) URL.revokeObjectURL(previewsRef.current.logo)
+      if (previewsRef.current.icon) URL.revokeObjectURL(previewsRef.current.icon)
     }
-  }, [previews])
+  }, [])
 
   const handlePick = (kind: ImageKind, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
