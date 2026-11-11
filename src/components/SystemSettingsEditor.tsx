@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { SystemBrandImagesCard } from '@/components/SystemBrandImagesCard'
 import { Loader2, Save, Palette, Type, CheckCircle2 } from 'lucide-react'
 
 interface SystemSettingsRecord {
@@ -178,6 +179,9 @@ export const SystemSettingsEditor: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* LOGO E ÍCONE */}
+      <SystemBrandImagesCard recordId={recordId} />
 
       {/* TEMA / CORES */}
       <Card className="rounded-3xl border-slate-200">
